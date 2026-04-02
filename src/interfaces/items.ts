@@ -1,0 +1,47 @@
+export interface IItem {
+    id: string,
+    handle: string,
+    item_name: string,
+    description: string,
+    reference_id: string,
+    category_id: string | null,
+    track_stock: boolean,
+    sold_by_weight: boolean,
+    is_composite: boolean,
+    use_production: boolean,
+    components: { variant_id: string, quantity: number }[],
+    primary_supplier_id: string,
+    tax_ids: string[],
+    modifiers_ids: string[],
+    form: string,
+    color: string,
+    image_url: string,
+    option1_name: string,
+    option2_name: string,
+    option3_name: string | null,
+    created_at: string,
+    updated_at: string,
+    deleted_at: string,
+    variants: IItemVariant[],
+    cant?: number
+};
+
+
+interface IItemVariant {
+    variant_id: string,
+    item_id: string,
+    sku: string,
+    reference_variant_id: string,
+    option1_value: string,
+    option2_value: string,
+    option3_value: string | null,
+    barcode: string,
+    cost: number,
+    purchase_cost: number,
+    default_pricing_type: string,
+    default_price: number | null,
+    stores: string[],
+    created_at: string,
+    updated_at: string,
+    deleted_at: string
+}

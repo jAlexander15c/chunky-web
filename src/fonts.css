@@ -1,0 +1,14 @@
+@font-face {
+  font-family: 'Guadalimar';
+  src: url('./assets/fonts/guadalimar-8omxm.otf');
+}
+
+@font-face {
+  font-family: 'Montserrat Italic';
+  src: url('./assets/fonts/Montserrat-Italic-VariableFont_wght.ttf');
+}
+
+@font-face {
+  font-family: 'Montserrat Regular';
+  src: url('./assets/fonts/Montserrat-VariableFont_wght.ttf');
+}
