@@ -9,7 +9,7 @@ export class HttpError extends Error {
 }
 
 //const API_BASE = "https://api.ischunkybites.com" as string;
-const API_BASE = "https://dt3pclyt96.execute-api.us-east-2.amazonaws.com" as string;
+const API_BASE = "https://kvrs5u1t83.execute-api.us-east-2.amazonaws.com/" as string;
 
 if (!API_BASE) {
     throw new Error("VITE_API_BASE_URL is not defined");
