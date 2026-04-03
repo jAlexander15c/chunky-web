@@ -70,7 +70,7 @@ export const Cart = ({ items, open, setOpen, setCartItems }: ICart) => {
             <Portal>
                 <Dialog.Backdrop backdropFilter={"blur(5px)"} background={"rgba(0, 0, 0, 0.50)"} />
                 <Dialog.Positioner>
-                    <Dialog.Content borderRadius={"2rem"}>
+                    <Dialog.Content borderRadius={"2rem"} background={"#000000"}>
                         <Dialog.Header>
                             <Dialog.Title>Carrito</Dialog.Title>
                             <Dialog.CloseTrigger asChild>
