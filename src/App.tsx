@@ -4,8 +4,10 @@ import { Items, Menu/* , Mantenimiento */ } from "@/views";
 import './App.css'
 import './fonts.css'
 import { useState } from "react";
+import { useWwwRedirect } from "@/hooks/useWwwRedirect";
 
 function App() {
+  useWwwRedirect();
   const [cartItems, setCartItems] = useState<Array<any>>([]);
 
   return (
