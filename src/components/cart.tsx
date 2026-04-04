@@ -151,7 +151,14 @@ export const Cart = ({ items, open, setOpen, setCartItems }: ICart) => {
                                             marginTop: "0.5rem"
                                         }}
                                         onClick={() => {
-                                            openWhatsApp(`¡Hola! Me gustaría realizar el siguiente pedido:\n\n${items.map(item => `- ${item.item_name} x${getItemQuantity(item.id)}`).join("\n")}\n\nTotal: $${(items.reduce((sum, item) => sum + (item.variants[0].default_price ? item.variants[0].default_price : 0), 0)).toFixed(2)}`);
+                                            const groupedItems = items.reduce((acc, item) => {
+                                                if (!acc[item.id]) {
+                                                    acc[item.id] = { ...item, quantity: 0 };
+                                                }
+                                                acc[item.id].quantity += 1;
+                                                return acc;
+                                            }, {} as Record<string, IItem & { quantity: number }>);
+                                            openWhatsApp(`¡Hola! Me gustaría realizar el siguiente pedido:\n\n${Object.values(groupedItems).map(item => `- ${item.item_name} x${item.quantity}`).join("\n")}\n\nTotal: $${(items.reduce((sum, item) => sum + (item.variants[0].default_price ? item.variants[0].default_price : 0), 0)).toFixed(2)}`);
                                         }}
                                     >
                                         Realizar Pedido
