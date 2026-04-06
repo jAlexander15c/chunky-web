@@ -23,7 +23,7 @@ const CATEGORY_PRESENTATION: Record<string, { image: string; description: string
     },
     PURPLE: {
         image: "cDesayuno.jpeg",
-        description: "Sabores especiales para comenzar la manana",
+        description: "Sabores especiales para comenzar la mañana",
     },
     DEFAULT: {
         image: "cPostre.jpeg",
