@@ -105,7 +105,11 @@ export async function fetchItemsByCategoryCached(categoryId: string) {
     if (!request) {
         request = getItems({ categoryId })
             .then((response: any) => {
-                const nextItems = response.items as IItem[];
+                // `getItems` may return either an array of items or an object with `items`.
+                const nextItems: IItem[] = Array.isArray(response)
+                    ? response
+                    : (response?.items ?? []);
+
                 itemsCache.set(categoryId, nextItems);
                 writeSessionValue(`${ITEMS_CACHE_PREFIX}${categoryId}`, nextItems);
                 return nextItems;
