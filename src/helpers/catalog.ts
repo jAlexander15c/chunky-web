@@ -87,11 +87,15 @@ function readCachedItems(categoryId: string) {
 
     const sessionValue = readSessionValue<IItem[]>(`${ITEMS_CACHE_PREFIX}${categoryId}`);
 
-    if (sessionValue) {
+    // If session storage has an array with items, use it. If it's an empty
+    // array (likely from a previous failed fetch), ignore it so we attempt
+    // a fresh fetch from the API.
+    if (Array.isArray(sessionValue) && sessionValue.length > 0) {
         itemsCache.set(categoryId, sessionValue);
+        return sessionValue;
     }
 
-    return sessionValue;
+    return undefined;
 }
 
 export async function fetchItemsByCategoryCached(categoryId: string) {
