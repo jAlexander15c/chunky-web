@@ -1,13 +1,12 @@
-import icon from "@/assets/logos/icon.png";
+import icon from "@/assets/logos/iconError.jpeg";
 
 export const Mantenimiento = () => {
-
-
     return (
         <div className="mantenimiento">
-            <img src={icon} alt="Icono de error" />
-            <h1>En mantenimiento</h1>
-            <p>Estamos trabajando para mejorar nuestro sitio. Por favor, vuelva más tarde.</p>
+            <img src={icon} alt="Icono de mantenimiento" />
+            <h1>Estamos en mantenimiento</h1>
+            <p>Lo sentimos, el sitio está temporalmente fuera de servicio mientras realizamos mejoras.</p>
+            <p>Por favor vuelve más tarde.</p>
         </div>
     )
 }
