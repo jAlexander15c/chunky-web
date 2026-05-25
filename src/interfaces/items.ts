@@ -40,7 +40,7 @@ interface IItemVariant {
     purchase_cost: number,
     default_pricing_type: string,
     default_price: number | null,
-    stores: string[],
+    stores: any[],
     created_at: string,
     updated_at: string,
     deleted_at: string

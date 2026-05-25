@@ -239,8 +239,12 @@ export function getCategoryName(categoryId?: string) {
 }
 
 export function hasItemAvailableForSale(item: IItem) {
-    const stores = Array.isArray(item.variants[0]?.stores) ? item.variants[0].stores : [];
-    return stores.some((store: any) => store?.available_for_sale);
+    if (!Array.isArray(item.variants) || item.variants.length === 0) return false;
+
+    return item.variants.some((variant: any) => {
+        const stores = Array.isArray(variant?.stores) ? variant.stores : [];
+        return stores.some((store: any) => store?.available_for_sale === true);
+    });
 }
 
 export const isWithinOperatingHours = (date = new Date()) => {

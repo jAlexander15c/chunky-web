@@ -51,6 +51,8 @@ export const CachedImage = ({ src, alt, rootClassName, skeletonProps, ...props }
     const imageSrc = typeof src === "string" ? src : "";
     const [loaded, setLoaded] = useState(() => !imageSrc || loadedImages.has(imageSrc));
 
+    const { width, height, objectFit, ...rest } = props as any;
+
     useEffect(() => {
         if (!imageSrc) {
             setLoaded(true);
@@ -77,7 +79,7 @@ export const CachedImage = ({ src, alt, rootClassName, skeletonProps, ...props }
     }, [imageSrc]);
 
     return (
-        <Box className={rootClassName} position="relative" width={props.width ?? "100%"} height={props.height}>
+        <Box className={rootClassName} position="relative" width={width ?? "100%"} height={height} overflow="hidden">
             {!loaded && (
                 <Skeleton
                     position="absolute"
@@ -88,9 +90,14 @@ export const CachedImage = ({ src, alt, rootClassName, skeletonProps, ...props }
                 />
             )}
             <Image
-                {...props}
+                {...rest}
                 src={src}
                 alt={alt}
+                position="absolute"
+                inset={0}
+                width="100%"
+                height="100%"
+                objectFit={objectFit ?? "cover"}
                 opacity={loaded ? 1 : 0}
                 transition="opacity 0.2s ease"
             />
