@@ -1,4 +1,4 @@
-import icon from "@/assets/logos/iconError.jpeg";
+import icon from "@/assets/logos/icon.png";
 
 export const Mantenimiento = () => {
     return (
