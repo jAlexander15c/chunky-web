@@ -1,193 +1,139 @@
+import { useMemo } from "react";
+import { Link, useLocation, useSearchParams } from "react-router";
+import { PiArrowLeftBold, PiPlusBold, PiWhatsappLogoBold } from "react-icons/pi";
 
-import { Box, Button, Card, Center, Heading, HStack, Image, Skeleton, Text, VStack } from "@chakra-ui/react";
-import { useEffect, useMemo, useState } from "react";
-import { useAnimate } from "motion/react";
-import { CiShoppingCart } from "react-icons/ci";
-import { useLocation, useNavigate, useSearchParams } from "react-router";
-
-import { getCategoryName, hasItemAvailableForSale, isWithinOperatingHours, useItems } from "@/helpers";
+import { QuantityStepper, Stamp, useCart } from "@/components";
+import {
+    formatPrice,
+    getCategoryById,
+    getCategoryName,
+    getCategoryPresentation,
+    getItemPrice,
+    getNextOpeningLabel,
+    getWhatsAppUrl,
+    hasItemAvailableForSale,
+    isWithinOperatingHours,
+    useCategories,
+    useItems,
+} from "@/helpers";
 import type { IItem } from "@/interfaces";
-import { CachedImage, Cart, warmImageCache } from "@/components";
 
-import icon from "@/assets/logos/iconError.jpeg";
-import logo from "@/assets/logos/Mora Azul.png";
+const stripHtml = (html: string) => html?.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() ?? "";
 
-interface IItemsProps {
-    cartItems: Array<any>;
-    setCartItems: (items: Array<any>) => void;
+const ProductSkeletons = () => (
+    <div className="products" aria-busy="true" aria-label="Cargando productos">
+        {Array.from({ length: 6 }).map((_, index) => (
+            <div key={index} className="stamp-lift">
+                <div className="stamp stamp--md product product--skeleton">
+                    <span className="skeleton skeleton--image" />
+                    <span className="skeleton skeleton--line" />
+                    <span className="skeleton skeleton--line skeleton--short" />
+                </div>
+            </div>
+        ))}
+    </div>
+);
+
+interface IProductCardProps {
+    item: IItem;
+    index: number;
+    isOpen: boolean;
 }
 
-const ItemSkeletons = () => {
+const ProductCard = ({ item, index, isOpen }: IProductCardProps) => {
+    const { addItem, setQuantity, getQuantity } = useCart();
+    const quantity = getQuantity(item.id);
+    const description = stripHtml(item.description);
+
     return (
-        <Box className="wrapper">
-            {Array.from({ length: 6 }).map((_, index) => (
-                <Card.Root
-                    key={index}
-                    maxW="sm"
-                    overflow="hidden"
-                    className="cardCart"
-                >
-                    <Skeleton height="15rem" width="100%" />
-                    <Card.Body gap="3">
-                        <Skeleton height="1.8rem" width="70%" />
-                        <Skeleton height="0.9rem" width="100%" />
-                        <Skeleton height="0.9rem" width="85%" />
-                        <Skeleton height="1.6rem" width="35%" mt="2" />
-                    </Card.Body>
-                    <Card.Footer>
-                        <Skeleton height="2.5rem" width="100%" />
-                    </Card.Footer>
-                </Card.Root>
-            ))}
-        </Box>
+        <Stamp
+            src={item.image_url}
+            alt={item.item_name}
+            rotate={0}
+            settle={index < 9}
+            imageHeight={220}
+            className="product-lift"
+        >
+            <div className="product">
+                <h2 className="product__name">{item.item_name}</h2>
+                {description && <p className="product__desc">{description}</p>}
+                <div className="product__foot">
+                    <span className="product__price">{formatPrice(getItemPrice(item))}</span>
+                    {!isOpen ? (
+                        <span className="product__closed">{getNextOpeningLabel()}</span>
+                    ) : quantity > 0 ? (
+                        <QuantityStepper quantity={quantity} itemName={item.item_name} onChange={(value) => setQuantity(item.id, value)} />
+                    ) : (
+                        <button type="button" className="button button--primary button--sm" onClick={() => addItem(item)}>
+                            <PiPlusBold aria-hidden /> Agregar
+                        </button>
+                    )}
+                </div>
+            </div>
+        </Stamp>
     );
 };
 
-export const Items = ({ cartItems, setCartItems }: IItemsProps) => {
-    const [animateCartBtnRef, animateCartBtn] = useAnimate();
+export const Items = () => {
     const [searchParams] = useSearchParams();
-    const navigate = useNavigate();
     const location = useLocation();
     const selectedCategoryId = searchParams.get("categoryId") ?? "";
+    useCategories();
+    const category = getCategoryById(selectedCategoryId);
     const categoryName = (location.state as { categoryName?: string } | null)?.categoryName ?? getCategoryName(selectedCategoryId);
-    const [open, setOpen] = useState(false);
+    const presentation = getCategoryPresentation(category?.color);
     const { items, loading, error } = useItems(selectedCategoryId);
+    const isOpen = isWithinOperatingHours();
+
     const availableItems = useMemo(
         () => items.filter((item) => item.category_id === selectedCategoryId && hasItemAvailableForSale(item)),
         [items, selectedCategoryId]
     );
 
-    useEffect(() => {
-        warmImageCache(availableItems.map((item) => item.image_url || icon));
-    }, [availableItems]);
-
-    useEffect(() => {
-        if (cartItems.length > 0) {
-            animateCartBtn(
-                animateCartBtnRef.current,
-                {
-                    scale: [0.92, 1],
-                    opacity: [0.6, 1],
-                    y: [8, 0],
-                },
-                {
-                    duration: 0.35,
-                    ease: [0.34, 1.56, 0.64, 1],
-                }
-            );
-        }
-    }, [cartItems, animateCartBtn, animateCartBtnRef]);
-
     return (
-        <VStack id="menuBody">
-            <Center id="logoHeader">
-                <Image src={logo} alt="Menu Title" width="10rem" />
-            </Center>
+        <main className="section page-items">
+            <div className="section__inner">
+                <header className={`category-band category-band--${presentation.tone}`}>
+                    <div>
+                        <Link to="/menu" className="category-band__back">
+                            <PiArrowLeftBold aria-hidden /> Volver al tablero
+                        </Link>
+                        <h1 className="category-band__title">{categoryName}</h1>
+                        {category && <p className="category-band__desc">{presentation.description}</p>}
+                    </div>
+                    {presentation.origin && <span className="category-band__origin">{presentation.origin}</span>}
+                    {presentation.schedule && <span className="category-band__origin">{presentation.schedule}</span>}
+                </header>
 
-            <HStack width={"90vw"} justifyContent="space-between">
-                <Heading className="headingAll" id="headerCategories">{categoryName}</Heading>
-                <Button variant="subtle" size="sm" onClick={() => navigate("/menu")}>Volver a categorias</Button>
-            </HStack>
+                {!selectedCategoryId && (
+                    <p className="empty-note">Elige una categoría en el <Link to="/menu" className="text-link">tablero</Link>.</p>
+                )}
 
-            {!selectedCategoryId && (
-                <Text width="90vw">Selecciona una categoria para ver sus items.</Text>
-            )}
+                {selectedCategoryId && loading && <ProductSkeletons />}
 
-            {selectedCategoryId && loading && (
-                <ItemSkeletons />
-            )}
+                {selectedCategoryId && !loading && error && (
+                    <div className="empty-note">
+                        <p>No pudimos cargar los productos. Intenta de nuevo en un momento o pídenos directo.</p>
+                        <a className="text-link" href={getWhatsAppUrl()} target="_blank" rel="noreferrer">
+                            <PiWhatsappLogoBold aria-hidden /> Escríbenos por WhatsApp
+                        </a>
+                    </div>
+                )}
 
-            {selectedCategoryId && !loading && !error && (
-                <Box className="wrapper">
-                    {availableItems.map((item: IItem, i: number) => {
-                        return (
-                            <Card.Root
-                                key={i}
-                                maxW="sm"
-                                overflow="hidden"
-                                className="cardCart"
-                            >
-                                <CachedImage
-                                    rootClassName="item-media"
-                                    src={item.image_url || icon}
-                                    alt={item.item_name}
-                                    width="100%"
-                                    height="15rem"
-                                    objectFit="cover"
-                                    display="block"
-                                />
-                                <Card.Body gap="2">
-                                    <Card.Title fontFamily={"heading"} fontSize={"2xl"}>{item.item_name}</Card.Title>
-                                    <Card.Description dangerouslySetInnerHTML={{ __html: item.description }} />
-                                    <Text textStyle="2xl" fontWeight="medium" letterSpacing="tight" mt="2">
-                                        ${item.variants[0].default_price?.toFixed(2)}
-                                    </Text>
-                                </Card.Body>
+                {selectedCategoryId && !loading && !error && availableItems.length === 0 && (
+                    <p className="empty-note">
+                        Por ahora no hay productos disponibles en esta categoría. <Link to="/menu" className="text-link">Mira el resto del tablero</Link>.
+                    </p>
+                )}
 
-                                <Card.Footer gap="2">
-                                    {isWithinOperatingHours() ? (
-                                        <Button
-                                            variant="solid"
-                                            onClick={() => {
-                                                setCartItems([...cartItems, item]);
-                                            }}
-                                        >Agregar al carrito</Button>
-                                    ) : (
-                                        <Text fontSize="sm" color="gray.500" width="100%" textAlign="center">
-                                            Cerrado en este horario
-                                        </Text>
-                                    )}
-                                </Card.Footer>
-                            </Card.Root>
-                        );
-                    })}
-                </Box>
-            )}
-
-            {selectedCategoryId && !loading && !error && availableItems.length === 0 && (
-                <Text width="90vw">No hay items disponibles para esta categoria.</Text>
-            )}
-
-            <Cart
-                items={cartItems}
-                open={open}
-                setOpen={setOpen}
-                setCartItems={setCartItems}
-            />
-
-            {cartItems.length > 0 && (
-                <HStack
-                    style={{
-                        "position": "fixed",
-                        "bottom": "2rem",
-                        "right": "2rem",
-                        "cursor": "pointer"
-                    }}
-                    ref={animateCartBtnRef}
-                    onClick={() => setOpen(true)}
-                >
-                    <Text
-                        style={{
-                            "borderRadius": "0.8rem",
-                            "background": "rgba(0, 0, 0, 0.50)",
-                            "backdropFilter": "blur(5px)",
-                            "color": "#FFFFFF",
-                            "padding": "0.4rem 1rem"
-                        }}
-                    >Ver Carrito</Text>
-                    <Button
-                        style={{
-                            "borderRadius": "50%",
-                            "background": "rgba(0, 0, 0, 0.50)",
-                            "backdropFilter": "blur(5px)",
-                            "color": "#FFFFFF",
-                            "padding": "0"
-                        }}
-                    >
-                        <CiShoppingCart size={24} />
-                    </Button>
-                </HStack>
-            )}
-        </VStack>
+                {selectedCategoryId && !loading && !error && availableItems.length > 0 && (
+                    <div className="products">
+                        {availableItems.map((item, index) => (
+                            <ProductCard key={item.id} item={item} index={index} isOpen={isOpen} />
+                        ))}
+                    </div>
+                )}
+            </div>
+        </main>
     );
 };

@@ -1,12 +1,13 @@
-import icon from "@/assets/logos/icon.png";
+import { Mascot } from "@/components";
 
 export const Mantenimiento = () => {
     return (
-        <div className="mantenimiento">
-            <img src={icon} alt="Icono de mantenimiento" />
-            <h1>Estamos en mantenimiento</h1>
-            <p>Lo sentimos, el sitio está temporalmente fuera de servicio mientras realizamos mejoras.</p>
-            <p>Por favor vuelve más tarde.</p>
-        </div>
-    )
-}
+        <main className="maintenance">
+            <Mascot className="maintenance__mascot" bob alt="Mascota de Chunky Bites" loading="eager" />
+            <h1 className="section__title">
+                Volvemos <span className="script section__script">en un momento.</span>
+            </h1>
+            <p className="section__lede">Estamos haciendo mejoras en el sitio. Por favor vuelve más tarde.</p>
+        </main>
+    );
+};

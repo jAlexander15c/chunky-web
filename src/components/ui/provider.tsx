@@ -11,7 +11,8 @@ import { system } from "@/theme"
 export function Provider(props: ColorModeProviderProps) {
   return (
     <ChakraProvider value={system} >
-      <ColorModeProvider {...props} />
+      {/* La marca vive en pastel sobre crema: el sitio se fija en modo claro */}
+      <ColorModeProvider forcedTheme="light" {...props} />
     </ChakraProvider>
   )
 }

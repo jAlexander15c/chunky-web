@@ -9,7 +9,8 @@ export class HttpError extends Error {
 }
 
 //const API_BASE = "https://api.ischunkybites.com" as string;
-const API_BASE = "https://kvrs5u1t83.execute-api.us-east-2.amazonaws.com" as string;
+// En local se puede apuntar a otra API con VITE_API_BASE_URL (ej. http://localhost:3000 en .env.local)
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "https://kvrs5u1t83.execute-api.us-east-2.amazonaws.com") as string;
 
 if (!API_BASE) {
     throw new Error("VITE_API_BASE_URL is not defined");

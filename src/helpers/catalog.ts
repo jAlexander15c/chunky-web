@@ -8,26 +8,47 @@ import type { ICategory, IItem } from "@/interfaces";
 const CATEGORY_CACHE_KEY = "chunky-categories-cache";
 const ITEMS_CACHE_PREFIX = "chunky-items-cache:";
 
-const CATEGORY_PRESENTATION: Record<string, { image: string; description: string }> = {
+export const CATEGORY_IMAGE_ROUTE = "https://pub-159df1e57b1a433fa45a449347b9a4ac.r2.dev/categorias/";
+
+export type CategoryTone = "mantequilla" | "orquidea" | "sky" | "lima";
+
+interface ICategoryPresentation {
+    image: string;
+    description: string;
+    tone: CategoryTone;
+    origin?: string;
+    schedule?: string;
+}
+
+const CATEGORY_PRESENTATION: Record<string, ICategoryPresentation> = {
     ORANGE: {
         image: "cGalleta.jpeg",
-        description: "Galletas crujientes por fuera y suaves por dentro, al estilo New York",
+        description: "Estilo New York, gruesas y suaves por dentro",
+        tone: "mantequilla",
+        origin: "Nueva York",
     },
     RED: {
         image: "cSalado.jpeg",
-        description: "Deliciosas opciones saladas para cualquier hora del dia",
+        description: "Focaccias, tostadas y pasta con pesto",
+        tone: "lima",
+        origin: "Italia",
     },
     BLUE: {
         image: "cBebida.jpeg",
-        description: "Bebidas pensadas para acompanar cada bite, frias o calientes",
+        description: "Matcha y más, frías o calientes",
+        tone: "sky",
+        origin: "Japón",
     },
     PURPLE: {
         image: "cDesayuno.jpeg",
         description: "Sabores especiales para comenzar la mañana",
+        tone: "orquidea",
+        schedule: "8 a 11 am",
     },
     DEFAULT: {
         image: "cPostre.jpeg",
         description: "Sabor, textura y dulzura en su mejor forma",
+        tone: "mantequilla",
     },
 };
 
@@ -225,6 +246,16 @@ export function useItems(categoryId?: string) {
 export function getCategoryPresentation(color?: string) {
     return CATEGORY_PRESENTATION[normalizeCategoryColor(color)] ?? CATEGORY_PRESENTATION.DEFAULT;
 }
+
+export const getCategoryImageUrl = (color?: string) => `${CATEGORY_IMAGE_ROUTE}${getCategoryPresentation(color).image}`;
+
+export const getCategoryByColor = (categories: ICategory[], color: string) =>
+    categories.find((category) => normalizeCategoryColor(category.color) === color);
+
+export const getCategoryById = (categoryId?: string) => {
+    if (!categoryId || !categoriesCache) return undefined;
+    return categoriesCache.find((category) => category.id === categoryId);
+};
 
 export function shouldDisplayCategory(category: ICategory, date = new Date()) {
     const hour = date.getHours();

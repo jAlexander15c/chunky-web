@@ -1,21 +1,93 @@
 :root {
-  line-height: 1.5;
-  font-weight: 400;
+  /* Paleta de marca */
+  --mora: #3a4b8e;
+  --ink: #26305c;
+  --sky: #d7e0f9;
+  --lima: #e3e8a7;
+  --orquidea: #e1a8e5;
+  --mantequilla: #f8e3af;
+  --crema: #fcfae9;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #fcfae9;
+  /* Roles */
+  --surface: var(--crema);
+  --text: var(--ink);
+  --text-soft: #4d5790;
+  --on-mora: var(--crema);
+  --on-mora-soft: var(--sky);
+  --focus: var(--orquidea);
+  --shadow-tint: 38 48 92;
 
+  /* Forma: arcos para imagenes, pastillas para controles, 20px para paneles */
+  --radius-panel: 20px;
+  --radius-pill: 999px;
+  --radius-arch: 999px 999px 18px 18px;
+
+  /* Ritmo */
+  --gutter: clamp(1rem, 4vw, 3rem);
+  --section: clamp(4.5rem, 10vw, 8rem);
+  --max: 1280px;
+
+  /* Movimiento */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+
+  /* Capas */
+  --z-header: 20;
+  --z-cart-button: 30;
+
+  font-family: 'Montserrat', system-ui, sans-serif;
+  line-height: 1.55;
+  font-weight: 450;
+  color-scheme: light;
+  color: var(--text);
+  background-color: var(--surface);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  scrollbar-color: var(--mora) var(--sky);
 }
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
-  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--surface);
+  color: var(--text);
+}
+
+::selection {
+  background: var(--orquidea);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+a {
+  color: inherit;
+  text-underline-offset: 0.2em;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }

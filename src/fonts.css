@@ -1,14 +1,21 @@
 @font-face {
   font-family: 'Guadalimar';
-  src: url('./assets/fonts/guadalimar-8omxm.otf');
+  src: url('./assets/fonts/guadalimar-8omxm.otf') format('opentype');
+  font-display: swap;
 }
 
 @font-face {
-  font-family: 'Montserrat Italic';
-  src: url('./assets/fonts/Montserrat-Italic-VariableFont_wght.ttf');
+  font-family: 'Montserrat';
+  src: url('./assets/fonts/Montserrat-VariableFont_wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
-  font-family: 'Montserrat Regular';
-  src: url('./assets/fonts/Montserrat-VariableFont_wght.ttf');
+  font-family: 'Montserrat';
+  src: url('./assets/fonts/Montserrat-Italic-VariableFont_wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
 }
