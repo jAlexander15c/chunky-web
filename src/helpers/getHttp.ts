@@ -8,9 +8,8 @@ export class HttpError extends Error {
     }
 }
 
-//const API_BASE = "https://api.ischunkybites.com" as string;
-// En local se puede apuntar a otra API con VITE_API_BASE_URL (ej. http://localhost:3000 en .env.local)
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "https://kvrs5u1t83.execute-api.us-east-2.amazonaws.com") as string;
+// chunky-api en Railway (produccion). Para apuntar a otra API usa VITE_API_BASE_URL (ej. http://localhost:3000 en .env.local)
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "https://chunky-api-production.up.railway.app") as string;
 // Llave que pide chunky-api en el header x-api-key (VITE_API_KEY en .env.local)
 const API_KEY = import.meta.env.VITE_API_KEY as string | undefined;
 
