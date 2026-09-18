@@ -23,7 +23,7 @@ Si el usuario ya dio alguno de estos tres datos en su mensaje inicial, no lo rep
 
 ## Flujo una vez recibidas las tres respuestas
 
-Construye en una sola pasada completa (no preguntes de nuevo, no itores en bucle abierto):
+Primero define la dirección y muéstrala como Artifact para aprobación (paso 2.5); una vez aprobada, construye en una sola pasada completa (no preguntes de nuevo, no itores en bucle abierto):
 
 1. **Lectura de brief y dirección visual — `design-taste-frontend`**
    Invoca esta skill (Skill tool) usando el objetivo + línea de diseño como el brief de la Sección 0. Deja que infiera: tipo de página/audiencia, "Design Read", los tres dials (`DESIGN_VARIANCE`, `MOTION_INTENSITY`, `VISUAL_DENSITY`), el sistema de diseño o stack apropiado, tipografía, paleta (aplicando las bans de purpura-IA y beige+bronce por defecto), estrategia de imágenes, y todas las reglas anti-slop de layout/copy/hero.
@@ -31,6 +31,9 @@ Construye en una sola pasada completa (no preguntes de nuevo, no itores en bucle
 
 2. **Modo de superficie y piso de calidad — `impeccable`**
    Invoca esta skill para: elegir el modo correcto (persuade/operate/read/experience) según el objetivo declarado, planear la superficie (equivalente a `shape`/`new-work` para trabajo nuevo, o el flujo de refinamiento si el objetivo es un rediseño sobre algo existente), y aplicar el craft floor antes de tocar cualquier UI. Sigue su disciplina de verificación acotada: construir completo, inspeccionar una vez (desktop + mobile), corregir en un solo lote, confirmar con una ronda más como máximo. No abras un ciclo de auto-QA indefinido.
+
+2.5. **Propuesta visual como Artifact — obligatorio antes de generar código**
+   Con la dirección ya decidida (pasos 1 y 2) y **antes de escribir o modificar cualquier código de la interfaz** (vistas, componentes, estilos, tokens, helpers), construye una maqueta estática en HTML de la propuesta y publícala con la herramienta `Artifact`. La maqueta debe usar los logos, la mascota y las fuentes reales del usuario (incrustados o subidos como assets del artifact) y mostrar la paleta aplicada, el primer viewport (hero), las secciones principales y las pantallas clave del flujo (por ejemplo listado de productos y carrito). Comparte el enlace con un resumen corto de la dirección (concepto, paleta, tipografía, motion) y **espera la aprobación explícita del usuario**. Si pide cambios, actualiza el mismo artifact y vuelve a esperar. Solo después de la aprobación pasa a construir. Esto no cuenta como una pregunta extra de la regla central: es la entrega de la propuesta, no una solicitud de datos.
 
 3. **Motion y pulido de componentes — `emil-design-eng`**
    Invoca esta skill sobre los componentes ya construidos para decidir: si algo debe animarse o no, qué easing/duración usar, estados de presión/hover, transform-origin de popovers, y el resto del framework de decisión de animación. Aplica esto como capa final sobre la estructura ya definida por `design-taste-frontend`, no como sustituto de ella.
@@ -46,3 +49,4 @@ Construye en una sola pasada completa (no preguntes de nuevo, no itores en bucle
 - No preguntar más de las tres cosas iniciales, bajo ninguna circunstancia.
 - No pedir confirmación dial por dial de `design-taste-frontend`, ni el modo de `impeccable`, ni las curvas de easing de `emil-design-eng` — esas son decisiones internas de la skill, no del usuario.
 - No omitir ninguna de las tres skills base: siempre se combinan las tres, en el orden de este flujo.
+- No generar ni modificar código de la interfaz antes de que el usuario haya visto y aprobado la propuesta publicada como Artifact (paso 2.5).
