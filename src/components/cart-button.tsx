@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useAnimate, useReducedMotion } from "motion/re
 import { AnimatedPrice } from "./animated-price";
 import { useCart } from "./use-cart";
 
-/** Pastilla flotante "Ver pedido" que aparece en cuanto hay algo en la comanda. */
+/** Pastilla flotante "Ver carrito" que aparece en cuanto hay algo en el carrito. */
 export const CartButton = () => {
     const { count, total, isOpen, setIsOpen } = useCart();
     const reduceMotion = useReducedMotion();
@@ -30,7 +30,7 @@ export const CartButton = () => {
                     transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
                 >
                     <button ref={scope} type="button" className="cart-button" onClick={() => setIsOpen(true)}>
-                        <span className="cart-button__label">Ver pedido</span>
+                        <span className="cart-button__label">Ver carrito</span>
                         <span className="cart-button__meta">
                             <AnimatedPrice value={total} />
                             <span className="cart-button__count" aria-label={`${count} productos`}>{count}</span>

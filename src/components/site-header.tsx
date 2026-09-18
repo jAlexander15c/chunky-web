@@ -27,10 +27,10 @@ export const SiteHeader = () => {
                     className="site-header__cart"
                     onClick={() => setIsOpen(true)}
                     disabled={count === 0}
-                    aria-label={count === 0 ? "Tu pedido está vacío" : `Ver pedido, ${count} productos`}
+                    aria-label={count === 0 ? "Tu carrito está vacío" : `Ver carrito, ${count} productos`}
                 >
                     <PiReceiptBold aria-hidden />
-                    <span className="site-header__cart-label">Pedido</span>
+                    <span className="site-header__cart-label">Carrito</span>
                     {count > 0 && <span className="site-header__badge">{count}</span>}
                 </button>
             </div>

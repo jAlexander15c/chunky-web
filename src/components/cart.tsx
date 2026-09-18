@@ -38,7 +38,7 @@ export const Cart = () => {
                 <Drawer.Backdrop bg="rgba(38, 48, 92, 0.45)" />
                 <Drawer.Positioner>
                     <Drawer.Content
-                        className="comanda"
+                        className="carrito"
                         bg="#fffef6"
                         color="#26305c"
                         boxShadow="none"
@@ -47,38 +47,38 @@ export const Cart = () => {
                         h={isSheet ? "auto" : "100dvh"}
                         maxH={isSheet ? "88dvh" : "100dvh"}
                     >
-                        <header className="comanda__head">
-                            <span className="comanda__grip" aria-hidden />
+                        <header className="carrito__head">
+                            <span className="carrito__grip" aria-hidden />
                             <Drawer.Title asChild>
-                                <h2 className="comanda__title">Tu comanda</h2>
+                                <h2 className="carrito__title">Tu carrito</h2>
                             </Drawer.Title>
                             <Drawer.CloseTrigger asChild>
-                                <button type="button" className="icon-button comanda__close" aria-label="Cerrar pedido">
+                                <button type="button" className="icon-button carrito__close" aria-label="Cerrar carrito">
                                     <PiXBold aria-hidden />
                                 </button>
                             </Drawer.CloseTrigger>
                         </header>
 
-                        <Drawer.Body className="comanda__body">
+                        <Drawer.Body className="carrito__body">
                             {lines.length === 0 ? (
-                                <div className="comanda__empty">
-                                    <Mascot className="comanda__empty-mascot" />
-                                    <p>Tu comanda está vacía.</p>
+                                <div className="carrito__empty">
+                                    <Mascot className="carrito__empty-mascot" />
+                                    <p>Tu carrito está vacío.</p>
                                     <Link to="/menu" className="text-link" onClick={() => setIsOpen(false)}>Ver el menú</Link>
                                 </div>
                             ) : (
-                                <ul className="comanda__lines">
+                                <ul className="carrito__lines">
                                     {[...lines].reverse().map((line, index) => (
-                                        <li key={line.item.id} className="comanda__line">
+                                        <li key={line.item.id} className="carrito__line">
                                             <Stamp
                                                 src={line.item.image_url}
                                                 alt={line.item.item_name}
                                                 size="sm"
                                                 rotate={index % 2 === 0 ? -4 : 4}
-                                                className="comanda__thumb"
+                                                className="carrito__thumb"
                                             />
-                                            <div className="comanda__info">
-                                                <span className="comanda__name">{line.item.item_name}</span>
+                                            <div className="carrito__info">
+                                                <span className="carrito__name">{line.item.item_name}</span>
                                                 <QuantityStepper
                                                     size="sm"
                                                     quantity={line.quantity}
@@ -86,7 +86,7 @@ export const Cart = () => {
                                                     onChange={(quantity) => setQuantity(line.item.id, quantity)}
                                                 />
                                             </div>
-                                            <span className="comanda__price">{formatPrice(getItemPrice(line.item) * line.quantity)}</span>
+                                            <span className="carrito__price">{formatPrice(getItemPrice(line.item) * line.quantity)}</span>
                                         </li>
                                     ))}
                                 </ul>
@@ -94,15 +94,15 @@ export const Cart = () => {
                         </Drawer.Body>
 
                         {lines.length > 0 && (
-                            <footer className="comanda__foot">
-                                <div className="comanda__total">
+                            <footer className="carrito__foot">
+                                <div className="carrito__total">
                                     <span>Total</span>
-                                    <AnimatedPrice value={total} className="comanda__total-value" />
+                                    <AnimatedPrice value={total} className="carrito__total-value" />
                                 </div>
                                 <button type="button" className="button button--primary button--block" onClick={sendOrder}>
                                     <PiWhatsappLogoBold aria-hidden /> Enviar pedido por WhatsApp
                                 </button>
-                                <p className="comanda__hint">
+                                <p className="carrito__hint">
                                     {isBarOpen
                                         ? "Se abre WhatsApp con tu pedido escrito."
                                         : `${getOpeningStatusLabel(false)}. Puedes dejarlo enviado.`}

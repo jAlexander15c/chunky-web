@@ -2,20 +2,26 @@ import { Link } from "react-router";
 import { PiArrowRightBold, PiStarFourFill } from "react-icons/pi";
 
 import { Mascot, MenuBoard, Stamp } from "@/components";
-import { OPENING_HOURS, getCategoryByName, getOpeningStatusLabel, isWithinOperatingHours, useCategories } from "@/helpers";
+import {
+    OPENING_HOURS,
+    getCategoryByName,
+    getCategoryImageUrl,
+    getOpeningStatusLabel,
+    isWithinOperatingHours,
+    useCategories,
+} from "@/helpers";
 
-import galleta from "@/assets/fotos/galleta.jpg";
-import focaccia from "@/assets/fotos/focaccia.jpg";
-import pastaPesto from "@/assets/fotos/pasta-pesto.jpg";
-import matchaFrio from "@/assets/fotos/matcha-frio.jpg";
-import matchaLatte from "@/assets/fotos/matcha-latte.jpg";
+// Fotos de categoria del bucket de R2
+const cookiesPhoto = getCategoryImageUrl("galletas");
+const savoryPhoto = getCategoryImageUrl("salados");
+const drinksPhoto = getCategoryImageUrl("bebidas");
 
 const MARQUEE_WORDS = ["Galletas estilo New York", "Focaccias", "Pasta al pesto", "Tostadas", "Matcha", "Desayunos"];
 
 const ORDER_STEPS = [
     { title: "Elige en el tablero", text: "Agrega lo que se te antoje." },
-    { title: "Revisa tu comanda", text: "Suma, resta y mira el total." },
-    { title: "Envíala por WhatsApp", text: "Sale escrita. Te respondemos para confirmar." },
+    { title: "Revisa tu carrito", text: "Suma, resta y mira el total." },
+    { title: "Envíalo por WhatsApp", text: "Sale escrito. Te respondemos para confirmar." },
 ];
 
 /** Enlace a una categoria por nombre, o al menu completo si aun no cargan las categorias. */
@@ -75,9 +81,9 @@ export const Home = () => {
                 <div className="hero__stage" aria-hidden>
                     <div className="hero__disc" />
                     <div className="hero__ring" />
-                    <Stamp src={galleta} alt="" caption="Nueva York" code="cookie" rotate={-9} className="hero__stamp hero__stamp--ny" loading="eager" />
-                    <Stamp src={focaccia} alt="" caption="Italia" code="focaccia" rotate={7} className="hero__stamp hero__stamp--it" loading="eager" />
-                    <Stamp src={matchaFrio} alt="" caption="Japón" code="matcha" rotate={6} className="hero__stamp hero__stamp--jp" imagePosition="center 62%" loading="eager" />
+                    <Stamp src={cookiesPhoto} alt="" caption="Nueva York" code="galletas" rotate={-9} className="hero__stamp hero__stamp--ny stamp-lift--cloud" imagePosition="45% 45%" loading="eager" />
+                    <Stamp src={savoryPhoto} alt="" caption="Italia" code="salados" rotate={7} className="hero__stamp hero__stamp--it stamp-lift--cloud" imagePosition="85% 20%" loading="eager" />
+                    <Stamp src={drinksPhoto} alt="" caption="Japón" code="matcha" rotate={6} className="hero__stamp hero__stamp--jp stamp-lift--cloud" imagePosition="28% 55%" loading="eager" />
                     <Mascot bob className="hero__mascot" loading="eager" />
                 </div>
             </section>
@@ -101,14 +107,13 @@ export const Home = () => {
                             <p className="passport__text">Frío o caliente, cremoso y del mismo verde que nuestra mascota.</p>
                             <Link to={drinks.to} state={drinks.state} className="text-link">Ver bebidas</Link>
                             <div className="passport__stamps passport__stamps--jp">
-                                <Stamp src={matchaFrio} alt="Matcha frío" caption="Iced matcha" code="JP" rotate={-4} settle imagePosition="center 62%" className="passport__stamp-a" />
-                                <Stamp src={matchaLatte} alt="Matcha latte" caption="Matcha latte" code="JP" rotate={7} settle className="passport__stamp-b" />
+                                <Stamp src={drinksPhoto} alt="Matcha y bebidas de Chunky Bites" caption="Bebidas" code="JP" rotate={-4} settle imagePosition="30% 55%" className="passport__stamp-a stamp-lift--cloud" />
                                 <Mascot className="passport__mascot" />
                             </div>
                         </article>
 
                         <article className="passport__cell passport__cell--ny">
-                            <Stamp src={galleta} alt="Galletas estilo New York" caption="New York" code="NY" rotate={-5} settle className="passport__stamp-single" />
+                            <Stamp src={cookiesPhoto} alt="Galletas estilo New York" caption="Galletas" code="NY" rotate={-5} settle imagePosition="45% 45%" className="passport__stamp-single stamp-lift--cloud" />
                             <div>
                                 <p className="passport__origin">Nueva York</p>
                                 <h3 className="passport__title passport__title--sm">Galletas estilo New York</h3>
@@ -124,10 +129,7 @@ export const Home = () => {
                                 <p className="passport__text">Focaccias, tostadas y pasta con pesto, para cualquier hora.</p>
                                 <Link to={savory.to} state={savory.state} className="text-link">Ver salados</Link>
                             </div>
-                            <div className="passport__pair">
-                                <Stamp src={focaccia} alt="Focaccia" caption="Focaccia" code="IT" rotate={-6} settle className="passport__pair-a" />
-                                <Stamp src={pastaPesto} alt="Pasta al pesto" caption="Al pesto" code="IT" rotate={5} settle className="passport__pair-b" />
-                            </div>
+                            <Stamp src={savoryPhoto} alt="Tostadas de Chunky Bites" caption="Salados" code="IT" rotate={5} settle imagePosition="85% 20%" className="passport__stamp-single stamp-lift--cloud" />
                         </article>
                     </div>
                 </div>
@@ -149,7 +151,7 @@ export const Home = () => {
                         <div className="ticket">
                             <div className="ticket__head">
                                 <span>Así se pide</span>
-                                <span>Comanda</span>
+                                <span>Chunky Bites</span>
                             </div>
                             <ol className="ticket__lines">
                                 {ORDER_STEPS.map((step, index) => (

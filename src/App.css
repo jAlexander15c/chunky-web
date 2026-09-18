@@ -673,10 +673,6 @@ main {
 
 .passport__stamp-a .stamp__image { height: 190px; }
 
-.passport__stamp-b {
-  display: none;
-}
-
 .passport__mascot {
   position: absolute;
   right: -6px;
@@ -689,17 +685,10 @@ main {
 .passport__stamp-single .stamp { padding: 9px; }
 .passport__stamp-single .stamp__caption { font-size: 0.5625rem; }
 
-.passport__pair {
-  position: relative;
+/* Las fotos de categoria de R2 traen un velo oscuro pensado para texto encima: se aclaran en la estampilla */
+.stamp-lift--cloud .stamp__image {
+  filter: brightness(1.4) saturate(1.1);
 }
-
-.passport__pair-a {
-  display: none;
-}
-
-.passport__pair-b .stamp { padding: 9px; }
-.passport__pair-b .stamp__image { height: 110px; }
-.passport__pair-b .stamp__caption { font-size: 0.5625rem; }
 
 @media (min-width: 1024px) {
   .passport__grid {
@@ -729,23 +718,15 @@ main {
 
   .passport__stamps--jp {
     inset: auto 2.75rem 2.75rem 2.75rem;
-    height: 360px;
+    height: 380px;
   }
 
-  .passport__stamp-a { width: 250px; }
-  .passport__stamp-a .stamp__image { height: 300px; }
-
-  .passport__stamp-b {
-    display: block;
-    position: absolute;
-    left: 210px;
-    bottom: 110px;
-    width: 210px;
-  }
+  .passport__stamp-a { width: 290px; }
+  .passport__stamp-a .stamp__image { height: 330px; }
 
   .passport__mascot {
-    width: 220px;
-    right: -20px;
+    width: 230px;
+    right: -10px;
     bottom: -20px;
   }
 
@@ -759,34 +740,9 @@ main {
   .passport__stamp-single .stamp__caption { font-size: 0.6875rem; }
 
   .passport__cell--it {
-    grid-template-columns: 1fr 250px;
-    gap: 1.5rem;
+    grid-template-columns: 1fr 200px;
+    gap: 2rem;
   }
-
-  .passport__pair {
-    height: 270px;
-  }
-
-  .passport__pair-a {
-    display: block;
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 190px;
-  }
-
-  .passport__pair-a .stamp__image { height: 130px; }
-
-  .passport__pair-b {
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    width: 180px;
-  }
-
-  .passport__pair-b .stamp { padding: 12px; }
-  .passport__pair-b .stamp__image { height: 120px; }
-  .passport__pair-b .stamp__caption { font-size: 0.6875rem; }
 }
 
 /* ============ Tablero (letterboard) ============ */
@@ -1001,7 +957,7 @@ main {
   }
 }
 
-/* ============ Comanda (como pedir) y horario ============ */
+/* ============ Como pedir y horario ============ */
 .counter__aside {
   display: flex;
   flex-direction: column;
@@ -1507,8 +1463,8 @@ main {
   display: block;
 }
 
-/* ============ Comanda (drawer) ============ */
-.comanda__head {
+/* ============ Carrito (drawer) ============ */
+.carrito__head {
   position: relative;
   display: flex;
   align-items: center;
@@ -1518,7 +1474,7 @@ main {
   color: var(--mora);
 }
 
-.comanda__grip {
+.carrito__grip {
   position: absolute;
   top: 8px;
   left: 50%;
@@ -1529,7 +1485,7 @@ main {
   background: rgb(58 75 142 / 0.3);
 }
 
-.comanda__title {
+.carrito__title {
   margin: 0;
   font-family: 'Guadalimar', cursive;
   font-weight: 400;
@@ -1537,21 +1493,21 @@ main {
   line-height: 1.2;
 }
 
-.comanda__close {
+.carrito__close {
   color: var(--ink);
 }
 
-.comanda__body {
+.carrito__body {
   padding: 0 1.25rem;
 }
 
-.comanda__lines {
+.carrito__lines {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.comanda__line {
+.carrito__line {
   display: grid;
   grid-template-columns: 64px 1fr auto;
   gap: 0.9rem;
@@ -1560,12 +1516,12 @@ main {
   border-top: 1px dashed rgb(58 75 142 / 0.35);
 }
 
-.comanda__thumb {
+.carrito__thumb {
   width: 64px;
   filter: drop-shadow(0 4px 6px rgb(var(--shadow-tint) / 0.25));
 }
 
-.comanda__info {
+.carrito__info {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -1573,23 +1529,23 @@ main {
   min-width: 0;
 }
 
-.comanda__name {
+.carrito__name {
   font-weight: 800;
   font-size: 0.95rem;
   line-height: 1.3;
 }
 
-.comanda__price {
+.carrito__price {
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
 
-.comanda__foot {
+.carrito__foot {
   padding: 1rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom));
   border-top: 2px solid var(--mora);
 }
 
-.comanda__total {
+.carrito__total {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
@@ -1600,20 +1556,20 @@ main {
   font-size: 0.8125rem;
 }
 
-.comanda__total-value {
+.carrito__total-value {
   font-size: 1.75rem;
   letter-spacing: 0;
   font-weight: 800;
 }
 
-.comanda__hint {
+.carrito__hint {
   text-align: center;
   font-size: 0.8125rem;
   color: var(--text-soft);
   margin: 0.75rem 0 0;
 }
 
-.comanda__empty {
+.carrito__empty {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1622,47 +1578,47 @@ main {
   padding: 2rem 0;
 }
 
-.comanda__empty-mascot {
+.carrito__empty-mascot {
   width: 140px;
 }
 
 @media (min-width: 768px) {
-  .comanda__grip {
+  .carrito__grip {
     display: none;
   }
 
-  .comanda__head {
+  .carrito__head {
     background: var(--mora);
     color: var(--orquidea);
     padding: 1.5rem 1.75rem 1.25rem 2rem;
   }
 
-  .comanda__title {
+  .carrito__title {
     font-size: 2.6rem;
   }
 
-  .comanda__close {
+  .carrito__close {
     color: var(--crema);
   }
 
-  .comanda__body {
+  .carrito__body {
     padding: 0.5rem 1.75rem 0 2rem;
   }
 
-  .comanda__line:first-child {
+  .carrito__line:first-child {
     border-top: 0;
   }
 
-  .comanda__foot {
+  .carrito__foot {
     padding: 1.25rem 1.75rem 1.75rem 2rem;
   }
 
-  .comanda__total-value {
+  .carrito__total-value {
     font-size: 2.1rem;
   }
 }
 
-/* ============ Boton flotante del pedido ============ */
+/* ============ Boton flotante del carrito ============ */
 .cart-button-wrap {
   position: fixed;
   left: 1rem;

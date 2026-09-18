@@ -268,7 +268,11 @@ export const getCategoryPresentation = (category?: Pick<ICategory, "name" | "col
     };
 };
 
-export const getCategoryByName = (categories: ICategory[], name: string) =>
+/** Foto de la categoria en el bucket de R2 (galletas, salados, bebidas, desayunos, postres). */
+export const getCategoryImageUrl = (name: string) =>
+    `${CATEGORY_IMAGE_ROUTE}${(CATEGORY_PRESENTATION[name] ?? CATEGORY_PRESENTATION.postres).image}`;
+
+export const getCategoryByName =(categories: ICategory[], name: string) =>
     categories.find((category) => normalizeCategoryName(category.name) === name);
 
 export const getCategoryById = (categoryId?: string) => {
