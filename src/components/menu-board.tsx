@@ -57,17 +57,26 @@ export const MenuBoard = () => {
             {!loading && !error && visibleCategories.length > 0 && (
                 <ul className="board__rows">
                     {visibleCategories.map((category, index) => {
-                        const presentation = getCategoryPresentation(category.color);
+                        const presentation = getCategoryPresentation(category);
 
                         return (
-                            <li key={category.id} className="board__slot">
+                            // El disparo lo observa el <li> (siempre completo): la fila desplazada queda
+                            // recortada por el overflow del slot y nunca alcanzaria el umbral por si sola.
+                            <motion.li
+                                key={category.id}
+                                className="board__slot"
+                                initial={reduceMotion ? false : "hidden"}
+                                whileInView="visible"
+                                viewport={{ once: true, amount: 0.5 }}
+                            >
                                 <motion.button
                                     type="button"
                                     className="board__row"
                                     onClick={() => navigate(`/items?categoryId=${category.id}`, { state: { categoryName: category.name } })}
-                                    initial={reduceMotion ? false : { opacity: 0, transform: "translateY(70%)" }}
-                                    whileInView={{ opacity: 1, transform: "translateY(0%)" }}
-                                    viewport={{ once: true, amount: 0.6 }}
+                                    variants={{
+                                        hidden: { opacity: 0, transform: "translateY(70%)" },
+                                        visible: { opacity: 1, transform: "translateY(0%)" },
+                                    }}
                                     transition={{ duration: 0.3, delay: index * 0.05, ease: [0.34, 1.56, 0.64, 1] }}
                                 >
                                     <span className="board__text">
@@ -75,13 +84,13 @@ export const MenuBoard = () => {
                                             {category.name}
                                             {presentation.schedule && <span className="board__tag">{presentation.schedule}</span>}
                                         </span>
-                                        <span className="board__desc">{presentation.description}</span>
+                                        {presentation.description && <span className="board__desc">{presentation.description}</span>}
                                     </span>
                                     <span className="board__go" aria-hidden>
                                         <PiArrowRightBold />
                                     </span>
                                 </motion.button>
-                            </li>
+                            </motion.li>
                         );
                     })}
                 </ul>

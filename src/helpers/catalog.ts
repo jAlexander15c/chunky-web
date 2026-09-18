@@ -20,37 +20,50 @@ interface ICategoryPresentation {
     schedule?: string;
 }
 
+/** Textos de las categorias conocidas, por nombre normalizado (sin tildes, minusculas). */
 const CATEGORY_PRESENTATION: Record<string, ICategoryPresentation> = {
-    ORANGE: {
+    galletas: {
         image: "cGalleta.jpeg",
         description: "Estilo New York, gruesas y suaves por dentro",
         tone: "mantequilla",
         origin: "Nueva York",
     },
-    RED: {
+    salados: {
         image: "cSalado.jpeg",
         description: "Focaccias, tostadas y pasta con pesto",
         tone: "lima",
         origin: "Italia",
     },
-    BLUE: {
+    bebidas: {
         image: "cBebida.jpeg",
         description: "Matcha y más, frías o calientes",
         tone: "sky",
         origin: "Japón",
     },
-    PURPLE: {
+    desayunos: {
         image: "cDesayuno.jpeg",
         description: "Sabores especiales para comenzar la mañana",
         tone: "orquidea",
         schedule: "8 a 11 am",
     },
-    DEFAULT: {
+    postres: {
         image: "cPostre.jpeg",
         description: "Sabor, textura y dulzura en su mejor forma",
         tone: "mantequilla",
     },
 };
+
+/** Tono para categorias sin texto propio (ej. especiales de temporada), segun su color en el POS. */
+const COLOR_TONE: Record<string, CategoryTone> = {
+    ORANGE: "mantequilla",
+    RED: "lima",
+    BLUE: "sky",
+    PURPLE: "orquidea",
+    LIME: "lima",
+};
+
+const normalizeCategoryName = (name?: string) =>
+    (name ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
 
 let categoriesCache: ICategory[] | null = readSessionValue<ICategory[]>(CATEGORY_CACHE_KEY);
 let categoriesRequest: Promise<ICategory[]> | null = null;
@@ -243,14 +256,20 @@ export function useItems(categoryId?: string) {
     return { items, loading, error };
 }
 
-export function getCategoryPresentation(color?: string) {
-    return CATEGORY_PRESENTATION[normalizeCategoryColor(color)] ?? CATEGORY_PRESENTATION.DEFAULT;
-}
+/** Presentacion por nombre de categoria; las desconocidas solo toman el tono de su color. */
+export const getCategoryPresentation = (category?: Pick<ICategory, "name" | "color">): ICategoryPresentation => {
+    const known = CATEGORY_PRESENTATION[normalizeCategoryName(category?.name)];
+    if (known) return known;
 
-export const getCategoryImageUrl = (color?: string) => `${CATEGORY_IMAGE_ROUTE}${getCategoryPresentation(color).image}`;
+    return {
+        image: CATEGORY_PRESENTATION.postres.image,
+        description: "",
+        tone: COLOR_TONE[normalizeCategoryColor(category?.color)] ?? "mantequilla",
+    };
+};
 
-export const getCategoryByColor = (categories: ICategory[], color: string) =>
-    categories.find((category) => normalizeCategoryColor(category.color) === color);
+export const getCategoryByName = (categories: ICategory[], name: string) =>
+    categories.find((category) => normalizeCategoryName(category.name) === name);
 
 export const getCategoryById = (categoryId?: string) => {
     if (!categoryId || !categoriesCache) return undefined;

@@ -11,6 +11,8 @@ export class HttpError extends Error {
 //const API_BASE = "https://api.ischunkybites.com" as string;
 // En local se puede apuntar a otra API con VITE_API_BASE_URL (ej. http://localhost:3000 en .env.local)
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "https://kvrs5u1t83.execute-api.us-east-2.amazonaws.com") as string;
+// Llave que pide chunky-api en el header x-api-key (VITE_API_KEY en .env.local)
+const API_KEY = import.meta.env.VITE_API_KEY as string | undefined;
 
 if (!API_BASE) {
     throw new Error("VITE_API_BASE_URL is not defined");
@@ -28,6 +30,7 @@ export async function httpGet<T>(
         method: "GET",
         headers: {
             "Content-Type": "application/json",
+            ...(API_KEY ? { "x-api-key": API_KEY } : {}),
         },
         signal: options?.signal,
     });

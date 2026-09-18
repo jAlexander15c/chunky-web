@@ -18,7 +18,12 @@ import {
 } from "@/helpers";
 import type { IItem } from "@/interfaces";
 
-const stripHtml = (html: string) => html?.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() ?? "";
+/** Texto plano de la descripcion del POS: quita etiquetas y decodifica entidades (&oacute;, &amp;...). */
+const getPlainText = (html?: string) => {
+    if (!html) return "";
+    const text = new DOMParser().parseFromString(html, "text/html").body.textContent ?? "";
+    return text.replace(/\s+/g, " ").trim();
+};
 
 const ProductSkeletons = () => (
     <div className="products" aria-busy="true" aria-label="Cargando productos">
@@ -43,7 +48,7 @@ interface IProductCardProps {
 const ProductCard = ({ item, index, isOpen }: IProductCardProps) => {
     const { addItem, setQuantity, getQuantity } = useCart();
     const quantity = getQuantity(item.id);
-    const description = stripHtml(item.description);
+    const description = getPlainText(item.description);
 
     return (
         <Stamp
@@ -81,7 +86,7 @@ export const Items = () => {
     useCategories();
     const category = getCategoryById(selectedCategoryId);
     const categoryName = (location.state as { categoryName?: string } | null)?.categoryName ?? getCategoryName(selectedCategoryId);
-    const presentation = getCategoryPresentation(category?.color);
+    const presentation = getCategoryPresentation(category);
     const { items, loading, error } = useItems(selectedCategoryId);
     const isOpen = isWithinOperatingHours();
 

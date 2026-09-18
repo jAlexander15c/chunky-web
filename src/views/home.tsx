@@ -2,7 +2,7 @@ import { Link } from "react-router";
 import { PiArrowRightBold, PiStarFourFill } from "react-icons/pi";
 
 import { Mascot, MenuBoard, Stamp } from "@/components";
-import { OPENING_HOURS, getCategoryByColor, getOpeningStatusLabel, isWithinOperatingHours, useCategories } from "@/helpers";
+import { OPENING_HOURS, getCategoryByName, getOpeningStatusLabel, isWithinOperatingHours, useCategories } from "@/helpers";
 
 import galleta from "@/assets/fotos/galleta.jpg";
 import focaccia from "@/assets/fotos/focaccia.jpg";
@@ -18,12 +18,12 @@ const ORDER_STEPS = [
     { title: "Envíala por WhatsApp", text: "Sale escrita. Te respondemos para confirmar." },
 ];
 
-/** Enlace a la categoria de un color, o al menu completo si aun no cargan las categorias. */
+/** Enlace a una categoria por nombre, o al menu completo si aun no cargan las categorias. */
 const useCategoryLink = () => {
     const { categories } = useCategories();
 
-    return (color: string) => {
-        const category = getCategoryByColor(categories, color);
+    return (name: string) => {
+        const category = getCategoryByName(categories, name);
         return category
             ? { to: `/items?categoryId=${category.id}`, state: { categoryName: category.name } }
             : { to: "/menu", state: undefined };
@@ -49,9 +49,9 @@ const Marquee = () => (
 export const Home = () => {
     const getCategoryLink = useCategoryLink();
     const isOpen = isWithinOperatingHours();
-    const cookies = getCategoryLink("ORANGE");
-    const savory = getCategoryLink("RED");
-    const drinks = getCategoryLink("BLUE");
+    const cookies = getCategoryLink("galletas");
+    const savory = getCategoryLink("salados");
+    const drinks = getCategoryLink("bebidas");
 
     return (
         <main className="home">
