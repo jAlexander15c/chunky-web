@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { PiWhatsappLogoBold } from "react-icons/pi";
 
-import { useCart } from "@/components";
+import { OrderNotifyCard, useCart } from "@/components";
 import {
     FAILED_ORDER_STATUSES,
     HttpError,
@@ -13,6 +13,7 @@ import {
     getFailedOrderReason,
     getLastOrderId,
     getWhatsAppUrl,
+    playChime,
     setLastOrderId,
 } from "@/helpers";
 import type { IPublicOrder, OrderStatus } from "@/helpers";
@@ -32,20 +33,40 @@ const getPollDelay = (status?: OrderStatus) => {
 const formatTime = (value: string | null) =>
     value ? new Date(value).toLocaleTimeString("es-PA", { hour: "numeric", minute: "2-digit" }) : "";
 
-/** Consulta el pedido hasta que llegue a un estado final. */
-const useOrderStatus = (orderId: string) => {
+/** Aviso que aparece en la pagina cuando el pedido cambia de paso estando abierta. */
+type StepAlert = "accepted" | "ready";
+
+const STEP_ALERT_TEXT: Record<StepAlert, { title: string; text: string; tabTitle: string }> = {
+    accepted: { title: "Estamos preparando tu pedido", text: "La cocina ya lo tomó.", tabTitle: "👩‍🍳 Preparando tu pedido" },
+    ready: { title: "¡Tu pedido está listo!", text: "Pasa a retirarlo cuando quieras.", tabTitle: "✅ ¡Pedido listo!" },
+};
+
+/** Que aviso corresponde al pasar de un estado al siguiente (null si no cambio de paso). */
+const getStepAlert = (previous: IPublicOrder, next: IPublicOrder): StepAlert | null => {
+    if (!previous.readyAt && next.readyAt) return "ready";
+    if (!previous.acceptedAt && next.acceptedAt) return "accepted";
+    return null;
+};
+
+/** Consulta el pedido hasta que llegue a un estado final y avisa cuando cambia de paso. */
+const useOrderStatus = (orderId: string, onStepChange: (alert: StepAlert) => void) => {
     const [order, setOrder] = useState<IPublicOrder | null>(null);
     const [isNotFound, setIsNotFound] = useState(false);
 
     useEffect(() => {
         const controller = new AbortController();
         let timer: number | undefined;
+        let previous: IPublicOrder | null = null;
 
         const load = async () => {
             let nextStatus: OrderStatus | undefined;
             try {
                 const next = await fetchOrder(orderId, controller.signal);
                 setOrder(next);
+                // Solo avisa de cambios ocurridos con la pagina abierta, no al cargarla
+                const alert = previous && getStepAlert(previous, next);
+                if (alert) onStepChange(alert);
+                previous = next;
                 nextStatus = next.status;
             } catch (error) {
                 if (controller.signal.aborted) return;
@@ -63,7 +84,8 @@ const useOrderStatus = (orderId: string) => {
             controller.abort();
             window.clearTimeout(timer);
         };
-    }, [orderId]);
+        // onStepChange se mantiene estable con useCallback
+    }, [orderId, onStepChange]);
 
     return { order, isNotFound };
 };
@@ -112,6 +134,8 @@ const PaidOrder = ({ order }: { order: IPublicOrder }) => {
         <>
             <h1 className="order-page__title script">{copy.title}</h1>
             <p className="order-page__lede">{copy.lede}</p>
+            {/* Ya listo o entregado: no queda nada que avisar */}
+            {!isReady && <OrderNotifyCard orderId={order.id} />}
             <ol className="order-steps">
                 <li className="order-step order-step--done">
                     <span className="order-step__dot" aria-hidden>✓</span>
@@ -177,8 +201,27 @@ const WaitingOrder = ({ order }: { order: IPublicOrder | null }) => (
 
 export const OrderStatusView = () => {
     const { orderId = "" } = useParams();
-    const { order, isNotFound } = useOrderStatus(orderId);
     const { clearCart } = useCart();
+    const [alert, setAlert] = useState<StepAlert | null>(null);
+
+    // Campanita, vibracion y aviso en pantalla cuando la cocina avanza el pedido
+    const announceStep = useCallback((nextAlert: StepAlert) => {
+        playChime();
+        navigator.vibrate?.([180, 90, 180]);
+        setAlert(nextAlert);
+    }, []);
+
+    const { order, isNotFound } = useOrderStatus(orderId, announceStep);
+
+    // El titulo de la pestana tambien avisa si el cliente esta en otra pestana
+    useEffect(() => {
+        if (!alert) return;
+        const previousTitle = document.title;
+        document.title = STEP_ALERT_TEXT[alert].tabTitle;
+        return () => {
+            document.title = previousTitle;
+        };
+    }, [alert]);
 
     // El carrito se vacia una sola vez, cuando se confirma el pago del pedido que se inicio aqui
     useEffect(() => {
@@ -194,6 +237,15 @@ export const OrderStatusView = () => {
     return (
         <main className="section order-page">
             <div className="order-page__inner">
+                {alert && (
+                    <div className={`order-alert order-alert--${alert}`} role="status">
+                        <span className="order-alert__icon" aria-hidden>{alert === "ready" ? "✓" : "♪"}</span>
+                        <span>
+                            <b>{STEP_ALERT_TEXT[alert].title}</b>
+                            <span>{STEP_ALERT_TEXT[alert].text}</span>
+                        </span>
+                    </div>
+                )}
                 {isNotFound ? (
                     <>
                         <h1 className="order-page__title script">No encontramos este pedido</h1>

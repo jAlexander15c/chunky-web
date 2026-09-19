@@ -12,14 +12,14 @@ import {
     getKitchenToken,
     getMinutesSince,
     hasKitchenPushSubscription,
-    isKitchenSoundOn,
+    isChimeSoundOn,
     isPushSupported,
     isStandaloneApp,
     loginKitchen,
-    playKitchenChime,
+    playChime,
     setKitchenStep,
     setKitchenToken,
-    unlockKitchenSound,
+    unlockChimeSound,
 } from "@/helpers";
 import type { IKitchenOrder, KitchenStep } from "@/helpers";
 
@@ -205,8 +205,8 @@ const KitchenStart = ({ token, onStart, onLogout }: { token: string; onStart: (h
     const start = async () => {
         setIsStarting(true);
         // Todo dentro del toque: iOS solo habilita audio y permisos asi
-        const isSoundOn = await unlockKitchenSound();
-        if (isSoundOn) playKitchenChime();
+        const isSoundOn = await unlockChimeSound();
+        if (isSoundOn) playChime();
         const hasPush = canUsePush ? await enableKitchenPush(token) : false;
         onStart(hasPush);
     };
@@ -306,7 +306,7 @@ const KitchenBoard = ({ token, hasPush, onLogout, onSessionExpired }: {
     onSessionExpired: () => void;
 }) => {
     const [now, setNow] = useState(() => Date.now());
-    const [isSoundOn, setIsSoundOn] = useState(isKitchenSoundOn());
+    const [isSoundOn, setIsSoundOn] = useState(isChimeSoundOn());
     const [isPushOn, setIsPushOn] = useState(hasPush);
     const [toast, setToast] = useState<IKitchenOrder | null>(null);
     const [stepError, setStepError] = useState<string | null>(null);
@@ -314,7 +314,7 @@ const KitchenBoard = ({ token, hasPush, onLogout, onSessionExpired }: {
 
     const showArrivals = useCallback((arrived: IKitchenOrder[]) => {
         setToast(arrived[arrived.length - 1]);
-        playKitchenChime();
+        playChime();
     }, []);
 
     const { orders, setOrders, lastSyncAt, isLoaded, refresh } = useKitchenBoard(token, onSessionExpired, showArrivals);
@@ -329,7 +329,7 @@ const KitchenBoard = ({ token, hasPush, onLogout, onSessionExpired }: {
     useEffect(() => {
         const timer = window.setInterval(() => {
             setNow(Date.now());
-            setIsSoundOn(isKitchenSoundOn());
+            setIsSoundOn(isChimeSoundOn());
         }, 1000);
         return () => window.clearInterval(timer);
     }, []);
@@ -341,7 +341,7 @@ const KitchenBoard = ({ token, hasPush, onLogout, onSessionExpired }: {
     // La campana sigue sonando mientras haya pedidos sin aceptar
     useEffect(() => {
         if (!hasNewOrders) return;
-        const timer = window.setInterval(playKitchenChime, CHIME_REPEAT_MS);
+        const timer = window.setInterval(playChime, CHIME_REPEAT_MS);
         return () => window.clearInterval(timer);
     }, [hasNewOrders]);
 
@@ -351,7 +351,7 @@ const KitchenBoard = ({ token, hasPush, onLogout, onSessionExpired }: {
         return () => window.clearTimeout(timer);
     }, [toast]);
 
-    const turnSoundOn = async () => setIsSoundOn(await unlockKitchenSound());
+    const turnSoundOn = async () => setIsSoundOn(await unlockChimeSound());
 
     const runStep = async (order: IKitchenOrder, step: KitchenStep) => {
         setStepError(null);
