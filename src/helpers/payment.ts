@@ -7,6 +7,7 @@ export type OrderStatus =
     | "PAID"
     | "IN_PREPARATION"
     | "READY"
+    | "DELIVERED"
     | "REJECTED"
     | "CANCELLED"
     | "EXPIRED"
@@ -20,6 +21,8 @@ export interface IPublicOrder {
     lines: { name: string; quantity: number; price: number }[];
     total: number;
     yappyConfirmation: string | null;
+    // Los marca la cocina en /cocina
+    acceptedAt: string | null;
     readyAt: string | null;
     createdAt: string;
     paidAt: string | null;
@@ -49,7 +52,7 @@ export const YAPPY_BUTTON_SCRIPT_URL = (import.meta.env.VITE_YAPPY_CDN_URL
 const LAST_ORDER_STORAGE_KEY = "chunky-last-order";
 
 export const FAILED_ORDER_STATUSES: OrderStatus[] = ["REJECTED", "CANCELLED", "EXPIRED", "FAILED"];
-export const PAID_ORDER_STATUSES: OrderStatus[] = ["PAID", "IN_PREPARATION", "READY"];
+export const PAID_ORDER_STATUSES: OrderStatus[] = ["PAID", "IN_PREPARATION", "READY", "DELIVERED"];
 
 /** Solo digitos: "6123-4567" -> "61234567". */
 export const getPhoneDigits = (value: string) => value.replace(/\D/g, "").slice(0, 8);

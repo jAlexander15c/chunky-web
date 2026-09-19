@@ -17,13 +17,15 @@ import {
 } from "@/helpers";
 import type { IPublicOrder, OrderStatus } from "@/helpers";
 
-// Rapido mientras se espera la confirmacion de Yappy, lento mientras se prepara
+// Rapido mientras se espera la confirmacion de Yappy; despues sigue lo que marca la cocina
 const WAITING_POLL_MS = 3000;
-const PREPARING_POLL_MS = 30000;
+const PREPARING_POLL_MS = 10000;
+const READY_POLL_MS = 30000;
 
 const getPollDelay = (status?: OrderStatus) => {
     if (!status || status === "PENDING_PAYMENT" || status === "PAID") return WAITING_POLL_MS;
     if (status === "IN_PREPARATION") return PREPARING_POLL_MS;
+    if (status === "READY") return READY_POLL_MS;
     return null;
 };
 
@@ -93,31 +95,38 @@ const OrderTicket = ({ order }: { order: IPublicOrder }) => (
     </div>
 );
 
+/** Titulo y texto segun el paso que marco la cocina. */
+const getPaidOrderCopy = (order: IPublicOrder) => {
+    if (order.status === "DELIVERED") return { title: `¡Buen provecho, ${order.customerName}!`, lede: "Tu pedido ya fue entregado. ¡Gracias por pedir en Chunky Bites!" };
+    if (order.status === "READY") return { title: `¡Listo, ${order.customerName}!`, lede: "Tu pedido está listo para retirar." };
+    if (order.acceptedAt) return { title: `¡Gracias, ${order.customerName}!`, lede: "Tu pago está confirmado y ya estamos preparando tu pedido." };
+    return { title: `¡Gracias, ${order.customerName}!`, lede: "Tu pago está confirmado. La cocina recibió tu pedido y lo toma en un momento." };
+};
+
 const PaidOrder = ({ order }: { order: IPublicOrder }) => {
-    const isReady = order.status === "READY";
-    // PAID dura segundos (mientras se crea el recibo): se muestra ya como en preparacion
-    const isPreparing = !isReady;
+    const isReady = order.status === "READY" || order.status === "DELIVERED";
+    const isAccepted = Boolean(order.acceptedAt) || isReady;
+    const copy = getPaidOrderCopy(order);
 
     return (
         <>
-            <h1 className="order-page__title script">{isReady ? `¡Listo, ${order.customerName}!` : `¡Gracias, ${order.customerName}!`}</h1>
-            <p className="order-page__lede">
-                {isReady
-                    ? "Tu pedido está listo para retirar."
-                    : "Tu pago está confirmado y ya estamos preparando tu pedido."}
-            </p>
+            <h1 className="order-page__title script">{copy.title}</h1>
+            <p className="order-page__lede">{copy.lede}</p>
             <ol className="order-steps">
                 <li className="order-step order-step--done">
                     <span className="order-step__dot" aria-hidden>✓</span>
                     <span>Pago confirmado<small>Yappy · confirmación {order.yappyConfirmation ?? "en camino"}</small></span>
                 </li>
-                <li className={`order-step ${isReady ? "order-step--done" : isPreparing ? "order-step--now" : ""}`}>
+                <li className={`order-step ${isReady ? "order-step--done" : "order-step--now"}`}>
                     <span className="order-step__dot" aria-hidden>{isReady ? "✓" : "2"}</span>
-                    <span>En preparación<small>{order.readyAt && !isReady ? `Listo aprox. a las ${formatTime(order.readyAt)}` : ""}</small></span>
+                    <span>
+                        En preparación
+                        <small>{isAccepted ? (order.acceptedAt ? `Desde las ${formatTime(order.acceptedAt)}` : "") : "Esperando que la cocina lo tome"}</small>
+                    </span>
                 </li>
-                <li className={`order-step ${isReady ? "order-step--now" : ""}`}>
-                    <span className="order-step__dot" aria-hidden>3</span>
-                    <span>Listo para retirar</span>
+                <li className={`order-step ${order.status === "DELIVERED" ? "order-step--done" : isReady ? "order-step--now" : ""}`}>
+                    <span className="order-step__dot" aria-hidden>{order.status === "DELIVERED" ? "✓" : "3"}</span>
+                    <span>Listo para retirar<small>{order.readyAt ? `Desde las ${formatTime(order.readyAt)}` : ""}</small></span>
                 </li>
             </ol>
             <OrderTicket order={order} />

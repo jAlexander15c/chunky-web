@@ -30,12 +30,13 @@ if (!API_BASE) {
 }
 
 /** POST JSON a chunky-api. Si falla, el HttpError trae el `message` del API cuando existe. */
-export const httpPost = async <T>(path: string, body: unknown): Promise<T> => {
+export const httpPost = async <T>(path: string, body: unknown, options?: { headers?: Record<string, string> }): Promise<T> => {
     const res = await fetch(`${API_BASE}${path}`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
             ...(API_KEY ? { "x-api-key": API_KEY } : {}),
+            ...options?.headers,
         },
         body: JSON.stringify(body),
     });
@@ -52,6 +53,7 @@ export async function httpGet<T>(
     path: string,
     options?: {
         signal?: AbortSignal;
+        headers?: Record<string, string>;
     }
 ): Promise<T> {
     const url = `${API_BASE}${path}`;
@@ -61,6 +63,7 @@ export async function httpGet<T>(
         headers: {
             "Content-Type": "application/json",
             ...(API_KEY ? { "x-api-key": API_KEY } : {}),
+            ...options?.headers,
         },
         signal: options?.signal,
     });
