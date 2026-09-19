@@ -116,15 +116,29 @@ function normalizeCategoryColor(color?: string) {
 
 export async function fetchCategoriesCached() {
     const freshCategories = getFreshCategories();
-    if (freshCategories) return freshCategories;
+    if (freshCategories) {
+        console.log("[get-categories] desde cache:", freshCategories.length, "categorias", freshCategories);
+        return freshCategories;
+    }
 
     if (!categoriesRequest) {
+        console.log("[get-categories] pidiendo al API");
         categoriesRequest = getCategories()
             .then((response: any) => {
+                console.log("[get-categories] respuesta del API:", response);
                 const nextCategories = response.data.categories as ICategory[];
+                console.log(
+                    "[get-categories] categorias:",
+                    nextCategories?.length ?? 0,
+                    nextCategories?.map((category) => ({ id: category.id, name: category.name, color: category.color }))
+                );
                 categoriesCache = { value: nextCategories, savedAt: Date.now() };
                 writeSessionEntry(CATEGORY_CACHE_KEY, categoriesCache);
                 return nextCategories;
+            })
+            .catch((error) => {
+                console.error("[get-categories] error:", error?.status, error?.message);
+                throw error;
             })
             .finally(() => {
                 categoriesRequest = null;
@@ -155,22 +169,35 @@ export async function fetchItemsByCategoryCached(categoryId: string) {
     if (!categoryId) return [];
 
     const cached = readCachedItems(categoryId);
-    if (cached) return cached;
+    if (cached) {
+        console.log(`[get-items] desde cache category_id=${categoryId}:`, cached.length, "items", cached);
+        return cached;
+    }
 
     let request = itemRequests.get(categoryId);
 
     if (!request) {
+        console.log(`[get-items] pidiendo al API category_id=${categoryId}`);
         request = getItems({ categoryId })
             .then((response: any) => {
+                console.log(`[get-items] respuesta del API category_id=${categoryId}:`, response);
                 // `getItems` may return either an array of items or an object with `items`.
                 const nextItems: IItem[] = Array.isArray(response)
                     ? response
                     : (response?.items ?? []);
+                console.log(
+                    `[get-items] items=${nextItems.length} a la venta=${nextItems.filter(hasItemAvailableForSale).length}`,
+                    nextItems.map((item) => ({ name: item.item_name, disponible: hasItemAvailableForSale(item), precio: item.variants?.[0]?.default_price }))
+                );
 
                 const entry = { value: nextItems, savedAt: Date.now() };
                 itemsCache.set(categoryId, entry);
                 writeSessionEntry(`${ITEMS_CACHE_PREFIX}${categoryId}`, entry);
                 return nextItems;
+            })
+            .catch((error) => {
+                console.error(`[get-items] error category_id=${categoryId}:`, error?.status, error?.message);
+                throw error;
             })
             .finally(() => {
                 itemRequests.delete(categoryId);
