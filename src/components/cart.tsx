@@ -1,31 +1,20 @@
 import { Drawer, Portal, useBreakpointValue } from "@chakra-ui/react";
 import { Link } from "react-router";
-import { PiWhatsappLogoBold, PiXBold } from "react-icons/pi";
+import { PiXBold } from "react-icons/pi";
 
 import { AnimatedPrice } from "./animated-price";
+import { CartCheckout } from "./cart-checkout";
 import { useCart } from "./use-cart";
 import { Mascot } from "./mascot";
 import { QuantityStepper } from "./quantity-stepper";
 import { Stamp } from "./stamp";
 
-import {
-    buildOrderMessage,
-    formatPrice,
-    getItemPrice,
-    getOpeningStatusLabel,
-    getWhatsAppUrl,
-    isWithinOperatingHours,
-} from "@/helpers";
+import { formatPrice, getItemPrice } from "@/helpers";
 
 export const Cart = () => {
     const { lines, total, isOpen, setIsOpen, setQuantity } = useCart();
-    const isBarOpen = isWithinOperatingHours();
     // Hoja inferior en movil, panel lateral desde tablet
     const isSheet = useBreakpointValue({ base: true, md: false }) ?? true;
-
-    const sendOrder = () => {
-        window.open(getWhatsAppUrl(buildOrderMessage(lines)), "_blank", "noopener");
-    };
 
     return (
         <Drawer.Root
@@ -91,24 +80,18 @@ export const Cart = () => {
                                     ))}
                                 </ul>
                             )}
-                        </Drawer.Body>
 
-                        {lines.length > 0 && (
-                            <footer className="carrito__foot">
-                                <div className="carrito__total">
-                                    <span>Total</span>
-                                    <AnimatedPrice value={total} className="carrito__total-value" />
-                                </div>
-                                <button type="button" className="button button--primary button--block" onClick={sendOrder}>
-                                    <PiWhatsappLogoBold aria-hidden /> Enviar pedido por WhatsApp
-                                </button>
-                                <p className="carrito__hint">
-                                    {isBarOpen
-                                        ? "Se abre WhatsApp con tu pedido escrito."
-                                        : `${getOpeningStatusLabel(false)}. Puedes dejarlo enviado.`}
-                                </p>
-                            </footer>
-                        )}
+                            {/* Total, datos y pago dentro del area con scroll: en movil no tapan los productos */}
+                            {lines.length > 0 && (
+                                <footer className="carrito__foot carrito__foot--inline">
+                                    <div className="carrito__total">
+                                        <span>Total</span>
+                                        <AnimatedPrice value={total} className="carrito__total-value" />
+                                    </div>
+                                    <CartCheckout />
+                                </footer>
+                            )}
+                        </Drawer.Body>
                     </Drawer.Content>
                 </Drawer.Positioner>
             </Portal>

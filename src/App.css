@@ -1706,3 +1706,375 @@ main {
   width: 200px;
   margin-bottom: 1rem;
 }
+
+/* ============ Pago con Yappy (pie del carrito) ============ */
+/* El pie va dentro de .carrito__body, que ya pone el margen lateral */
+.carrito__foot--inline {
+  padding-inline: 0;
+  margin-top: 0.5rem;
+}
+.checkout {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.checkout__fields {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.field__label {
+  font-size: 0.6875rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mora);
+}
+
+.field__optional {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--text-soft);
+}
+
+.field__input {
+  width: 100%;
+  min-height: 44px;
+  border: 2px solid var(--sky);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--ink);
+  padding: 0 0.8rem;
+  font-family: inherit;
+  /* 16px evita el zoom de iOS al enfocar */
+  font-size: 1rem;
+  font-weight: 600;
+  transition: border-color 150ms ease;
+}
+
+.field__input:focus {
+  outline: none;
+  border-color: var(--mora);
+}
+
+.field__input[aria-invalid="true"] {
+  border-color: #9c2f5b;
+}
+
+.field__input--area {
+  padding: 0.6rem 0.8rem;
+  resize: vertical;
+  min-height: 64px;
+  line-height: 1.4;
+}
+
+.field__phone {
+  position: relative;
+}
+
+.field__prefix {
+  position: absolute;
+  left: 0.8rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-weight: 800;
+  color: var(--text-soft);
+  pointer-events: none;
+}
+
+.field__phone .field__input {
+  padding-left: 3.6rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.field__help,
+.field__error {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--text-soft);
+}
+
+.field__error {
+  color: #9c2f5b;
+  font-weight: 700;
+}
+
+.field__check {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  min-height: 32px;
+}
+
+.field__check input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--mora);
+}
+
+.checkout__notice {
+  display: grid;
+  gap: 0.2rem;
+  background: var(--mantequilla);
+  border-radius: 14px;
+  padding: 0.65rem 0.8rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.checkout__notice--error {
+  background: #f6dbe8;
+  color: #9c2f5b;
+}
+
+.checkout__yappy {
+  min-height: 48px;
+}
+
+/* Sin Yappy el boton sigue montado (para enterarse cuando vuelve), pero no se puede usar */
+.checkout__yappy--off {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.checkout__help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  justify-self: center;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+  cursor: pointer;
+  min-height: 36px;
+}
+
+.button--whatsapp {
+  background: #1f7a4d;
+  color: #fff;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .button--whatsapp:hover {
+    background: #17613c;
+  }
+}
+
+.button--ghost {
+  background: transparent;
+  color: var(--mora);
+  box-shadow: inset 0 0 0 2px var(--mora);
+}
+
+/* ============ Pagina del pedido ============ */
+.order-page__inner {
+  max-width: 460px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.order-page__title {
+  margin: 0;
+  font-size: clamp(2.6rem, 2.2rem + 2vw, 3.4rem);
+  line-height: 1.05;
+  color: var(--mora);
+  text-wrap: balance;
+}
+
+.order-page__lede {
+  margin: -0.4rem 0 0;
+  color: var(--text-soft);
+  line-height: 1.55;
+}
+
+.order-page__lede strong {
+  color: var(--ink);
+}
+
+.order-page__actions {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.order-page__spinner {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 5px solid var(--sky);
+  border-top-color: var(--mora);
+  animation: order-spin 0.9s linear infinite;
+}
+
+.order-page__stamp {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  border: 3px solid #9c2f5b;
+  color: #9c2f5b;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  font-weight: 900;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  transform: rotate(-8deg);
+}
+
+.order-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.order-step {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 0.75rem;
+  align-items: center;
+  font-weight: 700;
+  color: var(--text-soft);
+}
+
+.order-step small {
+  display: block;
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+
+.order-step__dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  font-size: 0.8rem;
+  border: 2px solid var(--sky);
+}
+
+.order-step--done,
+.order-step--now {
+  color: var(--ink);
+}
+
+.order-step--done .order-step__dot {
+  background: var(--lima);
+  border-color: var(--lima);
+  color: var(--ink);
+}
+
+.order-step--now .order-step__dot {
+  background: var(--orquidea);
+  border-color: var(--orquidea);
+  color: var(--ink);
+  animation: order-pulse 1.6s ease-in-out infinite;
+}
+
+.order-ticket {
+  border: 2px solid var(--ink);
+  border-radius: 18px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.order-ticket__top {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.65rem 0.9rem;
+  background: var(--mora);
+  color: var(--crema);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.order-ticket__code {
+  color: var(--orquidea);
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+}
+
+.order-ticket__body {
+  list-style: none;
+  margin: 0;
+  padding: 0.4rem 0.9rem 0.6rem;
+}
+
+.order-ticket__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.4rem 0;
+  font-size: 0.9rem;
+  border-bottom: 1px dashed rgb(58 75 142 / 0.35);
+}
+
+.order-ticket__row--total {
+  border-bottom: 0;
+  font-weight: 900;
+}
+
+.order-ticket__amount {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.order-ticket__note {
+  margin: 0 0.9rem 0.6rem;
+  font-size: 0.8125rem;
+  color: var(--text-soft);
+}
+
+.order-ticket__perf {
+  border-top: 2px dashed var(--ink);
+  margin: 0 0.6rem;
+}
+
+.order-ticket__foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+
+@keyframes order-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes order-pulse {
+  50% { box-shadow: 0 0 0 6px rgb(225 168 229 / 0.35); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .order-page__spinner,
+  .order-step--now .order-step__dot {
+    animation: none;
+  }
+}

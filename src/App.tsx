@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { BrowserRouter, Outlet, Route, Routes, useLocation } from "react-router";
 
 import { Cart, CartButton, CartProvider, SiteFooter, SiteHeader } from "@/components";
-import { Home, Items, Mantenimiento, Menu } from "@/views";
+import { Home, Items, Mantenimiento, Menu, OrderStatusView } from "@/views";
 import { useWwwRedirect } from "@/hooks/useWwwRedirect";
 
 import './App.css'
@@ -49,6 +49,7 @@ const App = () => {
           <Route index element={<Home />} />
           <Route path="/menu" element={<Menu />} />
           <Route path="/items" element={<Items />} />
+          <Route path="/pedido/:orderId" element={<OrderStatusView />} />
           <Route path="*" element={<Home />} />
         </Route>
       </Routes>
