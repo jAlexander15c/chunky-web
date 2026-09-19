@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { getCategories } from "./getCategories";
 import { getItems } from "./getItems";
+import { getItemPrice } from "./order";
 
 import type { ICategory, IItem } from "@/interfaces";
 
@@ -187,7 +188,7 @@ export async function fetchItemsByCategoryCached(categoryId: string) {
                     : (response?.items ?? []);
                 console.log(
                     `[get-items] items=${nextItems.length} a la venta=${nextItems.filter(hasItemAvailableForSale).length}`,
-                    nextItems.map((item) => ({ name: item.item_name, disponible: hasItemAvailableForSale(item), precio: item.variants?.[0]?.default_price }))
+                    nextItems.map((item) => ({ name: item.item_name, disponible: hasItemAvailableForSale(item), precio: getItemPrice(item), precioGeneral: item.variants?.[0]?.default_price }))
                 );
 
                 const entry = { value: nextItems, savedAt: Date.now() };

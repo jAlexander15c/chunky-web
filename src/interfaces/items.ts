@@ -40,8 +40,18 @@ interface IItemVariant {
     purchase_cost: number,
     default_pricing_type: string,
     default_price: number | null,
-    stores: any[],
+    stores: IItemVariantStore[],
     created_at: string,
     updated_at: string,
     deleted_at: string
+}
+
+/** Precio y disponibilidad de la variante en una tienda de Loyverse (manda sobre default_price). */
+export interface IItemVariantStore {
+    store_id: string,
+    pricing_type: string,
+    price: number | null,
+    available_for_sale: boolean,
+    optimal_stock: number | null,
+    low_stock: number | null
 }

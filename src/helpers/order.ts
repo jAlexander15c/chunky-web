@@ -17,7 +17,16 @@ const priceFormatter = new Intl.NumberFormat("en-US", { style: "currency", curre
 
 export const formatPrice = (value: number) => priceFormatter.format(value);
 
-export const getItemPrice = (item: IItem) => item.variants?.[0]?.default_price ?? 0;
+/**
+ * Precio que se cobra: el de la tienda en Loyverse (variants[0].stores[].price), igual que calcula
+ * chunky-api al crear el pedido. default_price es el precio general y solo se usa si la tienda no tiene uno.
+ */
+export const getItemPrice = (item: IItem) => {
+    const variant = item.variants?.[0];
+    const stores = variant?.stores ?? [];
+    const store = stores.find((entry) => entry.available_for_sale) ?? stores[0];
+    return store?.price ?? variant?.default_price ?? 0;
+};
 
 export const getCartCount = (lines: ICartLine[]) => lines.reduce((sum, line) => sum + line.quantity, 0);
 
