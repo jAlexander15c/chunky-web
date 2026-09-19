@@ -26,11 +26,11 @@ const CATEGORY_PRESENTATION: Record<string, ICategoryPresentation> = {
         image: "cGalleta.jpeg",
         description: "Estilo New York, gruesas y suaves por dentro",
         tone: "mantequilla",
-        origin: "Nueva York",
+        origin: "New York",
     },
     salados: {
         image: "cSalado.jpeg",
-        description: "Focaccias, tostadas y pasta con pesto",
+        description: "Focaccias, tostadas y pasta",
         tone: "lima",
         origin: "Italia",
     },

@@ -11,7 +11,7 @@ export const SiteFooter = () => {
             <div className="site-footer__inner">
                 <div className="site-footer__brand">
                     <img src={logo} alt="Chunky Bites Bakery" width={4501} height={1336} loading="lazy" />
-                    <p>Nueva York, Italia y Japón en una sola barra.</p>
+                    <p>New York, Italia y Japón en una sola barra.</p>
                 </div>
 
                 <div className="site-footer__col">

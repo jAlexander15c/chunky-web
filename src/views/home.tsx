@@ -16,7 +16,7 @@ const cookiesPhoto = getCategoryImageUrl("galletas");
 const savoryPhoto = getCategoryImageUrl("salados");
 const drinksPhoto = getCategoryImageUrl("bebidas");
 
-const MARQUEE_WORDS = ["Galletas estilo New York", "Focaccias", "Pasta al pesto", "Tostadas", "Matcha", "Desayunos"];
+const MARQUEE_WORDS = ["Galletas estilo New York", "Focaccias", "Pasta", "Tostadas", "Matcha", "Desayunos"];
 
 const ORDER_STEPS = [
     { title: "Elige en el tablero", text: "Agrega lo que se te antoje." },
@@ -64,7 +64,7 @@ export const Home = () => {
             <section className="hero">
                 <div className="hero__copy">
                     <h1 className="hero__title">
-                        <span className="hero__title-block">De Nueva York a Kioto,</span>
+                        <span className="hero__title-block">De New York a Kioto,</span>
                         <span className="script hero__title-script">con escala en Italia.</span>
                     </h1>
                     <p className="hero__sub">
@@ -81,7 +81,7 @@ export const Home = () => {
                 <div className="hero__stage" aria-hidden>
                     <div className="hero__disc" />
                     <div className="hero__ring" />
-                    <Stamp src={cookiesPhoto} alt="" caption="Nueva York" code="galletas" rotate={-9} className="hero__stamp hero__stamp--ny stamp-lift--cloud" imagePosition="45% 45%" loading="eager" />
+                    <Stamp src={cookiesPhoto} alt="" caption="New York" code="galletas" rotate={-9} className="hero__stamp hero__stamp--ny stamp-lift--cloud" imagePosition="45% 45%" loading="eager" />
                     <Stamp src={savoryPhoto} alt="" caption="Italia" code="salados" rotate={7} className="hero__stamp hero__stamp--it stamp-lift--cloud" imagePosition="85% 20%" loading="eager" />
                     <Stamp src={drinksPhoto} alt="" caption="Japón" code="matcha" rotate={6} className="hero__stamp hero__stamp--jp stamp-lift--cloud" imagePosition="28% 55%" loading="eager" />
                     <Mascot bob className="hero__mascot" loading="eager" />
@@ -96,7 +96,7 @@ export const Home = () => {
                         Un menú con <span className="script section__script">pasaporte</span>
                     </h2>
                     <p className="section__lede">
-                        Tres paradas en una misma barra: la galleta de Nueva York, los salados de Italia y el matcha de Japón.
+                        Tres paradas en una misma barra: la galleta de New York, los salados de Italia y el matcha de Japón.
                     </p>
 
                     <div className="passport__grid">
@@ -115,7 +115,7 @@ export const Home = () => {
                         <article className="passport__cell passport__cell--ny">
                             <Stamp src={cookiesPhoto} alt="Galletas estilo New York" caption="Galletas" code="NY" rotate={-5} settle imagePosition="45% 45%" className="passport__stamp-single stamp-lift--cloud" />
                             <div>
-                                <p className="passport__origin">Nueva York</p>
+                                <p className="passport__origin">New York</p>
                                 <h3 className="passport__title passport__title--sm">Galletas estilo New York</h3>
                                 <p className="passport__text">Gruesas, crujientes por fuera y suaves por dentro.</p>
                                 <Link to={cookies.to} state={cookies.state} className="text-link">Ver galletas</Link>
@@ -126,7 +126,7 @@ export const Home = () => {
                             <div>
                                 <p className="passport__origin">Italia</p>
                                 <h3 className="passport__title passport__title--sm">Salados con acento italiano</h3>
-                                <p className="passport__text">Focaccias, tostadas y pasta con pesto, para cualquier hora.</p>
+                                <p className="passport__text">Focaccias, tostadas y pasta, para cualquier hora.</p>
                                 <Link to={savory.to} state={savory.state} className="text-link">Ver salados</Link>
                             </div>
                             <Stamp src={savoryPhoto} alt="Tostadas de Chunky Bites" caption="Salados" code="IT" rotate={5} settle imagePosition="85% 20%" className="passport__stamp-single stamp-lift--cloud" />
