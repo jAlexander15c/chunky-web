@@ -65,46 +65,65 @@ const COLOR_TONE: Record<string, CategoryTone> = {
 const normalizeCategoryName = (name?: string) =>
     (name ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
 
-let categoriesCache: ICategory[] | null = readSessionValue<ICategory[]>(CATEGORY_CACHE_KEY);
+// Cuanto tiempo se reutiliza el catalogo antes de volver a pedirlo al API
+// (asi un producto activado en Loyverse aparece sin abrir una pestaña nueva).
+const SESSION_CACHE_TTL_MS = 5 * 60 * 1000;
+
+interface ICacheEntry<T> {
+    value: T;
+    savedAt: number;
+}
+
+const isCacheFresh = (entry?: ICacheEntry<unknown> | null) =>
+    Boolean(entry) && Date.now() - (entry as ICacheEntry<unknown>).savedAt < SESSION_CACHE_TTL_MS;
+
+/** Lee una entrada de sessionStorage; las vencidas o con el formato anterior (sin savedAt) se ignoran. */
+const readSessionEntry = <T,>(key: string): ICacheEntry<T> | null => {
+    if (typeof window === "undefined") return null;
+
+    try {
+        const raw = window.sessionStorage.getItem(key);
+        const parsed = raw ? JSON.parse(raw) : null;
+        const isEntry = parsed && typeof parsed === "object" && "value" in parsed && typeof parsed.savedAt === "number";
+        return isEntry && isCacheFresh(parsed) ? parsed as ICacheEntry<T> : null;
+    } catch {
+        return null;
+    }
+};
+
+const writeSessionEntry = <T,>(key: string, entry: ICacheEntry<T>) => {
+    if (typeof window === "undefined") return;
+
+    try {
+        window.sessionStorage.setItem(key, JSON.stringify(entry));
+    } catch {
+        return;
+    }
+};
+
+let categoriesCache: ICacheEntry<ICategory[]> | null = readSessionEntry<ICategory[]>(CATEGORY_CACHE_KEY);
 let categoriesRequest: Promise<ICategory[]> | null = null;
 
-const itemsCache = new Map<string, IItem[]>();
+const itemsCache = new Map<string, ICacheEntry<IItem[]>>();
 const itemRequests = new Map<string, Promise<IItem[]>>();
+
+/** Categorias en cache si siguen vigentes. */
+const getFreshCategories = () => (isCacheFresh(categoriesCache) ? categoriesCache!.value : null);
 
 function normalizeCategoryColor(color?: string) {
     return (color ?? "").trim().toUpperCase();
 }
 
-function readSessionValue<T>(key: string): T | null {
-    if (typeof window === "undefined") return null;
-
-    try {
-        const raw = window.sessionStorage.getItem(key);
-        return raw ? JSON.parse(raw) as T : null;
-    } catch {
-        return null;
-    }
-}
-
-function writeSessionValue<T>(key: string, value: T) {
-    if (typeof window === "undefined") return;
-
-    try {
-        window.sessionStorage.setItem(key, JSON.stringify(value));
-    } catch {
-        return;
-    }
-}
-
 export async function fetchCategoriesCached() {
-    if (categoriesCache) return categoriesCache;
+    const freshCategories = getFreshCategories();
+    if (freshCategories) return freshCategories;
 
     if (!categoriesRequest) {
         categoriesRequest = getCategories()
             .then((response: any) => {
                 const nextCategories = response.data.categories as ICategory[];
-                categoriesCache = nextCategories;
-                writeSessionValue(CATEGORY_CACHE_KEY, nextCategories);
+                categoriesCache = { value: nextCategories, savedAt: Date.now() };
+                writeSessionEntry(CATEGORY_CACHE_KEY, categoriesCache);
                 return nextCategories;
             })
             .finally(() => {
@@ -116,17 +135,17 @@ export async function fetchCategoriesCached() {
 }
 
 function readCachedItems(categoryId: string) {
-    const memoryValue = itemsCache.get(categoryId);
-    if (memoryValue) return memoryValue;
+    const memoryEntry = itemsCache.get(categoryId);
+    if (isCacheFresh(memoryEntry)) return memoryEntry!.value;
 
-    const sessionValue = readSessionValue<IItem[]>(`${ITEMS_CACHE_PREFIX}${categoryId}`);
+    const sessionEntry = readSessionEntry<IItem[]>(`${ITEMS_CACHE_PREFIX}${categoryId}`);
 
     // If session storage has an array with items, use it. If it's an empty
     // array (likely from a previous failed fetch), ignore it so we attempt
     // a fresh fetch from the API.
-    if (Array.isArray(sessionValue) && sessionValue.length > 0) {
-        itemsCache.set(categoryId, sessionValue);
-        return sessionValue;
+    if (sessionEntry && Array.isArray(sessionEntry.value) && sessionEntry.value.length > 0) {
+        itemsCache.set(categoryId, sessionEntry);
+        return sessionEntry.value;
     }
 
     return undefined;
@@ -148,8 +167,9 @@ export async function fetchItemsByCategoryCached(categoryId: string) {
                     ? response
                     : (response?.items ?? []);
 
-                itemsCache.set(categoryId, nextItems);
-                writeSessionValue(`${ITEMS_CACHE_PREFIX}${categoryId}`, nextItems);
+                const entry = { value: nextItems, savedAt: Date.now() };
+                itemsCache.set(categoryId, entry);
+                writeSessionEntry(`${ITEMS_CACHE_PREFIX}${categoryId}`, entry);
                 return nextItems;
             })
             .finally(() => {
@@ -163,15 +183,16 @@ export async function fetchItemsByCategoryCached(categoryId: string) {
 }
 
 export function useCategories() {
-    const [categories, setCategories] = useState<ICategory[]>(categoriesCache ?? []);
-    const [loading, setLoading] = useState(!categoriesCache);
+    const [categories, setCategories] = useState<ICategory[]>(() => getFreshCategories() ?? []);
+    const [loading, setLoading] = useState(() => !getFreshCategories());
     const [error, setError] = useState<string>("");
 
     useEffect(() => {
         let cancelled = false;
 
-        if (categoriesCache) {
-            setCategories(categoriesCache);
+        const freshCategories = getFreshCategories();
+        if (freshCategories) {
+            setCategories(freshCategories);
             setLoading(false);
             return;
         }
@@ -277,7 +298,8 @@ export const getCategoryByName =(categories: ICategory[], name: string) =>
 
 export const getCategoryById = (categoryId?: string) => {
     if (!categoryId || !categoriesCache) return undefined;
-    return categoriesCache.find((category) => category.id === categoryId);
+    // Para nombres sirve aunque la cache este vencida
+    return categoriesCache.value.find((category) => category.id === categoryId);
 };
 
 export function shouldDisplayCategory(category: ICategory, date = new Date()) {
@@ -289,7 +311,7 @@ export function shouldDisplayCategory(category: ICategory, date = new Date()) {
 
 export function getCategoryName(categoryId?: string) {
     if (!categoryId || !categoriesCache) return "Items";
-    return categoriesCache.find((category) => category.id === categoryId)?.name ?? "Items";
+    return categoriesCache.value.find((category) => category.id === categoryId)?.name ?? "Items";
 }
 
 export function hasItemAvailableForSale(item: IItem) {
