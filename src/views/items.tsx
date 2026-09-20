@@ -13,7 +13,7 @@ import {
     getNextOpeningLabel,
     getWhatsAppUrl,
     hasItemAvailableForSale,
-    isWithinOperatingHours,
+    isAcceptingOrders,
     useCategories,
     useItems,
     useSettings,
@@ -97,7 +97,7 @@ export const Items = () => {
         getCatalogScope(settings.pastaMode)
     );
     const loading = isLoadingItems || !isSettingsReady;
-    const isOpen = isWithinOperatingHours();
+    const isOpen = isAcceptingOrders(settings.pastaMode);
 
     const availableItems = useMemo(
         () => items.filter((item) => item.category_id === selectedCategoryId && item.id !== settings.pasta?.itemId && hasItemAvailableForSale(item)),

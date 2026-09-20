@@ -11,9 +11,7 @@ import {
     PASTA_STEPS,
     buildPastaItem,
     formatPastaOptions,
-    getNextOpeningLabel,
     isPastaOptionsComplete,
-    isWithinOperatingHours,
     useSettings,
 } from "@/helpers";
 import type { IPastaOptions, IPastaSettings } from "@/helpers";
@@ -31,7 +29,6 @@ const PastaBuilderForm = ({ pasta, onDone }: { pasta: IPastaSettings; onDone: ()
     const { addItem, setIsOpen } = useCart();
     const [selection, setSelection] = useState<Partial<IPastaOptions>>({});
     const [quantity, setQuantity] = useState(1);
-    const isOpenNow = isWithinOperatingHours();
 
     const isComplete = isPastaOptionsComplete(selection);
     const summary = PASTA_STEPS.every((step) => !selection[step.key])
@@ -117,15 +114,11 @@ const PastaBuilderForm = ({ pasta, onDone }: { pasta: IPastaSettings; onDone: ()
                     </button>
                 </div>
 
-                {isOpenNow ? (
-                    <button type="button" className="button button--primary pasta__add" onClick={addToCart} disabled={!isComplete}>
-                        Agregar · <AnimatedPrice value={pasta.price * quantity} />
-                    </button>
-                ) : (
-                    <span className="product__closed pasta__closed">{getNextOpeningLabel()}</span>
-                )}
+                <button type="button" className="button button--primary pasta__add" onClick={addToCart} disabled={!isComplete}>
+                    Agregar · <AnimatedPrice value={pasta.price * quantity} />
+                </button>
             </div>
-            {!isComplete && isOpenNow && <p className="pasta__hint">Elige las tres opciones para agregarla.</p>}
+            {!isComplete && <p className="pasta__hint">Elige las tres opciones para agregarla.</p>}
         </>
     );
 };

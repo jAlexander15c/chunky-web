@@ -6,8 +6,8 @@ import {
     OPENING_HOURS,
     getCategoryByName,
     getCategoryImageUrl,
-    getOpeningStatusLabel,
-    isWithinOperatingHours,
+    getOrderingStatusLabel,
+    isAcceptingOrders,
     useCategories,
     useSettings,
 } from "@/helpers";
@@ -57,7 +57,7 @@ export const Home = () => {
     const getCategoryLink = useCategoryLink();
     const { settings } = useSettings();
     const { open: openPastaBuilder } = usePastaBuilder();
-    const isOpen = isWithinOperatingHours();
+    const isOpen = isAcceptingOrders(settings.pastaMode);
     // Los dias de pasta el resto del menu no se vende: no se ofrecen sus accesos
     const isPastaDay = settings.pastaMode;
     const cookies = getCategoryLink("galletas");
@@ -91,7 +91,7 @@ export const Home = () => {
                                 Ver el menú <PiArrowRightBold aria-hidden />
                             </Link>
                         )}
-                        <span className="hero__status">{getOpeningStatusLabel(isOpen)}</span>
+                        <span className="hero__status">{getOrderingStatusLabel(isPastaDay, isOpen)}</span>
                     </div>
                 </div>
 
@@ -198,6 +198,9 @@ export const Home = () => {
                                     </div>
                                 ))}
                             </dl>
+                            {isPastaDay && (
+                                <p className="hours__note">Hoy es día de pasta: recibimos pedidos en línea aunque este horario diga otra cosa.</p>
+                            )}
                         </div>
                     </div>
                 </div>

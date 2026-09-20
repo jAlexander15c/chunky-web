@@ -2432,11 +2432,6 @@ main {
   cursor: not-allowed;
 }
 
-.pasta__closed {
-  flex: 1;
-  text-align: center;
-}
-
 .pasta__hint {
   margin: -0.4rem 0 0;
   text-align: center;
@@ -2529,4 +2524,13 @@ main {
   font-size: 0.68rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+/* Nota del horario el dia de pasta */
+.hours__note {
+  margin: 0.75rem 0 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--text-soft);
 }

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { getCategories } from "./getCategories";
 import { getItems } from "./getItems";
-import { getItemPrice } from "./order";
+import { getItemPrice, getOpeningStatusLabel } from "./order";
 
 import type { ICategory, IItem } from "@/interfaces";
 
@@ -370,6 +370,16 @@ export function hasItemAvailableForSale(item: IItem) {
         return stores.some((store: any) => store?.available_for_sale === true);
     });
 }
+
+/**
+ * El dia de pasta manda el interruptor del tablero, no el horario semanal: se enciende al abrir y se
+ * apaga al cerrar (y el domingo, que el horario semanal marca cerrado, tambien se puede pedir).
+ */
+export const isAcceptingOrders = (isPastaMode: boolean, date = new Date()) => isPastaMode || isWithinOperatingHours(date);
+
+/** Estado de la barra en una frase; el dia de pasta no hay hora de cierre que anunciar. */
+export const getOrderingStatusLabel = (isPastaMode: boolean, isOpen: boolean, date = new Date()) =>
+    isPastaMode ? "Pedidos abiertos hoy" : getOpeningStatusLabel(isOpen, date);
 
 export const isWithinOperatingHours = (date = new Date()) => {
     const dayOfWeek = date.getDay();

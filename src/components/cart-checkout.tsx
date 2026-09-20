@@ -17,7 +17,7 @@ import {
     getMapsUrl,
     getOpeningStatusLabel,
     getWhatsAppUrl,
-    isWithinOperatingHours,
+    isAcceptingOrders,
     setLastOrderId,
     useSettings,
 } from "@/helpers";
@@ -63,10 +63,10 @@ const openWhatsApp = (message: string) => {
 export const CartCheckout = () => {
     const { lines, setIsOpen } = useCart();
     const navigate = useNavigate();
-    const isBarOpen = isWithinOperatingHours();
-    // El dia de pasta todo pedido es con entrega a domicilio
     const { settings } = useSettings();
+    // El dia de pasta todo pedido es con entrega a domicilio y no rige el horario semanal
     const requiresDelivery = settings.pastaMode;
+    const isBarOpen = isAcceptingOrders(settings.pastaMode);
 
     const [form, setForm] = useState<ICheckoutForm>(readStoredForm);
     const [errors, setErrors] = useState<CheckoutErrors>({});
