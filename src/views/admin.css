@@ -547,3 +547,74 @@
 
 .adm-modal__unit { font-weight: 800; color: var(--adm-text-2); }
 .adm-modal__actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
+
+.adm-modal__panel--wide { width: min(520px, 100%); max-height: 90dvh; overflow-y: auto; }
+
+/* Encabezado de tarjeta con acción a la derecha */
+.adm-card-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.9rem;
+}
+
+.adm-card-head .grow { margin-right: auto; }
+.adm-card-head .adm-note { margin-bottom: 0; }
+
+/* ============ Formulario de alta ============ */
+
+.adm-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.7rem;
+    margin-bottom: 0.8rem;
+}
+
+@media (max-width: 520px) {
+    .adm-form { grid-template-columns: 1fr; }
+}
+
+.adm-form__row { display: grid; gap: 0.25rem; min-width: 0; }
+.adm-form__row--full { grid-column: 1 / -1; }
+
+.adm-form__row > span {
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--adm-text-3);
+}
+
+.adm-form__row > span em {
+    font-style: normal;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    opacity: 0.8;
+}
+
+.adm-form__input {
+    font: inherit;
+    font-size: 0.9rem;
+    padding: 0.5rem 0.7rem;
+    border: 2px solid var(--sky);
+    border-radius: 12px;
+    background: var(--crema);
+    color: var(--ink);
+    min-width: 0;
+    width: 100%;
+}
+
+.adm-form__input::placeholder { color: var(--adm-text-3); opacity: 0.7; }
+
+select.adm-form__input { cursor: pointer; }
+
+.adm-form__note {
+    margin: 0 0 0.9rem;
+    font-size: 0.72rem;
+    color: var(--adm-text-2);
+    background: var(--sky);
+    border-radius: 12px;
+    padding: 0.6rem 0.8rem;
+}

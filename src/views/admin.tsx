@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 
 import {
     HttpError,
+    createSupply,
     fetchDashboard,
     fetchMovements,
     fetchProducts,
@@ -314,6 +315,174 @@ const AmountDialog = ({ title, hint, unit, initial = "", confirmLabel, onConfirm
     );
 };
 
+/* ============ Alta de insumo ============ */
+
+const SUPPLY_UNITS = [
+    { value: "kg", label: "kilos (kg)" },
+    { value: "g", label: "gramos (g)" },
+    { value: "L", label: "litros (L)" },
+    { value: "ml", label: "mililitros (ml)" },
+    { value: "u", label: "unidades (u)" },
+];
+
+interface ISupplyFormProps {
+    onCreate: (supply: {
+        name: string;
+        unit: string;
+        minStock: number;
+        supplier?: string;
+        purchaseUnit?: string;
+        purchaseSize?: number;
+    }) => Promise<void>;
+    onClose: () => void;
+}
+
+const SupplyFormDialog = ({ onCreate, onClose }: ISupplyFormProps) => {
+    const [name, setName] = useState("");
+    const [unit, setUnit] = useState("kg");
+    const [minStock, setMinStock] = useState("");
+    const [supplier, setSupplier] = useState("");
+    const [purchaseUnit, setPurchaseUnit] = useState("");
+    const [purchaseSize, setPurchaseSize] = useState("");
+    const [error, setError] = useState("");
+    const [isSending, setIsSending] = useState(false);
+
+    const toNumber = (value: string) => Number(value.replace(",", "."));
+
+    const submit = async (event: FormEvent) => {
+        event.preventDefault();
+
+        const parsedMin = minStock.trim() ? toNumber(minStock) : 0;
+        const parsedSize = purchaseSize.trim() ? toNumber(purchaseSize) : undefined;
+
+        if (name.trim().length < 2) {
+            setError("El nombre necesita al menos dos letras.");
+            return;
+        }
+        if (!Number.isFinite(parsedMin) || parsedMin < 0) {
+            setError("El mínimo tiene que ser un número.");
+            return;
+        }
+        // El API rechaza un tamaño de compra en cero: o hay un número válido, o no se manda
+        if (parsedSize !== undefined && (!Number.isFinite(parsedSize) || parsedSize <= 0)) {
+            setError("El contenido por unidad de compra tiene que ser mayor que cero.");
+            return;
+        }
+
+        setIsSending(true);
+        setError("");
+
+        try {
+            await onCreate({
+                name: name.trim(),
+                unit,
+                minStock: parsedMin,
+                supplier: supplier.trim() || undefined,
+                purchaseUnit: purchaseUnit.trim() || undefined,
+                purchaseSize: parsedSize,
+            });
+            onClose();
+        } catch (requestError) {
+            setError(requestError instanceof HttpError ? requestError.message : "No se pudo crear el insumo.");
+            setIsSending(false);
+        }
+    };
+
+    return (
+        <div className="adm-modal" role="dialog" aria-modal="true" aria-label="Nuevo insumo">
+            <form className="adm-modal__panel adm-modal__panel--wide" onSubmit={submit}>
+                <h3 className="script">Nuevo insumo</h3>
+                <p className="adm-modal__hint">
+                    El stock arranca en cero: se carga con el primer conteo o con una compra.
+                </p>
+
+                <div className="adm-form">
+                    <label className="adm-form__row adm-form__row--full">
+                        <span>Nombre</span>
+                        <input
+                            className="adm-form__input"
+                            type="text"
+                            autoFocus
+                            value={name}
+                            onChange={(event) => setName(event.target.value)}
+                            placeholder="Harina panadera"
+                        />
+                    </label>
+
+                    <label className="adm-form__row">
+                        <span>Se mide en</span>
+                        <select className="adm-form__input" value={unit} onChange={(event) => setUnit(event.target.value)}>
+                            {SUPPLY_UNITS.map((option) => (
+                                <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
+                        </select>
+                    </label>
+
+                    <label className="adm-form__row">
+                        <span>Mínimo antes de avisar</span>
+                        <input
+                            className="adm-form__input"
+                            type="text"
+                            inputMode="decimal"
+                            value={minStock}
+                            onChange={(event) => setMinStock(event.target.value)}
+                            placeholder="15"
+                        />
+                    </label>
+
+                    <label className="adm-form__row adm-form__row--full">
+                        <span>Proveedor <em>opcional</em></span>
+                        <input
+                            className="adm-form__input"
+                            type="text"
+                            value={supplier}
+                            onChange={(event) => setSupplier(event.target.value)}
+                            placeholder="Molinos Modernos"
+                        />
+                    </label>
+
+                    <label className="adm-form__row">
+                        <span>Cómo lo venden <em>opcional</em></span>
+                        <input
+                            className="adm-form__input"
+                            type="text"
+                            value={purchaseUnit}
+                            onChange={(event) => setPurchaseUnit(event.target.value)}
+                            placeholder="saco"
+                        />
+                    </label>
+
+                    <label className="adm-form__row">
+                        <span>Cuánto trae cada uno</span>
+                        <input
+                            className="adm-form__input"
+                            type="text"
+                            inputMode="decimal"
+                            value={purchaseSize}
+                            onChange={(event) => setPurchaseSize(event.target.value)}
+                            placeholder="25"
+                        />
+                    </label>
+                </div>
+
+                <p className="adm-form__note">
+                    Con esos dos últimos datos la sugerencia de compra sale en sacos o cajas, que es
+                    como se le pide al proveedor, en vez de en {unit}.
+                </p>
+
+                {error ? <p className="adm-gate__error">{error}</p> : null}
+
+                <div className="adm-modal__actions">
+                    <button type="button" className="adm-btn" onClick={onClose} disabled={isSending}>Cancelar</button>
+                    <button type="submit" className="adm-btn adm-btn--solid" disabled={isSending}>
+                        {isSending ? "Creando…" : "Crear insumo"}
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
+};
+
 type PendingAction =
     | { kind: "purchase"; supply: ISupplyStatus }
     | { kind: "count"; supply: ISupplyStatus }
@@ -330,6 +499,7 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
     const [isLoading, setIsLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
     const [pending, setPending] = useState<PendingAction | null>(null);
+    const [isCreatingSupply, setIsCreatingSupply] = useState(false);
 
     const loadAll = useCallback(
         async (signal?: AbortSignal) => {
@@ -503,6 +673,16 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
                     </div>
 
                     <div className="adm-card">
+                        <div className="adm-card-head">
+                            <div className="grow">
+                                <h3 className="script">Todo lo que hay en despensa</h3>
+                                <p className="adm-note">Loyverse no sabe nada de esto: es nuestro.</p>
+                            </div>
+                            <button type="button" className="adm-btn adm-btn--solid" onClick={() => setIsCreatingSupply(true)}>
+                                Nuevo insumo
+                            </button>
+                        </div>
+
                         {supplies.length === 0 ? (
                             <p className="adm-empty">
                                 Todavía no hay insumos cargados. Cuando agregues el primero y lo cuentes dos veces,
@@ -715,6 +895,16 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
                     </div>
                 </section>
             </main>
+
+            {isCreatingSupply ? (
+                <SupplyFormDialog
+                    onCreate={async (supply) => {
+                        await createSupply(token, supply);
+                        await loadAll();
+                    }}
+                    onClose={() => setIsCreatingSupply(false)}
+                />
+            ) : null}
 
             {pending?.kind === "purchase" ? (
                 <AmountDialog
