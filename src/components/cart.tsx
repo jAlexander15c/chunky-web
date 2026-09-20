@@ -11,7 +11,7 @@ import { Mascot } from "./mascot";
 import { QuantityStepper } from "./quantity-stepper";
 import { Stamp } from "./stamp";
 
-import { formatPastaOptions, formatPrice, getItemPrice, useSettings } from "@/helpers";
+import { formatCartLineDetails, formatPrice, getCartLinePrice, useSettings } from "@/helpers";
 import type { ICartLine, IPublicSettings } from "@/helpers";
 
 /**
@@ -109,15 +109,17 @@ export const Cart = () => {
                                             />
                                             <div className="carrito__info">
                                                 <span className="carrito__name">{line.item.item_name}</span>
-                                                {line.options && <span className="carrito__options">{formatPastaOptions(line.options)}</span>}
+                                                {formatCartLineDetails(line) && (
+                                                    <span className="carrito__options">{formatCartLineDetails(line)}</span>
+                                                )}
                                                 <QuantityStepper
                                                     size="sm"
                                                     quantity={line.quantity}
-                                                    itemName={line.options ? `${line.item.item_name} (${formatPastaOptions(line.options)})` : line.item.item_name}
+                                                    itemName={formatCartLineDetails(line) ? `${line.item.item_name} (${formatCartLineDetails(line)})` : line.item.item_name}
                                                     onChange={(quantity) => setQuantity(line.lineKey, quantity)}
                                                 />
                                             </div>
-                                            <span className="carrito__price">{formatPrice(getItemPrice(line.item) * line.quantity)}</span>
+                                            <span className="carrito__price">{formatPrice(getCartLinePrice(line) * line.quantity)}</span>
                                         </li>
                                     ))}
                                 </ul>

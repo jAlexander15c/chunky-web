@@ -1,23 +1,27 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router";
-import { PiArrowLeftBold, PiPlusBold, PiWhatsappLogoBold } from "react-icons/pi";
+import { PiArrowLeftBold, PiPlusBold, PiSlidersHorizontalBold, PiWhatsappLogoBold } from "react-icons/pi";
 
-import { QuantityStepper, Stamp, useCart } from "@/components";
+import { ProductOptions, QuantityStepper, Stamp, useCart } from "@/components";
 import {
     formatPrice,
     getCategoryById,
     getCategoryName,
     getCatalogScope,
     getCategoryPresentation,
+    getItemModifiers,
     getItemPrice,
     getNextOpeningLabel,
     getWhatsAppUrl,
     hasItemAvailableForSale,
+    hasItemModifiers,
     isAcceptingOrders,
     useCategories,
     useItems,
+    useModifiers,
     useSettings,
 } from "@/helpers";
+import type { IModifier } from "@/helpers";
 import type { IItem } from "@/interfaces";
 
 /** Texto plano de la descripcion del POS: quita etiquetas y decodifica entidades (&oacute;, &amp;...). */
@@ -45,12 +49,16 @@ interface IProductCardProps {
     item: IItem;
     index: number;
     isOpen: boolean;
+    modifiers: IModifier[];
+    onChooseOptions: (item: IItem) => void;
 }
 
-const ProductCard = ({ item, index, isOpen }: IProductCardProps) => {
+const ProductCard = ({ item, index, isOpen, modifiers, onChooseOptions }: IProductCardProps) => {
     const { addItem, setQuantity, getQuantity } = useCart();
     const quantity = getQuantity(item.id);
     const description = getPlainText(item.description);
+    // Con modificadores se elige antes de agregar, asi que la tarjeta no lleva contador
+    const isCustomizable = hasItemModifiers(item, modifiers);
 
     return (
         <Stamp
@@ -64,10 +72,17 @@ const ProductCard = ({ item, index, isOpen }: IProductCardProps) => {
             <div className="product">
                 <h2 className="product__name">{item.item_name}</h2>
                 {description && <p className="product__desc">{description}</p>}
+                {isCustomizable && (
+                    <span className="product__tag"><PiSlidersHorizontalBold aria-hidden /> Personalizable</span>
+                )}
                 <div className="product__foot">
                     <span className="product__price">{formatPrice(getItemPrice(item))}</span>
                     {!isOpen ? (
                         <span className="product__closed">{getNextOpeningLabel()}</span>
+                    ) : isCustomizable ? (
+                        <button type="button" className="button button--primary button--sm" onClick={() => onChooseOptions(item)}>
+                            Elegir
+                        </button>
                     ) : quantity > 0 ? (
                         <QuantityStepper quantity={quantity} itemName={item.item_name} onChange={(value) => setQuantity(item.id, value)} />
                     ) : (
@@ -90,6 +105,8 @@ export const Items = () => {
     const categoryName = (location.state as { categoryName?: string } | null)?.categoryName ?? getCategoryName(selectedCategoryId);
     const presentation = getCategoryPresentation(category);
     const { settings, isReady: isSettingsReady } = useSettings();
+    const modifiers = useModifiers();
+    const [optionsItem, setOptionsItem] = useState<IItem | null>(null);
     // El dia de pasta solo se venden bebidas aqui; la pasta se arma en su propia hoja
     const isBlockedToday = settings.pastaMode && selectedCategoryId !== settings.beveragesCategoryId;
     const { items, loading: isLoadingItems, error } = useItems(
@@ -149,10 +166,23 @@ export const Items = () => {
                 {selectedCategoryId && !isBlockedToday && !loading && !error && availableItems.length > 0 && (
                     <div className="products">
                         {availableItems.map((item, index) => (
-                            <ProductCard key={item.id} item={item} index={index} isOpen={isOpen} />
+                            <ProductCard
+                                key={item.id}
+                                item={item}
+                                index={index}
+                                isOpen={isOpen}
+                                modifiers={modifiers}
+                                onChooseOptions={setOptionsItem}
+                            />
                         ))}
                     </div>
                 )}
+
+                <ProductOptions
+                    item={optionsItem}
+                    modifiers={optionsItem ? getItemModifiers(optionsItem, modifiers) : []}
+                    onClose={() => setOptionsItem(null)}
+                />
             </div>
         </main>
     );

@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
 
-import type { ICartLine, IPastaOptions } from "@/helpers";
+import type { ICartLine, ICartModifier, IPastaOptions } from "@/helpers";
 import type { IItem } from "@/interfaces";
 
 export interface ICartContext {
@@ -9,8 +9,8 @@ export interface ICartContext {
     total: number;
     isOpen: boolean;
     setIsOpen: (open: boolean) => void;
-    /** Suma una unidad. En la pasta, `options` define la linea: otras opciones son otra linea. */
-    addItem: (item: IItem, options?: IPastaOptions) => void;
+    /** Suma una unidad. Lo elegido (opciones o modificadores) define la linea: otra eleccion es otra linea. */
+    addItem: (item: IItem, options?: IPastaOptions, modifiers?: ICartModifier[]) => void;
     setQuantity: (lineKey: string, quantity: number) => void;
     /** Cantidad de un producto sin opciones (la pasta siempre va por su linea). */
     getQuantity: (itemId: string) => number;

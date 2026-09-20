@@ -12,7 +12,7 @@ export interface IItem {
     components: { variant_id: string, quantity: number }[],
     primary_supplier_id: string,
     tax_ids: string[],
-    modifiers_ids: string[],
+    modifier_ids: string[],
     form: string,
     color: string,
     image_url: string,

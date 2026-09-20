@@ -19,7 +19,14 @@ export interface IPublicOrder {
     status: OrderStatus;
     customerName: string;
     note: string | null;
-    lines: { name: string; quantity: number; price: number; options?: IPastaOptions }[];
+    lines: {
+        name: string;
+        quantity: number;
+        /** Precio por unidad, con sus modificadores ya incluidos. */
+        price: number;
+        options?: IPastaOptions;
+        modifiers?: { name: string; option: string; price: number }[];
+    }[];
     // Solo el dia de pasta: la direccion escrita por el cliente (sin coordenadas)
     delivery: { address: string; details: string | null } | null;
     total: number;
@@ -93,7 +100,12 @@ export const getCheckoutErrors = (form: ICheckoutForm, requiresDelivery = false)
 
 export const createOrder = (lines: ICartLine[], form: ICheckoutForm, requiresDelivery = false) =>
     httpPost<IYappyPaymentSession>("/orders", {
-        lines: lines.map((line) => ({ variantId: line.item.variants[0].variant_id, quantity: line.quantity, options: line.options })),
+        lines: lines.map((line) => ({
+            variantId: line.item.variants[0].variant_id,
+            quantity: line.quantity,
+            options: line.options,
+            modifierOptionIds: line.modifiers?.map((modifier) => modifier.modifierOptionId),
+        })),
         delivery: requiresDelivery ? getDeliveryPayload(form) : undefined,
         customerName: form.customerName.trim(),
         customerPhone: getPhoneDigits(form.customerPhone),

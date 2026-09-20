@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { CartContext } from "./use-cart";
 
 import { getCartCount, getCartTotal, getLineKey } from "@/helpers";
-import type { ICartLine, IPastaOptions } from "@/helpers";
+import type { ICartLine, ICartModifier, IPastaOptions } from "@/helpers";
 import type { IItem } from "@/interfaces";
 
 const CART_STORAGE_KEY = "chunky-cart";
@@ -17,7 +17,7 @@ const readStoredLines = (): ICartLine[] => {
         // Los carritos guardados antes de la pasta no traen lineKey
         return parsed
             .filter((line) => line?.item?.id)
-            .map((line) => ({ ...line, lineKey: line.lineKey ?? getLineKey(line.item.id, line.options) }));
+            .map((line) => ({ ...line, lineKey: line.lineKey ?? getLineKey(line.item.id, line.options, line.modifiers) }));
     } catch {
         return [];
     }
@@ -36,14 +36,14 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         }
     }, [lines]);
 
-    const addItem = useCallback((item: IItem, options?: IPastaOptions) => {
-        const lineKey = getLineKey(item.id, options);
+    const addItem = useCallback((item: IItem, options?: IPastaOptions, modifiers?: ICartModifier[]) => {
+        const lineKey = getLineKey(item.id, options, modifiers);
         setLines((current) => {
             const existing = current.find((line) => line.lineKey === lineKey);
             if (existing) {
                 return current.map((line) => line.lineKey === lineKey ? { ...line, quantity: line.quantity + 1 } : line);
             }
-            return [...current, { lineKey, item, quantity: 1, options }];
+            return [...current, { lineKey, item, quantity: 1, options, ...(modifiers?.length && { modifiers }) }];
         });
     }, []);
 

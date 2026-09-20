@@ -1,3 +1,5 @@
+import { formatCartModifiers, getModifiersPrice } from "./modifiers";
+import type { ICartModifier } from "./modifiers";
 import { formatPastaOptions } from "./pasta";
 import type { IPastaOptions } from "./pasta";
 
@@ -11,6 +13,8 @@ export interface ICartLine {
     item: IItem;
     quantity: number;
     options?: IPastaOptions;
+    /** Modificadores de Loyverse elegidos (ej. leche especial). Su precio se suma al del producto. */
+    modifiers?: ICartModifier[];
 }
 
 export const OPENING_HOURS = [
@@ -36,13 +40,25 @@ export const getItemPrice = (item: IItem) => {
 
 export const getCartCount = (lines: ICartLine[]) => lines.reduce((sum, line) => sum + line.quantity, 0);
 
+/** Precio de una unidad con sus modificadores incluidos. */
+export const getCartLinePrice = (line: ICartLine) => getItemPrice(line.item) + getModifiersPrice(line.modifiers);
+
 export const getCartTotal = (lines: ICartLine[]) =>
-    lines.reduce((sum, line) => sum + getItemPrice(line.item) * line.quantity, 0);
+    lines.reduce((sum, line) => sum + getCartLinePrice(line) * line.quantity, 0);
+
+/** Lo elegido en una linea: opciones de la pasta y modificadores, en una sola frase. */
+export const formatCartLineDetails = (line: ICartLine, separator = " · ") =>
+    [
+        ...(line.options ? [formatPastaOptions(line.options, separator)] : []),
+        ...(line.modifiers ? [formatCartModifiers(line.modifiers, separator)] : []),
+    ]
+        .filter(Boolean)
+        .join(separator);
 
 /** "- Pasta armable x2 (Fettuccine · Pomodoro Chunky · Pollo Grill)" para los mensajes de WhatsApp. */
 export const formatCartLine = (line: ICartLine) => {
-    const options = line.options ? ` (${formatPastaOptions(line.options)})` : "";
-    return `- ${line.item.item_name} x${line.quantity}${options}`;
+    const details = formatCartLineDetails(line);
+    return `- ${line.item.item_name} x${line.quantity}${details ? ` (${details})` : ""}`;
 };
 
 export const buildOrderMessage = (lines: ICartLine[], delivery?: string) => {

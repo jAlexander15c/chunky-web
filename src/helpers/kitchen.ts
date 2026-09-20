@@ -8,7 +8,7 @@ export interface IKitchenOrder {
     customerPhone: string;
     whatsappPhone: string | null;
     note: string | null;
-    lines: { name: string; quantity: number; options?: IPastaOptions }[];
+    lines: { name: string; quantity: number; options?: IPastaOptions; modifiers?: { name: string; option: string }[] }[];
     // Solo el dia de pasta. mapUrl ya viene armado por el API (coordenadas o busqueda de la direccion)
     delivery: { address: string; details: string | null; lat: number | null; lng: number | null; mapUrl: string } | null;
     total: number;

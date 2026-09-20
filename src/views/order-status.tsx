@@ -106,7 +106,14 @@ const OrderTicket = ({ order }: { order: IPublicOrder }) => (
                 <li key={`${line.name}-${index}`} className="order-ticket__row">
                     <span>
                         {line.name} × {line.quantity}
-                        {line.options && <small className="order-ticket__options">{formatPastaOptions(line.options)}</small>}
+                        {(line.options || line.modifiers?.length) && (
+                            <small className="order-ticket__options">
+                                {[
+                                    ...(line.options ? [formatPastaOptions(line.options)] : []),
+                                    ...(line.modifiers ?? []).map((modifier) => `${modifier.name} ${modifier.option}`),
+                                ].join(" · ")}
+                            </small>
+                        )}
                     </span>
                     <span className="order-ticket__amount">{formatPrice(line.price * line.quantity)}</span>
                 </li>

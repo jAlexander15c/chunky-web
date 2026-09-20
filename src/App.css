@@ -2278,32 +2278,32 @@ main {
 }
 
 /* ============ Armador de pasta (hoja) ============ */
-.pasta__body {
+.opts__body {
   display: grid;
   align-content: start;
   gap: 1rem;
   padding-bottom: 0;
 }
 
-.pasta__intro {
+.opts__intro {
   display: flex;
   align-items: center;
   gap: 1rem;
 }
 
-.pasta__thumb {
+.opts__thumb {
   width: 72px;
   flex: none;
   filter: drop-shadow(0 4px 6px rgb(var(--shadow-tint) / 0.25));
 }
 
-.pasta__lede {
+.opts__lede {
   margin: 0 0 0.35rem;
   color: var(--text-soft);
   font-size: 0.9rem;
 }
 
-.pasta__price {
+.opts__price {
   display: inline-block;
   padding: 0.25rem 0.8rem;
   border-radius: var(--radius-pill);
@@ -2313,7 +2313,7 @@ main {
   font-variant-numeric: tabular-nums;
 }
 
-.pasta__group {
+.opts__group {
   display: grid;
   gap: 0.5rem;
   min-width: 0;
@@ -2322,7 +2322,7 @@ main {
   border: 0;
 }
 
-.pasta__legend {
+.opts__legend {
   display: flex;
   justify-content: space-between;
   width: 100%;
@@ -2334,21 +2334,21 @@ main {
   text-transform: uppercase;
 }
 
-.pasta__legend span {
+.opts__legend span {
   color: var(--text-soft);
   font-weight: 600;
   letter-spacing: 0;
   text-transform: none;
 }
 
-.pasta__chips {
+.opts__chips {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
 }
 
 /* El radio nativo queda oculto pero es el que recibe el teclado y el lector de pantalla */
-.pasta-chip {
+.opt-chip {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -2364,7 +2364,7 @@ main {
   transition: transform 160ms var(--ease-out), background-color 150ms ease, border-color 150ms ease;
 }
 
-.pasta-chip input {
+.opt-chip input {
   position: absolute;
   opacity: 0;
   inset: 0;
@@ -2372,22 +2372,22 @@ main {
   cursor: pointer;
 }
 
-.pasta-chip:active {
+.opt-chip:active {
   transform: scale(0.97);
 }
 
-.pasta-chip:has(input:focus-visible) {
+.opt-chip:has(input:focus-visible) {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
 
-.pasta-chip--on {
+.opt-chip--on {
   border-color: var(--mora);
   background: var(--mora);
   color: var(--crema);
 }
 
-.pasta-chip__swatch {
+.opt-chip__swatch {
   width: 0.75rem;
   height: 0.75rem;
   border-radius: 50%;
@@ -2395,7 +2395,7 @@ main {
   flex: none;
 }
 
-.pasta__summary {
+.opts__summary {
   display: grid;
   gap: 0.1rem;
   padding: 0.65rem 0.85rem;
@@ -2404,19 +2404,19 @@ main {
   font-size: 0.85rem;
 }
 
-.pasta__summary b {
+.opts__summary b {
   font-size: 0.68rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-soft);
 }
 
-.pasta__summary span {
+.opts__summary span {
   font-weight: 700;
 }
 
 /* Fijo al pie de la hoja: con la lista de bebidas abierta el boton sigue a la vista */
-.pasta__buy {
+.opts__buy {
   position: sticky;
   bottom: 0;
   z-index: 1;
@@ -2430,24 +2430,24 @@ main {
 }
 
 @media (min-width: 768px) {
-  .pasta__buy {
+  .opts__buy {
     margin-inline: -1.75rem -2rem;
     padding-inline: 1.75rem 2rem;
   }
 }
 
-.pasta__add {
+.opts__add {
   flex: 1;
 }
 
-.pasta__add:disabled {
+.opts__add:disabled {
   background: var(--sky);
   color: var(--text-soft);
   box-shadow: none;
   cursor: not-allowed;
 }
 
-.pasta__hint {
+.opts__hint {
   margin: 0;
   text-align: center;
   font-size: 0.8125rem;
@@ -2551,7 +2551,7 @@ main {
 }
 
 /* Bebidas opcionales dentro del armador */
-.pasta__summary-extra {
+.opts__summary-extra {
   margin-top: 0.15rem;
   font-size: 0.8125rem;
   color: var(--text-soft);
@@ -2604,11 +2604,21 @@ main {
 }
 
 .pasta__drink {
+  border-top: 1px dashed rgb(58 75 142 / 0.35);
+}
+
+.pasta__drink-row {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   min-height: 56px;
-  border-top: 1px dashed rgb(58 75 142 / 0.35);
+}
+
+/* Opciones de la bebida ya agregada, dentro del armador */
+.pasta__drink-opts {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0 0 0.75rem 0.2rem;
 }
 
 .pasta__drink-name {
@@ -2626,4 +2636,105 @@ main {
   flex: none;
   border-color: var(--mora);
   color: var(--mora);
+}
+
+/* ============ Modificadores de Loyverse ============ */
+/* Producto que se puede personalizar */
+.product__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: max-content;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-pill);
+  background: var(--sky);
+  color: var(--ink);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Modificador de una sola opcion: casilla de si o no */
+.modifier-check {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 56px;
+  padding: 0.6rem 0.8rem;
+  border: 2px solid var(--sky);
+  border-radius: 16px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.modifier-check input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.modifier-check:has(input:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.modifier-check--on {
+  border-color: var(--mora);
+  background: #f4f7ff;
+}
+
+.modifier-check__box {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--mora);
+  border-radius: 8px;
+  background: #fff;
+  color: transparent;
+  font-size: 0.85rem;
+}
+
+.modifier-check--on .modifier-check__box {
+  background: var(--mora);
+  color: var(--crema);
+}
+
+.modifier-check__name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.modifier-check__price {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Precio extra dentro de un chip de opcion */
+.opt-chip small {
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+/* El nombre de un producto va en la tipografia normal: la decorativa no tiene acentos */
+.carrito__title--plain {
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 1.5rem;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+@media (min-width: 768px) {
+  .carrito__title--plain {
+    font-size: 1.75rem;
+  }
 }

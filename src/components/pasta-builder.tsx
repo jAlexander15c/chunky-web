@@ -3,6 +3,7 @@ import { Drawer, Portal, useBreakpointValue } from "@chakra-ui/react";
 import { PiCaretUpBold, PiCheckBold, PiMinusBold, PiPlusBold, PiXBold } from "react-icons/pi";
 
 import { AnimatedPrice } from "./animated-price";
+import { ModifierPicker } from "./modifier-picker";
 import { QuantityStepper } from "./quantity-stepper";
 import { Stamp } from "./stamp";
 import { useCart } from "./use-cart";
@@ -11,16 +12,21 @@ import { usePastaBuilder } from "./use-pasta-builder";
 import {
     PASTA_STEPS,
     buildPastaItem,
+    formatCartModifiers,
     formatPastaOptions,
     formatPrice,
     getCatalogScope,
+    getItemModifiers,
     getItemPrice,
+    getModifiersPrice,
     hasItemAvailableForSale,
     isPastaOptionsComplete,
     useItems,
+    useModifiers,
     useSettings,
 } from "@/helpers";
-import type { IPastaOptions, IPastaSettings } from "@/helpers";
+import type { ICartModifier, IPastaOptions, IPastaSettings } from "@/helpers";
+import type { IItem } from "@/interfaces";
 
 const MAX_QUANTITY = 9;
 
@@ -48,6 +54,9 @@ const PastaBuilderForm = ({ pasta, beveragesCategoryId, onDone }: IPastaBuilderF
     // Las bebidas se piden la primera vez que se abre la lista y se conservan al cerrarla
     const [hasOpenedDrinks, setHasOpenedDrinks] = useState(false);
     const [drinkQuantities, setDrinkQuantities] = useState<Record<string, number>>({});
+    // Modificadores elegidos por bebida (ej. leche especial), mientras la hoja esta abierta
+    const [drinkModifiers, setDrinkModifiers] = useState<Record<string, ICartModifier[]>>({});
+    const modifiers = useModifiers();
 
     const { items: drinkItems, loading: isLoadingDrinks, error: drinksError } = useItems(
         hasOpenedDrinks && beveragesCategoryId ? beveragesCategoryId : "",
@@ -59,7 +68,8 @@ const PastaBuilderForm = ({ pasta, beveragesCategoryId, onDone }: IPastaBuilderF
     );
     const pickedDrinks = drinks.filter((item) => drinkQuantities[item.id] > 0);
     const pickedCount = pickedDrinks.reduce((sum, item) => sum + drinkQuantities[item.id], 0);
-    const drinksTotal = pickedDrinks.reduce((sum, item) => sum + getItemPrice(item) * drinkQuantities[item.id], 0);
+    const getDrinkPrice = (item: IItem) => getItemPrice(item) + getModifiersPrice(drinkModifiers[item.id]);
+    const drinksTotal = pickedDrinks.reduce((sum, item) => sum + getDrinkPrice(item) * drinkQuantities[item.id], 0);
 
     const isComplete = isPastaOptionsComplete(selection);
     const summary = PASTA_STEPS.every((step) => !selection[step.key])
@@ -73,12 +83,22 @@ const PastaBuilderForm = ({ pasta, beveragesCategoryId, onDone }: IPastaBuilderF
         setIsDrinksOpen(true);
     };
 
-    const changeDrink = (itemId: string, nextQuantity: number) => setDrinkQuantities((current) => {
-        const next = { ...current };
-        if (nextQuantity <= 0) delete next[itemId];
-        else next[itemId] = Math.min(nextQuantity, MAX_DRINK_QUANTITY);
-        return next;
-    });
+    const changeDrink = (itemId: string, nextQuantity: number) => {
+        setDrinkQuantities((current) => {
+            const next = { ...current };
+            if (nextQuantity <= 0) delete next[itemId];
+            else next[itemId] = Math.min(nextQuantity, MAX_DRINK_QUANTITY);
+            return next;
+        });
+        // Al quitar la bebida se olvidan sus opciones
+        if (nextQuantity <= 0) {
+            setDrinkModifiers((current) => {
+                const next = { ...current };
+                delete next[itemId];
+                return next;
+            });
+        }
+    };
 
     const addToCart = () => {
         if (!isPastaOptionsComplete(selection)) return;
@@ -87,7 +107,7 @@ const PastaBuilderForm = ({ pasta, beveragesCategoryId, onDone }: IPastaBuilderF
         for (let count = 0; count < quantity; count++) addItem(item, selection);
         // Las bebidas elegidas entran al carrito junto con la pasta
         for (const drink of pickedDrinks) {
-            for (let count = 0; count < drinkQuantities[drink.id]; count++) addItem(drink);
+            for (let count = 0; count < drinkQuantities[drink.id]; count++) addItem(drink, undefined, drinkModifiers[drink.id]);
         }
         onDone();
         // El carrito se abre para seguir con la entrega; ahi mismo se ve lo que armo
@@ -96,25 +116,25 @@ const PastaBuilderForm = ({ pasta, beveragesCategoryId, onDone }: IPastaBuilderF
 
     return (
         <>
-            <div className="pasta__intro">
-                {pasta.imageUrl && <Stamp src={pasta.imageUrl} alt={pasta.itemName} size="sm" rotate={-4} className="pasta__thumb" />}
+            <div className="opts__intro">
+                {pasta.imageUrl && <Stamp src={pasta.imageUrl} alt={pasta.itemName} size="sm" rotate={-4} className="opts__thumb" />}
                 <div>
-                    <p className="pasta__lede">Elige cómo la quieres armar.</p>
-                    <span className="pasta__price">{`$${pasta.price.toFixed(2)}`}</span>
+                    <p className="opts__lede">Elige cómo la quieres armar.</p>
+                    <span className="opts__price">{`$${pasta.price.toFixed(2)}`}</span>
                 </div>
             </div>
 
             {PASTA_STEPS.map((step, index) => (
-                <fieldset key={step.key} className="pasta__group">
-                    <legend className="pasta__legend">
+                <fieldset key={step.key} className="opts__group">
+                    <legend className="opts__legend">
                         {step.label}
                         <span>{index + 1} de {PASTA_STEPS.length}</span>
                     </legend>
-                    <div className="pasta__chips">
+                    <div className="opts__chips">
                         {pasta.options[step.key].map((option) => {
                             const isChecked = selection[step.key] === option;
                             return (
-                                <label key={option} className={`pasta-chip ${isChecked ? "pasta-chip--on" : ""}`}>
+                                <label key={option} className={`opt-chip ${isChecked ? "opt-chip--on" : ""}`}>
                                     <input
                                         type="radio"
                                         name={`pasta-${step.key}`}
@@ -124,7 +144,7 @@ const PastaBuilderForm = ({ pasta, beveragesCategoryId, onDone }: IPastaBuilderF
                                     />
                                     {isChecked
                                         ? <PiCheckBold aria-hidden />
-                                        : step.key === "sauce" && SAUCE_SWATCH[option] && <i className="pasta-chip__swatch" style={{ background: SAUCE_SWATCH[option] }} aria-hidden />}
+                                        : step.key === "sauce" && SAUCE_SWATCH[option] && <i className="opt-chip__swatch" style={{ background: SAUCE_SWATCH[option] }} aria-hidden />}
                                     {option}
                                 </label>
                             );
@@ -133,12 +153,16 @@ const PastaBuilderForm = ({ pasta, beveragesCategoryId, onDone }: IPastaBuilderF
                 </fieldset>
             ))}
 
-            <div className="pasta__summary" aria-live="polite">
+            <div className="opts__summary" aria-live="polite">
                 <b>Tu plato</b>
                 <span>{isComplete ? formatPastaOptions(selection) : summary}</span>
                 {pickedCount > 0 && (
-                    <span className="pasta__summary-extra">
-                        + {pickedDrinks.map((item) => `${drinkQuantities[item.id]}× ${item.item_name}`).join(", ")}
+                    <span className="opts__summary-extra">
+                        + {pickedDrinks.map((item) => {
+                            const chosen = drinkModifiers[item.id];
+                            const extra = chosen?.length ? ` (${formatCartModifiers(chosen, ", ")})` : "";
+                            return `${drinkQuantities[item.id]}× ${item.item_name}${extra}`;
+                        }).join(", ")}
                     </span>
                 )}
             </div>
@@ -153,33 +177,46 @@ const PastaBuilderForm = ({ pasta, beveragesCategoryId, onDone }: IPastaBuilderF
                     </div>
 
                     {isLoadingDrinks ? (
-                        <p className="pasta__hint">Cargando bebidas…</p>
+                        <p className="opts__hint">Cargando bebidas…</p>
                     ) : drinksError || drinks.length === 0 ? (
-                        <p className="pasta__hint">No hay bebidas disponibles ahora.</p>
+                        <p className="opts__hint">No hay bebidas disponibles ahora.</p>
                     ) : (
                         <ul className="pasta__drink-list">
                             {drinks.map((item) => {
                                 const drinkQuantity = drinkQuantities[item.id] ?? 0;
+                                const itemModifiers = getItemModifiers(item, modifiers);
                                 return (
                                     <li key={item.id} className="pasta__drink">
-                                        <span className="pasta__drink-name">{item.item_name}</span>
-                                        <span className="pasta__drink-price">{formatPrice(getItemPrice(item))}</span>
-                                        {drinkQuantity > 0 ? (
-                                            <QuantityStepper
-                                                size="sm"
-                                                quantity={drinkQuantity}
-                                                itemName={item.item_name}
-                                                onChange={(value) => changeDrink(item.id, value)}
-                                            />
-                                        ) : (
-                                            <button
-                                                type="button"
-                                                className="icon-button pasta__drink-add"
-                                                aria-label={`Agregar ${item.item_name}`}
-                                                onClick={() => changeDrink(item.id, 1)}
-                                            >
-                                                <PiPlusBold aria-hidden />
-                                            </button>
+                                        <div className="pasta__drink-row">
+                                            <span className="pasta__drink-name">{item.item_name}</span>
+                                            <span className="pasta__drink-price">{formatPrice(getDrinkPrice(item))}</span>
+                                            {drinkQuantity > 0 ? (
+                                                <QuantityStepper
+                                                    size="sm"
+                                                    quantity={drinkQuantity}
+                                                    itemName={item.item_name}
+                                                    onChange={(value) => changeDrink(item.id, value)}
+                                                />
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    className="icon-button pasta__drink-add"
+                                                    aria-label={`Agregar ${item.item_name}`}
+                                                    onClick={() => changeDrink(item.id, 1)}
+                                                >
+                                                    <PiPlusBold aria-hidden />
+                                                </button>
+                                            )}
+                                        </div>
+                                        {/* Las opciones aparecen bajo la bebida ya agregada: sin abrir otra hoja encima */}
+                                        {drinkQuantity > 0 && itemModifiers.length > 0 && (
+                                            <div className="pasta__drink-opts">
+                                                <ModifierPicker
+                                                    modifiers={itemModifiers}
+                                                    chosen={drinkModifiers[item.id] ?? []}
+                                                    onChange={(next) => setDrinkModifiers((current) => ({ ...current, [item.id]: next }))}
+                                                />
+                                            </div>
                                         )}
                                     </li>
                                 );
@@ -196,9 +233,9 @@ const PastaBuilderForm = ({ pasta, beveragesCategoryId, onDone }: IPastaBuilderF
                 </button>
             ))}
 
-            {!isComplete && <p className="pasta__hint">Elige las tres opciones para agregarla.</p>}
+            {!isComplete && <p className="opts__hint">Elige las tres opciones para agregarla.</p>}
 
-            <div className="pasta__buy">
+            <div className="opts__buy">
                 <div className="stepper stepper--md" role="group" aria-label="Cantidad de platos">
                     <button
                         type="button"
@@ -221,7 +258,7 @@ const PastaBuilderForm = ({ pasta, beveragesCategoryId, onDone }: IPastaBuilderF
                     </button>
                 </div>
 
-                <button type="button" className="button button--primary pasta__add" onClick={addToCart} disabled={!isComplete}>
+                <button type="button" className="button button--primary opts__add" onClick={addToCart} disabled={!isComplete}>
                     Agregar · <AnimatedPrice value={pasta.price * quantity + drinksTotal} />
                 </button>
             </div>
@@ -270,7 +307,7 @@ export const PastaBuilder = () => {
                             </Drawer.CloseTrigger>
                         </header>
 
-                        <Drawer.Body className="carrito__body pasta__body">
+                        <Drawer.Body className="carrito__body opts__body">
                             {pasta && <PastaBuilderForm pasta={pasta} beveragesCategoryId={settings.beveragesCategoryId} onDone={close} />}
                         </Drawer.Body>
                     </Drawer.Content>

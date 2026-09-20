@@ -245,6 +245,15 @@ const STEP_ACTION: Record<KitchenStep, string> = {
     deliver: "Entregado",
 };
 
+/** "2× Café (leche especial)" para el aviso de pedido nuevo. */
+const formatKitchenLine = (line: IKitchenOrder["lines"][number]) => {
+    const details = [
+        ...(line.options ? [formatPastaOptions(line.options, ", ")] : []),
+        ...(line.modifiers ?? []).map((modifier) => `${modifier.name} ${modifier.option}`),
+    ];
+    return `${line.quantity}× ${line.name}${details.length ? ` (${details.join(", ")})` : ""}`;
+};
+
 const KitchenTicket = ({ order, now, onStep }: { order: IKitchenOrder; now: number; onStep: (order: IKitchenOrder, step: KitchenStep) => void }) => {
     const isNew = !order.acceptedAt;
     const isReady = Boolean(order.readyAt);
@@ -270,7 +279,14 @@ const KitchenTicket = ({ order, now, onStep }: { order: IKitchenOrder; now: numb
                 {order.lines.map((line, index) => (
                     <li key={`${line.name}-${index}`}>
                         <b>{line.quantity}×</b>{line.name}
-                        {line.options && <span className="kitchen-ticket__options">{formatPastaOptions(line.options)}</span>}
+                        {(line.options || line.modifiers?.length) && (
+                            <span className="kitchen-ticket__options">
+                                {[
+                                    ...(line.options ? [formatPastaOptions(line.options)] : []),
+                                    ...(line.modifiers ?? []).map((modifier) => `${modifier.name} ${modifier.option}`),
+                                ].join(" · ")}
+                            </span>
+                        )}
                     </li>
                 ))}
             </ul>
@@ -424,7 +440,7 @@ const KitchenBoard = ({ token, hasPush, onLogout, onSessionExpired }: {
                     <span className="kitchen-toast__bell" aria-hidden>♪</span>
                     <span>
                         <b>Nuevo pedido{toast.delivery ? " · Delivery" : ""} · {toast.customerName}</b>
-                        <small>{toast.lines.map((line) => `${line.quantity}× ${line.name}${line.options ? ` (${formatPastaOptions(line.options, ", ")})` : ""}`).join(", ")}</small>
+                        <small>{toast.lines.map(formatKitchenLine).join(", ")}</small>
                     </span>
                 </div>
             )}

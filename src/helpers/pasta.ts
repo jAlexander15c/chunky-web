@@ -1,3 +1,5 @@
+import type { ICartModifier } from "./modifiers";
+
 import type { IItem } from "@/interfaces";
 
 /** Lo que el cliente elige al armar su pasta (nombres exactos que manda chunky-api en /settings/public). */
@@ -33,11 +35,17 @@ export const formatPastaOptions = (options: IPastaOptions, separator = " · ") =
     [options.pasta, options.sauce, options.protein].join(separator);
 
 /**
- * Identidad de una linea del carrito: el producto, y en la pasta tambien sus opciones.
- * Asi dos pastas distintas no se suman en una sola linea.
+ * Identidad de una linea del carrito: el producto y lo que se eligio (opciones de la pasta o
+ * modificadores de Loyverse). Asi dos bebidas con leche distinta no se suman en una sola linea.
  */
-export const getLineKey = (itemId: string, options?: IPastaOptions) =>
-    options ? `${itemId}:${options.pasta}|${options.sauce}|${options.protein}` : itemId;
+export const getLineKey = (itemId: string, options?: IPastaOptions, modifiers?: ICartModifier[]) => {
+    const pasta = options ? `:${options.pasta}|${options.sauce}|${options.protein}` : "";
+    // Ordenados: elegir leche y luego café da la misma linea que al revés
+    const chosen = modifiers?.length
+        ? `:${modifiers.map((modifier) => modifier.modifierOptionId).slice().sort().join("|")}`
+        : "";
+    return `${itemId}${pasta}${chosen}`;
+};
 
 /**
  * El carrito guarda items de Loyverse completos, pero la web solo conoce de la pasta lo que trae
