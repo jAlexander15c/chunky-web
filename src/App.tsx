@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { BrowserRouter, Outlet, Route, Routes, useLocation } from "react-router";
 
 import { Cart, CartButton, CartProvider, SiteFooter, SiteHeader } from "@/components";
-import { Home, Items, KitchenView, Mantenimiento, Menu, OrderStatusView } from "@/views";
+import { AdminView, Home, Items, KitchenView, Mantenimiento, Menu, OrderStatusView } from "@/views";
 import { useWwwRedirect } from "@/hooks/useWwwRedirect";
 
 import './App.css'
@@ -47,6 +47,8 @@ const App = () => {
       <Routes>
         {/* Pantalla de cocina del iPad: sin encabezado, pie ni carrito */}
         <Route path="/cocina" element={<KitchenView />} />
+        {/* Tablero administrativo: ventas, inventario y movimientos */}
+        <Route path="/tablero" element={<AdminView />} />
         <Route element={<SiteLayout />}>
           <Route index element={<Home />} />
           <Route path="/menu" element={<Menu />} />

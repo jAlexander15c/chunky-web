@@ -4,3 +4,4 @@ export * from "./items";
 export * from "./mantenimiento";
 export * from "./order-status";
 export * from "./kitchen";
+export * from "./admin";
