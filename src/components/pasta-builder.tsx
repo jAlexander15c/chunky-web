@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Drawer, Portal, useBreakpointValue } from "@chakra-ui/react";
-import { PiCheckBold, PiMinusBold, PiPlusBold, PiXBold } from "react-icons/pi";
+import { PiCaretUpBold, PiCheckBold, PiMinusBold, PiPlusBold, PiXBold } from "react-icons/pi";
 
 import { AnimatedPrice } from "./animated-price";
+import { QuantityStepper } from "./quantity-stepper";
 import { Stamp } from "./stamp";
 import { useCart } from "./use-cart";
 import { usePastaBuilder } from "./use-pasta-builder";
@@ -11,7 +12,12 @@ import {
     PASTA_STEPS,
     buildPastaItem,
     formatPastaOptions,
+    formatPrice,
+    getCatalogScope,
+    getItemPrice,
+    hasItemAvailableForSale,
     isPastaOptionsComplete,
+    useItems,
     useSettings,
 } from "@/helpers";
 import type { IPastaOptions, IPastaSettings } from "@/helpers";
@@ -25,10 +31,35 @@ const SAUCE_SWATCH: Record<string, string> = {
     "Pesto Genovese": "#9db24a",
 };
 
-const PastaBuilderForm = ({ pasta, onDone }: { pasta: IPastaSettings; onDone: () => void }) => {
+const MAX_DRINK_QUANTITY = 9;
+
+interface IPastaBuilderFormProps {
+    pasta: IPastaSettings;
+    /** Categoria de bebidas; sin ella el armador no ofrece bebidas. */
+    beveragesCategoryId: string | null;
+    onDone: () => void;
+}
+
+const PastaBuilderForm = ({ pasta, beveragesCategoryId, onDone }: IPastaBuilderFormProps) => {
     const { addItem, setIsOpen } = useCart();
     const [selection, setSelection] = useState<Partial<IPastaOptions>>({});
     const [quantity, setQuantity] = useState(1);
+    const [isDrinksOpen, setIsDrinksOpen] = useState(false);
+    // Las bebidas se piden la primera vez que se abre la lista y se conservan al cerrarla
+    const [hasOpenedDrinks, setHasOpenedDrinks] = useState(false);
+    const [drinkQuantities, setDrinkQuantities] = useState<Record<string, number>>({});
+
+    const { items: drinkItems, loading: isLoadingDrinks, error: drinksError } = useItems(
+        hasOpenedDrinks && beveragesCategoryId ? beveragesCategoryId : "",
+        getCatalogScope(true)
+    );
+    const drinks = useMemo(
+        () => drinkItems.filter((item) => item.category_id === beveragesCategoryId && hasItemAvailableForSale(item)),
+        [drinkItems, beveragesCategoryId]
+    );
+    const pickedDrinks = drinks.filter((item) => drinkQuantities[item.id] > 0);
+    const pickedCount = pickedDrinks.reduce((sum, item) => sum + drinkQuantities[item.id], 0);
+    const drinksTotal = pickedDrinks.reduce((sum, item) => sum + getItemPrice(item) * drinkQuantities[item.id], 0);
 
     const isComplete = isPastaOptionsComplete(selection);
     const summary = PASTA_STEPS.every((step) => !selection[step.key])
@@ -37,11 +68,27 @@ const PastaBuilderForm = ({ pasta, onDone }: { pasta: IPastaSettings; onDone: ()
 
     const chooseOption = (key: keyof IPastaOptions, value: string) => setSelection((current) => ({ ...current, [key]: value }));
 
+    const openDrinks = () => {
+        setHasOpenedDrinks(true);
+        setIsDrinksOpen(true);
+    };
+
+    const changeDrink = (itemId: string, nextQuantity: number) => setDrinkQuantities((current) => {
+        const next = { ...current };
+        if (nextQuantity <= 0) delete next[itemId];
+        else next[itemId] = Math.min(nextQuantity, MAX_DRINK_QUANTITY);
+        return next;
+    });
+
     const addToCart = () => {
         if (!isPastaOptionsComplete(selection)) return;
 
         const item = buildPastaItem(pasta);
         for (let count = 0; count < quantity; count++) addItem(item, selection);
+        // Las bebidas elegidas entran al carrito junto con la pasta
+        for (const drink of pickedDrinks) {
+            for (let count = 0; count < drinkQuantities[drink.id]; count++) addItem(drink);
+        }
         onDone();
         // El carrito se abre para seguir con la entrega; ahi mismo se ve lo que armo
         setIsOpen(true);
@@ -89,7 +136,67 @@ const PastaBuilderForm = ({ pasta, onDone }: { pasta: IPastaSettings; onDone: ()
             <div className="pasta__summary" aria-live="polite">
                 <b>Tu plato</b>
                 <span>{isComplete ? formatPastaOptions(selection) : summary}</span>
+                {pickedCount > 0 && (
+                    <span className="pasta__summary-extra">
+                        + {pickedDrinks.map((item) => `${drinkQuantities[item.id]}× ${item.item_name}`).join(", ")}
+                    </span>
+                )}
             </div>
+
+            {beveragesCategoryId && (isDrinksOpen ? (
+                <section className="pasta__drinks" aria-label="Bebidas">
+                    <div className="pasta__drinks-head">
+                        <b>Bebidas <span>(opcional)</span></b>
+                        <button type="button" className="pasta__drinks-close" onClick={() => setIsDrinksOpen(false)}>
+                            Cerrar <PiCaretUpBold aria-hidden />
+                        </button>
+                    </div>
+
+                    {isLoadingDrinks ? (
+                        <p className="pasta__hint">Cargando bebidas…</p>
+                    ) : drinksError || drinks.length === 0 ? (
+                        <p className="pasta__hint">No hay bebidas disponibles ahora.</p>
+                    ) : (
+                        <ul className="pasta__drink-list">
+                            {drinks.map((item) => {
+                                const drinkQuantity = drinkQuantities[item.id] ?? 0;
+                                return (
+                                    <li key={item.id} className="pasta__drink">
+                                        <span className="pasta__drink-name">{item.item_name}</span>
+                                        <span className="pasta__drink-price">{formatPrice(getItemPrice(item))}</span>
+                                        {drinkQuantity > 0 ? (
+                                            <QuantityStepper
+                                                size="sm"
+                                                quantity={drinkQuantity}
+                                                itemName={item.item_name}
+                                                onChange={(value) => changeDrink(item.id, value)}
+                                            />
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                className="icon-button pasta__drink-add"
+                                                aria-label={`Agregar ${item.item_name}`}
+                                                onClick={() => changeDrink(item.id, 1)}
+                                            >
+                                                <PiPlusBold aria-hidden />
+                                            </button>
+                                        )}
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
+                </section>
+            ) : (
+                <button type="button" className="button button--ghost button--block pasta__drinks-open" onClick={openDrinks}>
+                    <PiPlusBold aria-hidden />
+                    {pickedCount > 0
+                        ? `Bebidas: ${pickedCount} elegida${pickedCount === 1 ? "" : "s"} · cambiar`
+                        : "Agregar una bebida (opcional)"}
+                </button>
+            ))}
+
+            {!isComplete && <p className="pasta__hint">Elige las tres opciones para agregarla.</p>}
 
             <div className="pasta__buy">
                 <div className="stepper stepper--md" role="group" aria-label="Cantidad de platos">
@@ -115,10 +222,9 @@ const PastaBuilderForm = ({ pasta, onDone }: { pasta: IPastaSettings; onDone: ()
                 </div>
 
                 <button type="button" className="button button--primary pasta__add" onClick={addToCart} disabled={!isComplete}>
-                    Agregar · <AnimatedPrice value={pasta.price * quantity} />
+                    Agregar · <AnimatedPrice value={pasta.price * quantity + drinksTotal} />
                 </button>
             </div>
-            {!isComplete && <p className="pasta__hint">Elige las tres opciones para agregarla.</p>}
         </>
     );
 };
@@ -165,7 +271,7 @@ export const PastaBuilder = () => {
                         </header>
 
                         <Drawer.Body className="carrito__body pasta__body">
-                            {pasta && <PastaBuilderForm pasta={pasta} onDone={close} />}
+                            {pasta && <PastaBuilderForm pasta={pasta} beveragesCategoryId={settings.beveragesCategoryId} onDone={close} />}
                         </Drawer.Body>
                     </Drawer.Content>
                 </Drawer.Positioner>
