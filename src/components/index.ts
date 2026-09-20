@@ -1,3 +1,4 @@
+export * from "./amount-dialog";
 export * from "./animated-price";
 export * from "./cached-image";
 export * from "./cart";

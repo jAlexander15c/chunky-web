@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 
+import { AmountDialog } from "@/components";
 import {
     HttpError,
+    SUPPLY_CATEGORY_LABEL,
     createSupply,
     fetchDashboard,
     fetchMovements,
@@ -19,12 +21,15 @@ import {
     registerCount,
     registerProduction,
     registerPurchase,
+    registerWaste,
     setAdminToken,
     setPastaMode,
     syncReceiptsNow,
     useSettings,
 } from "@/helpers";
-import type { IDashboard, IDaySales, IMovement, IProductStatus, ISupplyStatus, MovementType, SupplyState } from "@/helpers";
+import type { IDashboard, IDaySales, IMovement, IProductStatus, ISupplyStatus, MovementType, SupplyCategory, SupplyState } from "@/helpers";
+
+import { AdminCollaborators } from "./admin-collaborators";
 
 import "./admin.css";
 
@@ -249,75 +254,6 @@ const getMovementOrigin = (movement: IMovement) => {
     return movement.reference ? `${movement.reference} · ${from}` : from;
 };
 
-/* ============ Dialogo de cantidad ============ */
-
-interface IAmountDialogProps {
-    title: string;
-    hint: string;
-    unit: string;
-    initial?: string;
-    confirmLabel: string;
-    onConfirm: (amount: number) => Promise<void>;
-    onClose: () => void;
-}
-
-const AmountDialog = ({ title, hint, unit, initial = "", confirmLabel, onConfirm, onClose }: IAmountDialogProps) => {
-    const [amount, setAmount] = useState(initial);
-    const [error, setError] = useState("");
-    const [isSending, setIsSending] = useState(false);
-
-    const submit = async (event: FormEvent) => {
-        event.preventDefault();
-        const parsed = Number(amount.replace(",", "."));
-        if (!Number.isFinite(parsed) || parsed < 0) {
-            setError("Escribe una cantidad válida.");
-            return;
-        }
-
-        setIsSending(true);
-        setError("");
-
-        try {
-            await onConfirm(parsed);
-            onClose();
-        } catch (requestError) {
-            setError(requestError instanceof HttpError ? requestError.message : "No se pudo guardar.");
-            setIsSending(false);
-        }
-    };
-
-    return (
-        <div className="adm-modal" role="dialog" aria-modal="true" aria-label={title}>
-            <form className="adm-modal__panel" onSubmit={submit}>
-                <h3 className="script">{title}</h3>
-                <p className="adm-modal__hint">{hint}</p>
-
-                <div className="adm-modal__field">
-                    <input
-                        className="adm-modal__input"
-                        type="text"
-                        inputMode="decimal"
-                        autoFocus
-                        value={amount}
-                        onChange={(event) => setAmount(event.target.value)}
-                        aria-label={`Cantidad en ${unit}`}
-                    />
-                    <span className="adm-modal__unit">{unit}</span>
-                </div>
-
-                {error ? <p className="adm-gate__error">{error}</p> : null}
-
-                <div className="adm-modal__actions">
-                    <button type="button" className="adm-btn" onClick={onClose} disabled={isSending}>Cancelar</button>
-                    <button type="submit" className="adm-btn adm-btn--solid" disabled={isSending}>
-                        {isSending ? "Guardando…" : confirmLabel}
-                    </button>
-                </div>
-            </form>
-        </div>
-    );
-};
-
 /* ============ Modo pasta ============ */
 
 /** Interruptor del dia de pasta. Cambiarlo pide confirmacion: afecta el menu de todos los clientes. */
@@ -412,10 +348,13 @@ const SUPPLY_UNITS = [
     { value: "u", label: "unidades (u)" },
 ];
 
+const SUPPLY_CATEGORIES: SupplyCategory[] = ["alimento", "limpieza", "mantenimiento"];
+
 interface ISupplyFormProps {
     onCreate: (supply: {
         name: string;
         unit: string;
+        category: SupplyCategory;
         minStock: number;
         supplier?: string;
         purchaseUnit?: string;
@@ -427,6 +366,7 @@ interface ISupplyFormProps {
 const SupplyFormDialog = ({ onCreate, onClose }: ISupplyFormProps) => {
     const [name, setName] = useState("");
     const [unit, setUnit] = useState("kg");
+    const [category, setCategory] = useState<SupplyCategory>("alimento");
     const [minStock, setMinStock] = useState("");
     const [supplier, setSupplier] = useState("");
     const [purchaseUnit, setPurchaseUnit] = useState("");
@@ -463,6 +403,7 @@ const SupplyFormDialog = ({ onCreate, onClose }: ISupplyFormProps) => {
             await onCreate({
                 name: name.trim(),
                 unit,
+                category,
                 minStock: parsedMin,
                 supplier: supplier.trim() || undefined,
                 purchaseUnit: purchaseUnit.trim() || undefined,
@@ -501,6 +442,19 @@ const SupplyFormDialog = ({ onCreate, onClose }: ISupplyFormProps) => {
                         <select className="adm-form__input" value={unit} onChange={(event) => setUnit(event.target.value)}>
                             {SUPPLY_UNITS.map((option) => (
                                 <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
+                        </select>
+                    </label>
+
+                    <label className="adm-form__row">
+                        <span>Categoría</span>
+                        <select
+                            className="adm-form__input"
+                            value={category}
+                            onChange={(event) => setCategory(event.target.value as SupplyCategory)}
+                        >
+                            {SUPPLY_CATEGORIES.map((option) => (
+                                <option key={option} value={option}>{SUPPLY_CATEGORY_LABEL[option]}</option>
                             ))}
                         </select>
                     </label>
@@ -571,9 +525,12 @@ const SupplyFormDialog = ({ onCreate, onClose }: ISupplyFormProps) => {
 };
 
 type PendingAction =
-    | { kind: "purchase"; supply: ISupplyStatus }
-    | { kind: "count"; supply: ISupplyStatus }
+    | { kind: "purchase" | "count" | "waste"; supply: ISupplyStatus }
     | { kind: "production"; product: IProductStatus };
+
+type SupplyFilter = SupplyCategory | "todos";
+
+const SUPPLY_FILTERS: SupplyFilter[] = ["todos", "alimento", "limpieza", "mantenimiento"];
 
 /* ============ Tablero ============ */
 
@@ -587,6 +544,7 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
     const [isSyncing, setIsSyncing] = useState(false);
     const [pending, setPending] = useState<PendingAction | null>(null);
     const [isCreatingSupply, setIsCreatingSupply] = useState(false);
+    const [supplyFilter, setSupplyFilter] = useState<SupplyFilter>("todos");
 
     const loadAll = useCallback(
         async (signal?: AbortSignal) => {
@@ -641,6 +599,10 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
     };
 
     const toBuy = supplies.filter((supply) => supply.state === "comprar");
+    const visibleSupplies = useMemo(
+        () => (supplyFilter === "todos" ? supplies : supplies.filter((supply) => supply.category === supplyFilter)),
+        [supplies, supplyFilter]
+    );
     // Puede faltar si Loyverse no respondio; el inventario se muestra igual
     const sales = dashboard?.sales ?? null;
 
@@ -767,6 +729,19 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
                                 <h3 className="script">Todo lo que hay en despensa</h3>
                                 <p className="adm-note">Loyverse no sabe nada de esto: es nuestro.</p>
                             </div>
+                            <div className="adm-chips" role="group" aria-label="Filtrar por categoría">
+                                {SUPPLY_FILTERS.map((option) => (
+                                    <button
+                                        key={option}
+                                        type="button"
+                                        className="adm-chip"
+                                        aria-pressed={supplyFilter === option}
+                                        onClick={() => setSupplyFilter(option)}
+                                    >
+                                        {option === "todos" ? "Todos" : SUPPLY_CATEGORY_LABEL[option]}
+                                    </button>
+                                ))}
+                            </div>
                             <button type="button" className="adm-btn adm-btn--solid" onClick={() => setIsCreatingSupply(true)}>
                                 Nuevo insumo
                             </button>
@@ -777,12 +752,17 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
                                 Todavía no hay insumos cargados. Cuando agregues el primero y lo cuentes dos veces,
                                 aquí aparece cuánto se gasta por día y cuándo comprar.
                             </p>
+                        ) : visibleSupplies.length === 0 ? (
+                            <p className="adm-empty">
+                                Ningún insumo de {SUPPLY_CATEGORY_LABEL[supplyFilter as SupplyCategory].toLowerCase()} todavía.
+                            </p>
                         ) : (
                             <div className="adm-scroll">
                                 <table className="adm-table">
                                     <thead>
                                         <tr>
                                             <th>Insumo</th>
+                                            <th>Categoría</th>
                                             <th className="num">Quedan</th>
                                             <th className="num">Gasto diario</th>
                                             <th className="num">Alcanza</th>
@@ -793,12 +773,13 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {supplies.map((supply) => (
+                                        {visibleSupplies.map((supply) => (
                                             <tr key={supply.id} className={supply.state === "comprar" ? "is-crit" : undefined}>
                                                 <td className="adm-name">
                                                     {supply.name}
                                                     {supply.supplier ? <em>{supply.supplier}</em> : null}
                                                 </td>
+                                                <td>{SUPPLY_CATEGORY_LABEL[supply.category]}</td>
                                                 <td className="num">{formatQuantity(supply.stock)} {supply.unit}</td>
                                                 <td className="num">{supply.dailyUse ? `${formatQuantity(supply.dailyUse)} ${supply.unit}` : "—"}</td>
                                                 <td className="num">{supply.daysLeft !== null ? `${supply.daysLeft} d` : "—"}</td>
@@ -819,6 +800,9 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
                                                     </button>
                                                     <button type="button" className="adm-btn adm-btn--sm" onClick={() => setPending({ kind: "count", supply })}>
                                                         Conteo
+                                                    </button>
+                                                    <button type="button" className="adm-btn adm-btn--sm" onClick={() => setPending({ kind: "waste", supply })}>
+                                                        Merma
                                                     </button>
                                                 </td>
                                             </tr>
@@ -977,12 +961,15 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
                                         {movement.quantity > 0 ? "+" : "−"}
                                         {formatQuantity(Math.abs(movement.quantity))} {movement.unit}
                                     </span>
+                                    <span className="adm-mv__who">{movement.actorName ?? "—"}</span>
                                     <span className="adm-mv__from">{getMovementOrigin(movement)}</span>
                                 </div>
                             ))
                         )}
                     </div>
                 </section>
+
+                <AdminCollaborators token={token} onSessionExpired={onLogout} />
             </main>
 
             {isCreatingSupply ? (
@@ -1018,6 +1005,20 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
                     confirmLabel="Registrar conteo"
                     onConfirm={async (amount) => {
                         await registerCount(token, pending.supply.id, amount);
+                        await loadAll();
+                    }}
+                    onClose={() => setPending(null)}
+                />
+            ) : null}
+
+            {pending?.kind === "waste" ? (
+                <AmountDialog
+                    title={`Merma de ${pending.supply.name}`}
+                    hint={`Cuánto se perdió o se dañó, en ${pending.supply.unit}. Se resta de los ${formatQuantity(pending.supply.stock)} que hay.`}
+                    unit={pending.supply.unit}
+                    confirmLabel="Registrar merma"
+                    onConfirm={async (amount) => {
+                        await registerWaste(token, pending.supply.id, amount);
                         await loadAll();
                     }}
                     onClose={() => setPending(null)}

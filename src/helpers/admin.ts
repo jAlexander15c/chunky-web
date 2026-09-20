@@ -4,11 +4,19 @@ export type SupplyState = "comprar" | "pedir" | "contar" | "bien";
 export type ProductState = "agotado" | "poco" | "disponible" | "sin-control";
 export type MovementType = "compra" | "conteo" | "produccion" | "venta" | "merma" | "ajuste";
 export type MovementSource = "local" | "loyverse" | "web";
+export type SupplyCategory = "alimento" | "limpieza" | "mantenimiento";
+
+export const SUPPLY_CATEGORY_LABEL: Record<SupplyCategory, string> = {
+    alimento: "Alimentos",
+    limpieza: "Limpieza",
+    mantenimiento: "Mantenimiento",
+};
 
 export interface ISupplyStatus {
     id: number;
     name: string;
     unit: string;
+    category: SupplyCategory;
     stock: number;
     minStock: number;
     supplier: string | null;
@@ -45,9 +53,21 @@ export interface IMovement {
     balance: number | null;
     unit: string;
     source: MovementSource;
+    /** Quién lo cargó. "Admin" si fue desde el tablero, null si vino de un recibo. */
+    actorName: string | null;
+    actorId: number | null;
     reference: string | null;
     note: string | null;
     createdAt: string;
+}
+
+export interface ICollaborator {
+    id: number;
+    name: string;
+    isActive: boolean;
+    lastLoginAt: string | null;
+    createdAt: string;
+    movementsToday: number;
 }
 
 export interface IDaySales {
@@ -134,10 +154,53 @@ export const registerProduction = (token: string, variantId: string, quantity: n
         { headers: getAdminHeaders(token) }
     );
 
+export const registerWaste = (token: string, supplyId: number, quantity: number) =>
+    httpPost<{ supply: ISupplyStatus }>(
+        `/admin/supplies/${supplyId}/waste`,
+        { quantity },
+        { headers: getAdminHeaders(token) }
+    );
+
 export const createSupply = (
     token: string,
-    supply: { name: string; unit: string; minStock: number; supplier?: string; purchaseUnit?: string; purchaseSize?: number }
+    supply: {
+        name: string;
+        unit: string;
+        category: SupplyCategory;
+        minStock: number;
+        supplier?: string;
+        purchaseUnit?: string;
+        purchaseSize?: number;
+    }
 ) => httpPost<{ supply: ISupplyStatus }>("/admin/supplies", supply, { headers: getAdminHeaders(token) });
+
+/* ============ Colaboradores ============ */
+
+export const fetchCollaborators = (token: string, signal?: AbortSignal) =>
+    httpGet<{ collaborators: ICollaborator[] }>("/admin/collaborators", { signal, headers: getAdminHeaders(token) });
+
+/** El PIN viene en claro solo en esta respuesta: después únicamente queda su hash. */
+export const createCollaborator = (token: string, name: string) =>
+    httpPost<{ collaborator: ICollaborator; pin: string }>(
+        "/admin/collaborators",
+        { name },
+        { headers: getAdminHeaders(token) }
+    );
+
+/** Además cierra las sesiones abiertas de esa persona. */
+export const resetCollaboratorPin = (token: string, id: number) =>
+    httpPost<{ collaborator: ICollaborator; pin: string }>(
+        `/admin/collaborators/${id}/reset-pin`,
+        {},
+        { headers: getAdminHeaders(token) }
+    );
+
+export const setCollaboratorActive = (token: string, id: number, isActive: boolean) =>
+    httpPost<{ collaborator: ICollaborator }>(
+        `/admin/collaborators/${id}/active`,
+        { isActive },
+        { headers: getAdminHeaders(token) }
+    );
 
 /** Enciende o apaga el modo pasta: el menu de todos los clientes cambia al instante. */
 export const setPastaMode = (token: string, enabled: boolean) =>

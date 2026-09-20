@@ -1,0 +1,101 @@
+/* Diálogo de cantidad, compartido por /admin y /gestion.
+   En pantalla ancha es una ventana centrada; en el teléfono sube desde abajo,
+   que es donde llega el pulgar de quien está contando en bodega. */
+
+.dlg {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: grid;
+    place-items: center;
+    background: rgb(var(--shadow-tint) / 0.45);
+    padding: var(--gutter);
+}
+
+.dlg__panel {
+    background: #fffef6;
+    border-radius: var(--radius-panel);
+    padding: 1.4rem;
+    width: min(380px, 100%);
+    box-shadow: 0 24px 44px -20px rgb(var(--shadow-tint) / 0.8);
+}
+
+.dlg__panel h3 {
+    margin: 0 0 0.2rem;
+    font-size: 1.5rem;
+}
+
+.dlg__hint {
+    margin: 0 0 1rem;
+    font-size: 0.78rem;
+    color: var(--text-soft);
+}
+
+.dlg__field {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+}
+
+.dlg__input {
+    flex: 1;
+    font: inherit;
+    font-size: 1.5rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    padding: 0.5rem 0.8rem;
+    border: 2px solid var(--sky);
+    border-radius: 14px;
+    background: var(--crema);
+    color: var(--ink);
+    min-width: 0;
+}
+
+.dlg__input:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 1px;
+}
+
+.dlg__unit {
+    font-weight: 800;
+    color: var(--text-soft);
+}
+
+.dlg__error {
+    color: #a33a2a;
+    font-weight: 700;
+    font-size: 0.85rem;
+    margin: 0 0 0.8rem;
+}
+
+.dlg__actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+/* Hoja desde abajo en el teléfono: el pulgar alcanza los botones sin estirarse */
+@media (max-width: 520px) {
+    .dlg {
+        align-items: end;
+        padding: 0;
+    }
+
+    .dlg__panel {
+        width: 100%;
+        border-radius: var(--radius-panel) var(--radius-panel) 0 0;
+        padding: 1.4rem 1.1rem calc(1.4rem + env(safe-area-inset-bottom, 0px));
+    }
+
+    .dlg__actions {
+        display: grid;
+        grid-template-columns: 1fr 1.4fr;
+    }
+
+    .dlg__actions .adm-btn,
+    .dlg__actions .ges-btn {
+        min-height: 46px;
+        font-size: 0.9rem;
+    }
+}

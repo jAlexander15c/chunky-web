@@ -1,0 +1,335 @@
+/* Pantalla de colaboradores. Usa los tokens de marca de index.css y .script de App.css.
+   Pensada para teléfono o iPad en bodega: botones grandes y nada de dinero a la vista. */
+
+.ges {
+    --ges-panel: #fffef6;
+    --ges-panel-2: #f6f2df;
+    --ges-line: #e4dec6;
+    --ges-text-2: var(--text-soft);
+    --ges-text-3: #8d93b4;
+
+    --ges-good: #2f6f4c;
+    --ges-good-bg: #dfeee4;
+    --ges-warn: #8d5d0c;
+    --ges-warn-bg: #f8e9c9;
+    --ges-crit: #a33a2a;
+    --ges-crit-bg: #f6ddd7;
+
+    min-height: 100dvh;
+    background: var(--crema);
+    color: var(--ink);
+    font-size: 15px;
+    display: flex;
+    flex-direction: column;
+}
+
+.ges-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* ============ Botones ============ */
+
+.ges-btn {
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: var(--ges-text-2);
+    background: transparent;
+    border: 2px solid var(--sky);
+    border-radius: var(--radius-pill);
+    padding: 0.5rem 1rem;
+    min-height: 44px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: transform 160ms var(--ease-out), background-color 150ms ease;
+}
+
+.ges-btn:active { transform: scale(0.96); }
+.ges-btn:disabled { opacity: 0.55; cursor: default; }
+
+.ges-btn--solid {
+    background: var(--mora);
+    border-color: var(--mora);
+    color: var(--crema);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .ges-btn:hover:not(:disabled) { background: var(--sky); }
+    .ges-btn--solid:hover:not(:disabled) { background: var(--ink); }
+}
+
+/* ============ Acceso ============ */
+
+.ges-gate {
+    min-height: 100dvh;
+    display: grid;
+    place-items: center;
+    background: var(--crema);
+    padding: var(--gutter);
+}
+
+.ges-gate__panel {
+    background: var(--ges-panel);
+    border-radius: var(--radius-panel);
+    padding: 2rem 1.6rem;
+    width: min(360px, 100%);
+    text-align: center;
+    box-shadow: 0 18px 34px -24px rgb(var(--shadow-tint) / 0.7);
+}
+
+.ges-gate__mark {
+    display: block;
+    font-size: 2.2rem;
+    color: var(--mora);
+    line-height: 1;
+}
+
+.ges-gate__panel h1 {
+    margin: 0.4rem 0 0.2rem;
+    font-size: 1.2rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.ges-gate__panel p {
+    margin: 0 0 1.2rem;
+    color: var(--ges-text-2);
+    font-size: 0.88rem;
+}
+
+/* Los puntos muestran cuántos dígitos van sin revelar el PIN */
+.ges-dots {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 0.9rem;
+}
+
+.ges-dots span {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid var(--mora);
+    background: transparent;
+    transition: background-color 120ms ease;
+}
+
+.ges-dots span.is-on { background: var(--mora); }
+
+.ges-gate__error {
+    color: var(--ges-crit);
+    font-weight: 700;
+    font-size: 0.85rem;
+    margin: 0 0 0.8rem;
+    min-height: 1.2em;
+}
+
+.ges-keys {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.ges-key {
+    font: inherit;
+    min-height: 58px;
+    border-radius: 18px;
+    border: 2px solid var(--sky);
+    background: var(--crema);
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--ink);
+    cursor: pointer;
+    transition: transform 140ms var(--ease-out), background-color 120ms ease;
+}
+
+.ges-key:active { transform: scale(0.94); background: var(--sky); }
+.ges-key:disabled { opacity: 0.5; cursor: default; }
+.ges-key--soft { background: transparent; border-color: transparent; font-size: 1rem; color: var(--ges-text-2); }
+
+/* ============ Barra ============ */
+
+.ges-bar {
+    background: var(--mora);
+    color: var(--crema);
+    padding: 1rem var(--gutter) 0.9rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.8rem;
+}
+
+.ges-bar__hi { font-size: 1.4rem; line-height: 1.1; }
+.ges-bar__sub { font-size: 0.72rem; color: var(--sky); font-weight: 600; }
+
+.ges-bar .ges-btn {
+    border-color: rgb(215 224 249 / 0.5);
+    color: var(--crema);
+    min-height: 38px;
+    font-size: 0.78rem;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .ges-bar .ges-btn:hover:not(:disabled) { background: rgb(215 224 249 / 0.2); }
+}
+
+/* ============ Pestañas ============ */
+
+.ges-tabs {
+    display: flex;
+    gap: 0.4rem;
+    overflow-x: auto;
+    padding: 0.8rem var(--gutter) 0.2rem;
+    scrollbar-width: none;
+}
+
+.ges-tabs::-webkit-scrollbar { display: none; }
+
+.ges-tab {
+    font: inherit;
+    flex: none;
+    border: 2px solid var(--sky);
+    background: transparent;
+    border-radius: var(--radius-pill);
+    padding: 0.35rem 0.9rem;
+    min-height: 40px;
+    font-weight: 800;
+    font-size: 0.82rem;
+    color: var(--ges-text-2);
+    cursor: pointer;
+    transition: background-color 150ms ease, color 150ms ease;
+}
+
+.ges-tab[aria-selected="true"] {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--crema);
+}
+
+.ges-tab small { font-weight: 700; opacity: 0.75; margin-left: 0.3rem; }
+
+/* ============ Lista ============ */
+
+.ges-main { flex: 1; padding: 0 var(--gutter); }
+
+.ges-row {
+    padding: 0.9rem 0;
+    border-bottom: 1px solid var(--ges-line);
+    display: grid;
+    gap: 0.6rem;
+}
+
+.ges-row:last-child { border-bottom: 0; }
+
+.ges-row__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.7rem;
+}
+
+.ges-row__name { font-weight: 800; font-size: 1rem; line-height: 1.25; }
+
+.ges-row__meta {
+    font-size: 0.75rem;
+    color: var(--ges-text-3);
+    margin-top: 0.1rem;
+}
+
+.ges-row__meta.is-stale { color: var(--ges-warn); font-weight: 700; }
+
+.ges-qty { text-align: right; flex: none; }
+
+.ges-qty b {
+    font-size: 1.4rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+}
+
+.ges-qty span {
+    font-size: 0.75rem;
+    color: var(--ges-text-2);
+    font-weight: 700;
+    margin-left: 0.15rem;
+}
+
+.ges-acts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+.ges-acts--one { grid-template-columns: 1fr; }
+
+.ges-pill {
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 0.1rem 0.5rem;
+    border-radius: var(--radius-pill);
+    margin-top: 0.25rem;
+}
+
+.ges-pill.is-ok { background: var(--ges-good-bg); color: var(--ges-good); }
+.ges-pill.is-warn { background: var(--ges-warn-bg); color: var(--ges-warn); }
+.ges-pill.is-crit { background: var(--ges-crit-bg); color: var(--ges-crit); }
+.ges-pill.is-idle { background: var(--sky); color: var(--mora); }
+
+.ges-empty {
+    margin: 1.4rem 0;
+    color: var(--ges-text-2);
+    font-size: 0.9rem;
+}
+
+.ges-error {
+    margin: 0.8rem 0;
+    padding: 0.7rem 0.9rem;
+    border-radius: 14px;
+    background: var(--ges-crit-bg);
+    color: var(--ges-crit);
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
+/* ============ Lo de hoy ============ */
+
+.ges-mine {
+    background: var(--ges-panel-2);
+    border-top: 1px solid var(--ges-line);
+    padding: 0.9rem var(--gutter) calc(1.2rem + env(safe-area-inset-bottom, 0px));
+}
+
+.ges-mine h2 {
+    margin: 0 0 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ges-text-2);
+}
+
+.ges-mine ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.3rem; }
+
+.ges-mine li {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.6rem;
+    font-size: 0.82rem;
+}
+
+.ges-mine time { color: var(--ges-text-3); font-variant-numeric: tabular-nums; }
+.ges-mine b { font-weight: 800; }
+.ges-mine em { font-style: normal; color: var(--ges-text-3); font-variant-numeric: tabular-nums; }
+
+/* En pantalla ancha la lista no se estira de lado a lado */
+@media (min-width: 720px) {
+    .ges-main, .ges-mine ul { max-width: 640px; margin-inline: auto; }
+    .ges-acts { grid-template-columns: repeat(3, minmax(0, 140px)); justify-content: end; }
+}

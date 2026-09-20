@@ -12,3 +12,4 @@ export * from "./push";
 export * from "./sound";
 export * from "./order-notify";
 export * from "./admin";
+export * from "./gestion";
