@@ -7,6 +7,7 @@ import {
     formatPrice,
     getCategoryById,
     getCategoryName,
+    getCatalogScope,
     getCategoryPresentation,
     getItemPrice,
     getNextOpeningLabel,
@@ -15,6 +16,7 @@ import {
     isWithinOperatingHours,
     useCategories,
     useItems,
+    useSettings,
 } from "@/helpers";
 import type { IItem } from "@/interfaces";
 
@@ -87,12 +89,19 @@ export const Items = () => {
     const category = getCategoryById(selectedCategoryId);
     const categoryName = (location.state as { categoryName?: string } | null)?.categoryName ?? getCategoryName(selectedCategoryId);
     const presentation = getCategoryPresentation(category);
-    const { items, loading, error } = useItems(selectedCategoryId);
+    const { settings, isReady: isSettingsReady } = useSettings();
+    // El dia de pasta solo se venden bebidas aqui; la pasta se arma en su propia hoja
+    const isBlockedToday = settings.pastaMode && selectedCategoryId !== settings.beveragesCategoryId;
+    const { items, loading: isLoadingItems, error } = useItems(
+        isSettingsReady && !isBlockedToday ? selectedCategoryId : "",
+        getCatalogScope(settings.pastaMode)
+    );
+    const loading = isLoadingItems || !isSettingsReady;
     const isOpen = isWithinOperatingHours();
 
     const availableItems = useMemo(
-        () => items.filter((item) => item.category_id === selectedCategoryId && hasItemAvailableForSale(item)),
-        [items, selectedCategoryId]
+        () => items.filter((item) => item.category_id === selectedCategoryId && item.id !== settings.pasta?.itemId && hasItemAvailableForSale(item)),
+        [items, selectedCategoryId, settings.pasta?.itemId]
     );
 
     return (
@@ -114,9 +123,15 @@ export const Items = () => {
                     <p className="empty-note">Elige una categoría en el <Link to="/menu" className="text-link">tablero</Link>.</p>
                 )}
 
-                {selectedCategoryId && loading && <ProductSkeletons />}
+                {selectedCategoryId && isSettingsReady && isBlockedToday && (
+                    <p className="empty-note">
+                        Hoy es día de pasta: solo vendemos pasta y bebidas. <Link to="/menu" className="text-link">Ver el tablero de hoy</Link>.
+                    </p>
+                )}
 
-                {selectedCategoryId && !loading && error && (
+                {selectedCategoryId && !isBlockedToday && loading && <ProductSkeletons />}
+
+                {selectedCategoryId && !isBlockedToday && !loading && error && (
                     <div className="empty-note">
                         <p>No pudimos cargar los productos. Intenta de nuevo en un momento o pídenos directo.</p>
                         <a className="text-link" href={getWhatsAppUrl()} target="_blank" rel="noreferrer">
@@ -125,13 +140,13 @@ export const Items = () => {
                     </div>
                 )}
 
-                {selectedCategoryId && !loading && !error && availableItems.length === 0 && (
+                {selectedCategoryId && !isBlockedToday && !loading && !error && availableItems.length === 0 && (
                     <p className="empty-note">
                         Por ahora no hay productos disponibles en esta categoría. <Link to="/menu" className="text-link">Mira el resto del tablero</Link>.
                     </p>
                 )}
 
-                {selectedCategoryId && !loading && !error && availableItems.length > 0 && (
+                {selectedCategoryId && !isBlockedToday && !loading && !error && availableItems.length > 0 && (
                     <div className="products">
                         {availableItems.map((item, index) => (
                             <ProductCard key={item.id} item={item} index={index} isOpen={isOpen} />

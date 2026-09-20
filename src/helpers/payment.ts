@@ -1,6 +1,7 @@
 import { httpGet, httpPost } from "./getHttp";
-import { formatPrice, getCartTotal } from "./order";
+import { formatCartLine, formatPrice, getCartTotal } from "./order";
 import type { ICartLine } from "./order";
+import type { IPastaOptions } from "./pasta";
 
 export type OrderStatus =
     | "PENDING_PAYMENT"
@@ -18,7 +19,9 @@ export interface IPublicOrder {
     status: OrderStatus;
     customerName: string;
     note: string | null;
-    lines: { name: string; quantity: number; price: number }[];
+    lines: { name: string; quantity: number; price: number; options?: IPastaOptions }[];
+    // Solo el dia de pasta: la direccion escrita por el cliente (sin coordenadas)
+    delivery: { address: string; details: string | null } | null;
     total: number;
     yappyConfirmation: string | null;
     // Los marca la cocina en /cocina
@@ -41,9 +44,19 @@ export interface ICheckoutForm {
     hasOtherWhatsapp: boolean;
     whatsappPhone: string;
     note: string;
+    // Entrega a domicilio (solo el dia de pasta); lat y lng vienen juntos o ninguno
+    deliveryAddress: string;
+    deliveryDetails: string;
+    deliveryLat: number | null;
+    deliveryLng: number | null;
 }
 
-export type CheckoutErrors = Partial<Record<"customerName" | "customerPhone" | "whatsappPhone", string>>;
+export type CheckoutErrors = Partial<Record<"customerName" | "customerPhone" | "whatsappPhone" | "deliveryAddress", string>>;
+
+const MIN_ADDRESS_LENGTH = 5;
+
+/** Enlace de Google Maps al punto que guardo el celular del cliente. */
+export const getMapsUrl = (lat: number, lng: number) => `https://www.google.com/maps?q=${lat},${lng}`;
 
 // Produccion por defecto; para pruebas: https://bt-cdn-uat.yappycloud.com/v1/cdn/web-component-btn-yappy.js
 export const YAPPY_BUTTON_SCRIPT_URL = (import.meta.env.VITE_YAPPY_CDN_URL
@@ -65,8 +78,11 @@ export const formatPhone = (value: string) => {
 
 const isPanamaMobile = (value: string) => /^6\d{7}$/.test(getPhoneDigits(value));
 
-export const getCheckoutErrors = (form: ICheckoutForm): CheckoutErrors => {
+export const getCheckoutErrors = (form: ICheckoutForm, requiresDelivery = false): CheckoutErrors => {
     const errors: CheckoutErrors = {};
+    if (requiresDelivery && form.deliveryAddress.trim().length < MIN_ADDRESS_LENGTH) {
+        errors.deliveryAddress = "Escribe la dirección donde te llevamos el pedido.";
+    }
     if (form.customerName.trim().length < 2) errors.customerName = "Escribe tu nombre para saber de quién es el pedido.";
     if (!isPanamaMobile(form.customerPhone)) errors.customerPhone = "Escribe un celular de 8 dígitos que empiece en 6.";
     if (form.hasOtherWhatsapp && !isPanamaMobile(form.whatsappPhone)) {
@@ -75,14 +91,32 @@ export const getCheckoutErrors = (form: ICheckoutForm): CheckoutErrors => {
     return errors;
 };
 
-export const createOrder = (lines: ICartLine[], form: ICheckoutForm) =>
+export const createOrder = (lines: ICartLine[], form: ICheckoutForm, requiresDelivery = false) =>
     httpPost<IYappyPaymentSession>("/orders", {
-        lines: lines.map((line) => ({ variantId: line.item.variants[0].variant_id, quantity: line.quantity })),
+        lines: lines.map((line) => ({ variantId: line.item.variants[0].variant_id, quantity: line.quantity, options: line.options })),
+        delivery: requiresDelivery ? getDeliveryPayload(form) : undefined,
         customerName: form.customerName.trim(),
         customerPhone: getPhoneDigits(form.customerPhone),
         whatsappPhone: form.hasOtherWhatsapp ? getPhoneDigits(form.whatsappPhone) : undefined,
         note: form.note.trim() || undefined,
     });
+
+const getDeliveryPayload = (form: ICheckoutForm) => ({
+    address: form.deliveryAddress.trim(),
+    details: form.deliveryDetails.trim() || undefined,
+    lat: form.deliveryLat ?? undefined,
+    lng: form.deliveryLng ?? undefined,
+});
+
+/** Direccion y referencias en texto, para el mensaje de WhatsApp. Vacio si no hay entrega. */
+export const getDeliveryText = (form: Partial<Pick<ICheckoutForm, "deliveryAddress" | "deliveryDetails" | "deliveryLat" | "deliveryLng">>) => {
+    const address = form.deliveryAddress?.trim();
+    if (!address) return "";
+
+    const details = form.deliveryDetails?.trim() ? `\nReferencias: ${form.deliveryDetails.trim()}` : "";
+    const map = form.deliveryLat != null && form.deliveryLng != null ? `\nUbicación: ${getMapsUrl(form.deliveryLat, form.deliveryLng)}` : "";
+    return `Entrega en: ${address}${details}${map}`;
+};
 
 export const fetchOrder = (orderId: string, signal?: AbortSignal) =>
     httpGet<IPublicOrder>(`/orders/${encodeURIComponent(orderId)}`, { signal });
@@ -106,12 +140,18 @@ export const setLastOrderId = (orderId: string | null) => {
 };
 
 /** Mensaje de WhatsApp cuando el cliente tuvo un problema pagando con Yappy. */
-export const buildPaymentHelpMessage = (lines: ICartLine[], form: Pick<ICheckoutForm, "customerName" | "note">, orderId?: string | null) => {
-    const detail = lines.map((line) => `- ${line.item.item_name} x${line.quantity}`).join("\n");
+export const buildPaymentHelpMessage = (
+    lines: ICartLine[],
+    form: Pick<ICheckoutForm, "customerName" | "note"> & Partial<Pick<ICheckoutForm, "deliveryAddress" | "deliveryDetails" | "deliveryLat" | "deliveryLng">>,
+    orderId?: string | null
+) => {
+    const detail = lines.map(formatCartLine).join("\n");
+    const delivery = getDeliveryText(form);
     const who = form.customerName.trim() ? `Soy ${form.customerName.trim()}. ` : "";
     const reference = orderId ? ` (pedido ${orderId})` : "";
     const note = form.note.trim() ? `\n\nNota: ${form.note.trim()}` : "";
-    return `¡Hola! ${who}Tuve un problema pagando con Yappy en la web${reference}. Mi pedido es:\n\n${detail}\n\nTotal: ${formatPrice(getCartTotal(lines))}${note}`;
+    const address = delivery ? `\n\n${delivery}` : "";
+    return `¡Hola! ${who}Tuve un problema pagando con Yappy en la web${reference}. Mi pedido es:\n\n${detail}\n\nTotal: ${formatPrice(getCartTotal(lines))}${address}${note}`;
 };
 
 /** Texto del motivo cuando el pago no se completo. */

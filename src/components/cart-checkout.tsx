@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { useNavigate } from "react-router";
-import { PiWhatsappLogoBold } from "react-icons/pi";
+import { PiCheckCircleBold, PiMapPinBold, PiWhatsappLogoBold } from "react-icons/pi";
 
 import { useCart } from "./use-cart";
 import { YappyButton } from "./yappy-button";
@@ -13,16 +13,38 @@ import {
     createOrder,
     formatPhone,
     getCheckoutErrors,
+    getDeliveryText,
+    getMapsUrl,
     getOpeningStatusLabel,
     getWhatsAppUrl,
     isWithinOperatingHours,
     setLastOrderId,
+    useSettings,
 } from "@/helpers";
 import type { CheckoutErrors, ICheckoutForm } from "@/helpers";
 
 const FORM_STORAGE_KEY = "chunky-checkout";
 
-const EMPTY_FORM: ICheckoutForm = { customerName: "", customerPhone: "", hasOtherWhatsapp: false, whatsappPhone: "", note: "" };
+const EMPTY_FORM: ICheckoutForm = {
+    customerName: "",
+    customerPhone: "",
+    hasOtherWhatsapp: false,
+    whatsappPhone: "",
+    note: "",
+    deliveryAddress: "",
+    deliveryDetails: "",
+    deliveryLat: null,
+    deliveryLng: null,
+};
+
+/** Campos de texto del formulario (los demas son un casillero o coordenadas). */
+type TextField = "customerName" | "customerPhone" | "whatsappPhone" | "note" | "deliveryAddress" | "deliveryDetails";
+
+const MAX_DETAILS_LENGTH = 200;
+const GEOLOCATION_TIMEOUT_MS = 10000;
+
+// Seis decimales son ~11 cm: de sobra para encontrar una puerta
+const roundCoordinate = (value: number) => Math.round(value * 1e6) / 1e6;
 
 const readStoredForm = (): ICheckoutForm => {
     try {
@@ -42,11 +64,16 @@ export const CartCheckout = () => {
     const { lines, setIsOpen } = useCart();
     const navigate = useNavigate();
     const isBarOpen = isWithinOperatingHours();
+    // El dia de pasta todo pedido es con entrega a domicilio
+    const { settings } = useSettings();
+    const requiresDelivery = settings.pastaMode;
 
     const [form, setForm] = useState<ICheckoutForm>(readStoredForm);
     const [errors, setErrors] = useState<CheckoutErrors>({});
     const [paymentError, setPaymentError] = useState<string | null>(null);
     const [isYappyOnline, setIsYappyOnline] = useState(true);
+    const [isLocating, setIsLocating] = useState(false);
+    const [locationError, setLocationError] = useState<string | null>(null);
     const orderIdRef = useRef<string | null>(null);
 
     useEffect(() => {
@@ -57,7 +84,7 @@ export const CartCheckout = () => {
         }
     }, [form]);
 
-    const updateField = (field: keyof ICheckoutForm) => (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const updateField = (field: TextField) => (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const value = field === "customerPhone" || field === "whatsappPhone"
             ? formatPhone(event.target.value)
             : event.target.value;
@@ -70,14 +97,44 @@ export const CartCheckout = () => {
         setErrors((current) => ({ ...current, whatsappPhone: undefined }));
     };
 
+    /** Guarda la ubicacion del celular. Es un extra: sin ella el pedido sale igual con la direccion escrita. */
+    const captureLocation = () => {
+        setLocationError(null);
+        if (!navigator.geolocation) {
+            setLocationError("Tu navegador no comparte la ubicación. Escribe la dirección y las referencias.");
+            return;
+        }
+
+        setIsLocating(true);
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                setForm((current) => ({
+                    ...current,
+                    deliveryLat: roundCoordinate(position.coords.latitude),
+                    deliveryLng: roundCoordinate(position.coords.longitude),
+                }));
+                setIsLocating(false);
+            },
+            (error) => {
+                setLocationError(error.code === error.PERMISSION_DENIED
+                    ? "No tenemos permiso para ver tu ubicación. Escribe la dirección y las referencias."
+                    : "No pudimos ubicarte. Escribe la dirección y las referencias.");
+                setIsLocating(false);
+            },
+            { enableHighAccuracy: true, timeout: GEOLOCATION_TIMEOUT_MS, maximumAge: 60000 }
+        );
+    };
+
+    const clearLocation = () => setForm((current) => ({ ...current, deliveryLat: null, deliveryLng: null }));
+
     const createPayment = async () => {
         setPaymentError(null);
-        const formErrors = getCheckoutErrors(form);
+        const formErrors = getCheckoutErrors(form, requiresDelivery);
         setErrors(formErrors);
         if (Object.keys(formErrors).length > 0) return null;
 
         try {
-            const session = await createOrder(lines, form);
+            const session = await createOrder(lines, form, requiresDelivery);
             orderIdRef.current = session.orderId;
             setLastOrderId(session.orderId);
             return session;
@@ -96,7 +153,7 @@ export const CartCheckout = () => {
         navigate(`/pedido/${orderIdRef.current}`);
     };
 
-    const sendHelpMessage = () => openWhatsApp(buildPaymentHelpMessage(lines, form, orderIdRef.current));
+    const sendHelpMessage = () => openWhatsApp(buildPaymentHelpMessage(lines, requiresDelivery ? form : { ...form, deliveryAddress: "" }, orderIdRef.current));
 
     if (!isBarOpen) {
         return (
@@ -105,7 +162,7 @@ export const CartCheckout = () => {
                     <strong>{getOpeningStatusLabel(false)}.</strong>
                     <span>Los pagos en línea funcionan dentro del horario. Puedes dejar tu pedido por WhatsApp.</span>
                 </div>
-                <button type="button" className="button button--whatsapp button--block" onClick={() => openWhatsApp(buildOrderMessage(lines))}>
+                <button type="button" className="button button--whatsapp button--block" onClick={() => openWhatsApp(buildOrderMessage(lines, requiresDelivery ? getDeliveryText(form) : undefined))}>
                     <PiWhatsappLogoBold aria-hidden /> Enviar pedido por WhatsApp
                 </button>
             </div>
@@ -115,6 +172,60 @@ export const CartCheckout = () => {
     return (
         <div className="checkout">
             <div className="checkout__fields">
+                {requiresDelivery && (
+                    <>
+                        <p className="checkout__section">Entrega a domicilio</p>
+
+                        <div className="field">
+                            <label htmlFor="checkout-address" className="field__label">Dirección</label>
+                            <input
+                                id="checkout-address"
+                                className="field__input"
+                                autoComplete="street-address"
+                                maxLength={200}
+                                placeholder="Calle, edificio o casa, corregimiento"
+                                value={form.deliveryAddress}
+                                onChange={updateField("deliveryAddress")}
+                                aria-invalid={Boolean(errors.deliveryAddress)}
+                                aria-describedby={errors.deliveryAddress ? "checkout-address-error" : undefined}
+                            />
+                            {errors.deliveryAddress && <span id="checkout-address-error" className="field__error">{errors.deliveryAddress}</span>}
+                        </div>
+
+                        <div className="field">
+                            <label htmlFor="checkout-details" className="field__label">
+                                Detalles para el repartidor <span className="field__optional">(opcional)</span>
+                            </label>
+                            <textarea
+                                id="checkout-details"
+                                className="field__input field__input--area"
+                                rows={2}
+                                maxLength={MAX_DETAILS_LENGTH}
+                                placeholder="Ej. apto 12B, portón negro, llamar al llegar"
+                                value={form.deliveryDetails}
+                                onChange={updateField("deliveryDetails")}
+                            />
+                            <span className="field__help field__counter">{form.deliveryDetails.length}/{MAX_DETAILS_LENGTH}</span>
+                        </div>
+
+                        {form.deliveryLat !== null && form.deliveryLng !== null ? (
+                            <div className="checkout__location" role="status">
+                                <PiCheckCircleBold aria-hidden />
+                                <span>Ubicación guardada</span>
+                                <a href={getMapsUrl(form.deliveryLat, form.deliveryLng)} target="_blank" rel="noopener noreferrer">Ver en Maps</a>
+                                <button type="button" className="checkout__location-clear" onClick={clearLocation}>Quitar</button>
+                            </div>
+                        ) : (
+                            <button type="button" className="button button--ghost button--block" onClick={captureLocation} disabled={isLocating}>
+                                <PiMapPinBold aria-hidden /> {isLocating ? "Buscando tu ubicación…" : "Usar mi ubicación"}
+                            </button>
+                        )}
+                        {locationError && <span className="field__error" role="alert">{locationError}</span>}
+
+                        <p className="checkout__section">Contacto</p>
+                    </>
+                )}
+
                 <div className="field">
                     <label htmlFor="checkout-name" className="field__label">Tu nombre</label>
                     <input

@@ -3,6 +3,8 @@ export * from "./getHttp";
 export * from "./getItems";
 export * from "./catalog";
 export * from "./order";
+export * from "./pasta";
+export * from "./settings";
 export * from "./payment";
 export * from "./kitchen";
 export * from "./push";

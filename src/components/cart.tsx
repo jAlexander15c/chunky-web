@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Drawer, Portal, useBreakpointValue } from "@chakra-ui/react";
 import { Link } from "react-router";
 import { PiXBold } from "react-icons/pi";
@@ -5,16 +6,49 @@ import { PiXBold } from "react-icons/pi";
 import { AnimatedPrice } from "./animated-price";
 import { CartCheckout } from "./cart-checkout";
 import { useCart } from "./use-cart";
+import { usePastaBuilder } from "./use-pasta-builder";
 import { Mascot } from "./mascot";
 import { QuantityStepper } from "./quantity-stepper";
 import { Stamp } from "./stamp";
 
-import { formatPrice, getItemPrice } from "@/helpers";
+import { formatPastaOptions, formatPrice, getItemPrice, useSettings } from "@/helpers";
+import type { ICartLine, IPublicSettings } from "@/helpers";
+
+/**
+ * Lineas que ya no se venden hoy. El dia de pasta solo quedan la pasta (lleva opciones) y las bebidas;
+ * los demas dias no hay pasta. Si aun no se sabe cual es la categoria de bebidas no se quita nada.
+ */
+const getUnavailableLines = (lines: ICartLine[], settings: IPublicSettings) => {
+    if (!settings.pastaMode) return lines.filter((line) => line.options);
+    if (!settings.beveragesCategoryId) return [];
+    return lines.filter((line) => !line.options && line.item.category_id !== settings.beveragesCategoryId);
+};
 
 export const Cart = () => {
-    const { lines, total, isOpen, setIsOpen, setQuantity } = useCart();
+    const { lines, total, isOpen, setIsOpen, setQuantity, removeUnavailable, removedNames, dismissRemoved } = useCart();
+    const { open: openPastaBuilder } = usePastaBuilder();
+    const { settings, isReady } = useSettings();
     // Hoja inferior en movil, panel lateral desde tablet
     const isSheet = useBreakpointValue({ base: true, md: false }) ?? true;
+
+    // El carrito puede haberse armado antes de que cambiara el modo del dia: se quita lo que ya no se vende
+    useEffect(() => {
+        if (!isReady) return;
+        const unavailable = getUnavailableLines(lines, settings);
+        if (unavailable.length === 0) return;
+
+        removeUnavailable(unavailable);
+    }, [isReady, settings, lines, removeUnavailable]);
+
+    // El aviso se muestra mientras el carrito esta abierto y se descarta al cerrarlo
+    useEffect(() => {
+        if (!isOpen) dismissRemoved();
+    }, [isOpen, dismissRemoved]);
+
+    const addAnotherPasta = () => {
+        setIsOpen(false);
+        openPastaBuilder();
+    };
 
     return (
         <Drawer.Root
@@ -49,6 +83,13 @@ export const Cart = () => {
                         </header>
 
                         <Drawer.Body className="carrito__body">
+                            {removedNames.length > 0 && (
+                                <div className="checkout__notice" role="status">
+                                    <strong>Quitamos de tu carrito: {removedNames.join(", ")}.</strong>
+                                    <span>{settings.pastaMode ? "Hoy solo vendemos pasta y bebidas." : "La pasta solo está disponible los días de pasta."}</span>
+                                </div>
+                            )}
+
                             {lines.length === 0 ? (
                                 <div className="carrito__empty">
                                     <Mascot className="carrito__empty-mascot" />
@@ -58,7 +99,7 @@ export const Cart = () => {
                             ) : (
                                 <ul className="carrito__lines">
                                     {[...lines].reverse().map((line, index) => (
-                                        <li key={line.item.id} className="carrito__line">
+                                        <li key={line.lineKey} className="carrito__line">
                                             <Stamp
                                                 src={line.item.image_url}
                                                 alt={line.item.item_name}
@@ -68,17 +109,24 @@ export const Cart = () => {
                                             />
                                             <div className="carrito__info">
                                                 <span className="carrito__name">{line.item.item_name}</span>
+                                                {line.options && <span className="carrito__options">{formatPastaOptions(line.options)}</span>}
                                                 <QuantityStepper
                                                     size="sm"
                                                     quantity={line.quantity}
-                                                    itemName={line.item.item_name}
-                                                    onChange={(quantity) => setQuantity(line.item.id, quantity)}
+                                                    itemName={line.options ? `${line.item.item_name} (${formatPastaOptions(line.options)})` : line.item.item_name}
+                                                    onChange={(quantity) => setQuantity(line.lineKey, quantity)}
                                                 />
                                             </div>
                                             <span className="carrito__price">{formatPrice(getItemPrice(line.item) * line.quantity)}</span>
                                         </li>
                                     ))}
                                 </ul>
+                            )}
+
+                            {settings.pastaMode && settings.pasta && lines.length > 0 && (
+                                <button type="button" className="text-link carrito__more" onClick={addAnotherPasta}>
+                                    Armar otra pasta
+                                </button>
                             )}
 
                             {/* Total, datos y pago dentro del area con scroll: en movil no tapan los productos */}

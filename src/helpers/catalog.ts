@@ -105,6 +105,16 @@ const writeSessionEntry = <T,>(key: string, entry: ICacheEntry<T>) => {
 let categoriesCache: ICacheEntry<ICategory[]> | null = readSessionEntry<ICategory[]>(CATEGORY_CACHE_KEY);
 let categoriesRequest: Promise<ICategory[]> | null = null;
 
+/**
+ * El API devuelve otro menu el dia de pasta, asi que la cache de productos se guarda aparte por modo:
+ * un menu guardado antes del cambio no se muestra despues.
+ */
+export type CatalogScope = "normal" | "pasta";
+
+export const getCatalogScope = (isPastaMode: boolean): CatalogScope => (isPastaMode ? "pasta" : "normal");
+
+const getItemsCacheKey = (categoryId: string, scope: CatalogScope) => `${scope}:${categoryId}`;
+
 const itemsCache = new Map<string, ICacheEntry<IItem[]>>();
 const itemRequests = new Map<string, Promise<IItem[]>>();
 
@@ -149,33 +159,35 @@ export async function fetchCategoriesCached() {
     return categoriesRequest;
 }
 
-function readCachedItems(categoryId: string) {
-    const memoryEntry = itemsCache.get(categoryId);
+function readCachedItems(categoryId: string, scope: CatalogScope) {
+    const cacheKey = getItemsCacheKey(categoryId, scope);
+    const memoryEntry = itemsCache.get(cacheKey);
     if (isCacheFresh(memoryEntry)) return memoryEntry!.value;
 
-    const sessionEntry = readSessionEntry<IItem[]>(`${ITEMS_CACHE_PREFIX}${categoryId}`);
+    const sessionEntry = readSessionEntry<IItem[]>(`${ITEMS_CACHE_PREFIX}${cacheKey}`);
 
     // If session storage has an array with items, use it. If it's an empty
     // array (likely from a previous failed fetch), ignore it so we attempt
     // a fresh fetch from the API.
     if (sessionEntry && Array.isArray(sessionEntry.value) && sessionEntry.value.length > 0) {
-        itemsCache.set(categoryId, sessionEntry);
+        itemsCache.set(cacheKey, sessionEntry);
         return sessionEntry.value;
     }
 
     return undefined;
 }
 
-export async function fetchItemsByCategoryCached(categoryId: string) {
+export async function fetchItemsByCategoryCached(categoryId: string, scope: CatalogScope = "normal") {
     if (!categoryId) return [];
 
-    const cached = readCachedItems(categoryId);
+    const cacheKey = getItemsCacheKey(categoryId, scope);
+    const cached = readCachedItems(categoryId, scope);
     if (cached) {
         console.log(`[get-items] desde cache category_id=${categoryId}:`, cached.length, "items", cached);
         return cached;
     }
 
-    let request = itemRequests.get(categoryId);
+    let request = itemRequests.get(cacheKey);
 
     if (!request) {
         console.log(`[get-items] pidiendo al API category_id=${categoryId}`);
@@ -192,8 +204,8 @@ export async function fetchItemsByCategoryCached(categoryId: string) {
                 );
 
                 const entry = { value: nextItems, savedAt: Date.now() };
-                itemsCache.set(categoryId, entry);
-                writeSessionEntry(`${ITEMS_CACHE_PREFIX}${categoryId}`, entry);
+                itemsCache.set(cacheKey, entry);
+                writeSessionEntry(`${ITEMS_CACHE_PREFIX}${cacheKey}`, entry);
                 return nextItems;
             })
             .catch((error) => {
@@ -201,10 +213,10 @@ export async function fetchItemsByCategoryCached(categoryId: string) {
                 throw error;
             })
             .finally(() => {
-                itemRequests.delete(categoryId);
+                itemRequests.delete(cacheKey);
             });
 
-        itemRequests.set(categoryId, request);
+        itemRequests.set(cacheKey, request);
     }
 
     return request;
@@ -253,8 +265,8 @@ export function useCategories() {
     return { categories, loading, error };
 }
 
-export function useItems(categoryId?: string) {
-    const initialItems = useMemo(() => (categoryId ? readCachedItems(categoryId) ?? [] : []), [categoryId]);
+export function useItems(categoryId?: string, scope: CatalogScope = "normal") {
+    const initialItems = useMemo(() => (categoryId ? readCachedItems(categoryId, scope) ?? [] : []), [categoryId, scope]);
     const [items, setItems] = useState<IItem[]>(initialItems);
     const [loading, setLoading] = useState(Boolean(categoryId) && initialItems.length === 0);
     const [error, setError] = useState<string>("");
@@ -269,7 +281,7 @@ export function useItems(categoryId?: string) {
             return;
         }
 
-        const cached = readCachedItems(categoryId);
+        const cached = readCachedItems(categoryId, scope);
         if (cached) {
             setItems(cached);
             setLoading(false);
@@ -281,7 +293,7 @@ export function useItems(categoryId?: string) {
             try {
                 setLoading(true);
                 setError("");
-                const nextItems = await fetchItemsByCategoryCached(categoryId);
+                const nextItems = await fetchItemsByCategoryCached(categoryId, scope);
 
                 if (!cancelled) {
                     setItems(nextItems);
@@ -300,7 +312,7 @@ export function useItems(categoryId?: string) {
         return () => {
             cancelled = true;
         };
-    }, [categoryId]);
+    }, [categoryId, scope]);
 
     return { items, loading, error };
 }
@@ -330,7 +342,15 @@ export const getCategoryById = (categoryId?: string) => {
     return categoriesCache.value.find((category) => category.id === categoryId);
 };
 
-export function shouldDisplayCategory(category: ICategory, date = new Date()) {
+/** El dia de pasta solo se muestra la categoria de bebidas (la pasta tiene su propia entrada). */
+export interface IPastaModeContext {
+    pastaMode: boolean;
+    beveragesCategoryId: string | null;
+}
+
+export function shouldDisplayCategory(category: ICategory, date = new Date(), pastaContext?: IPastaModeContext) {
+    if (pastaContext?.pastaMode) return category.id === pastaContext.beveragesCategoryId;
+
     const hour = date.getHours();
     const categoryColor = normalizeCategoryColor(category.color);
 

@@ -618,3 +618,84 @@ select.adm-form__input { cursor: pointer; }
     border-radius: 12px;
     padding: 0.6rem 0.8rem;
 }
+
+/* ============ Modo pasta ============ */
+.adm-pasta__row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.8rem 1.2rem;
+}
+
+.adm-switch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+    cursor: pointer;
+    font-weight: 800;
+}
+
+.adm-switch input {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    cursor: pointer;
+}
+
+.adm-switch__track {
+    position: relative;
+    width: 56px;
+    height: 32px;
+    border-radius: 999px;
+    background: var(--adm-line);
+    flex: none;
+    transition: background-color 200ms var(--ease-out);
+}
+
+.adm-switch__track::after {
+    content: "";
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--crema);
+    box-shadow: 0 2px 6px rgb(38 48 92 / 0.3);
+    transition: transform 200ms var(--ease-out);
+}
+
+.adm-switch input:checked + .adm-switch__track { background: var(--mora); }
+.adm-switch input:checked + .adm-switch__track::after { transform: translateX(24px); }
+.adm-switch input:focus-visible + .adm-switch__track { outline: 3px solid var(--orquidea); outline-offset: 2px; }
+.adm-switch input:disabled + .adm-switch__track { opacity: 0.5; }
+
+.adm-pasta__state {
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    background: var(--sky);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.adm-pasta__state--on { background: var(--adm-good-bg); color: var(--adm-good); }
+
+.adm-pasta__desc {
+    margin: 0.7rem 0 0;
+    color: var(--adm-text-2);
+    font-size: 0.85rem;
+}
+
+.adm-pasta__list {
+    margin: 0.4rem 0 1rem;
+    padding-left: 1.1rem;
+    display: grid;
+    gap: 0.25rem;
+    color: var(--adm-text-2);
+    font-size: 0.85rem;
+}

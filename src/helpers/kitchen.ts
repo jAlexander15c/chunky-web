@@ -1,4 +1,5 @@
 import { httpGet, httpPost } from "./getHttp";
+import type { IPastaOptions } from "./pasta";
 import { getExistingPushSubscription, getPushSubscription } from "./push";
 
 export interface IKitchenOrder {
@@ -7,7 +8,9 @@ export interface IKitchenOrder {
     customerPhone: string;
     whatsappPhone: string | null;
     note: string | null;
-    lines: { name: string; quantity: number }[];
+    lines: { name: string; quantity: number; options?: IPastaOptions }[];
+    // Solo el dia de pasta. mapUrl ya viene armado por el API (coordenadas o busqueda de la direccion)
+    delivery: { address: string; details: string | null; lat: number | null; lng: number | null; mapUrl: string } | null;
     total: number;
     paidAt: string;
     acceptedAt: string | null;

@@ -1,10 +1,16 @@
+import { formatPastaOptions } from "./pasta";
+import type { IPastaOptions } from "./pasta";
+
 import type { IItem } from "@/interfaces";
 
 export const WHATSAPP_PHONE = "50763266648";
 
 export interface ICartLine {
+    /** Identidad de la linea: el producto y, en la pasta, sus opciones (ver getLineKey). */
+    lineKey: string;
     item: IItem;
     quantity: number;
+    options?: IPastaOptions;
 }
 
 export const OPENING_HOURS = [
@@ -33,9 +39,16 @@ export const getCartCount = (lines: ICartLine[]) => lines.reduce((sum, line) => 
 export const getCartTotal = (lines: ICartLine[]) =>
     lines.reduce((sum, line) => sum + getItemPrice(line.item) * line.quantity, 0);
 
-export const buildOrderMessage = (lines: ICartLine[]) => {
-    const detail = lines.map((line) => `- ${line.item.item_name} x${line.quantity}`).join("\n");
-    return `¡Hola! Me gustaría realizar el siguiente pedido:\n\n${detail}\n\nTotal: ${formatPrice(getCartTotal(lines))}`;
+/** "- Pasta armable x2 (Fettuccine · Pomodoro Chunky · Pollo Grill)" para los mensajes de WhatsApp. */
+export const formatCartLine = (line: ICartLine) => {
+    const options = line.options ? ` (${formatPastaOptions(line.options)})` : "";
+    return `- ${line.item.item_name} x${line.quantity}${options}`;
+};
+
+export const buildOrderMessage = (lines: ICartLine[], delivery?: string) => {
+    const detail = lines.map(formatCartLine).join("\n");
+    const address = delivery ? `\n\n${delivery}` : "";
+    return `¡Hola! Me gustaría realizar el siguiente pedido:\n\n${detail}\n\nTotal: ${formatPrice(getCartTotal(lines))}${address}`;
 };
 
 export const getWhatsAppUrl = (message?: string) => {

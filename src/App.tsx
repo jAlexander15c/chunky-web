@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { BrowserRouter, Outlet, Route, Routes, useLocation } from "react-router";
 
-import { Cart, CartButton, CartProvider, SiteFooter, SiteHeader } from "@/components";
+import { Cart, CartButton, CartProvider, PastaBuilder, PastaBuilderProvider, SiteFooter, SiteHeader } from "@/components";
 import { AdminView, Home, Items, KitchenView, Mantenimiento, Menu, OrderStatusView } from "@/views";
 import { useWwwRedirect } from "@/hooks/useWwwRedirect";
 
@@ -28,11 +28,14 @@ const SiteLayout = () => {
 
   return (
     <CartProvider>
-      <SiteHeader />
-      <Outlet />
-      <SiteFooter />
-      <Cart />
-      <CartButton />
+      <PastaBuilderProvider>
+        <SiteHeader />
+        <Outlet />
+        <SiteFooter />
+        <PastaBuilder />
+        <Cart />
+        <CartButton />
+      </PastaBuilderProvider>
     </CartProvider>
   );
 };

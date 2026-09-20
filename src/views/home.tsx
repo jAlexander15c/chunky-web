@@ -1,7 +1,7 @@
 import { Link } from "react-router";
 import { PiArrowRightBold, PiStarFourFill } from "react-icons/pi";
 
-import { Mascot, MenuBoard, Stamp } from "@/components";
+import { Mascot, MenuBoard, Stamp, usePastaBuilder } from "@/components";
 import {
     OPENING_HOURS,
     getCategoryByName,
@@ -9,6 +9,7 @@ import {
     getOpeningStatusLabel,
     isWithinOperatingHours,
     useCategories,
+    useSettings,
 } from "@/helpers";
 
 // Fotos de categoria del bucket de R2
@@ -54,7 +55,11 @@ const Marquee = () => (
 
 export const Home = () => {
     const getCategoryLink = useCategoryLink();
+    const { settings } = useSettings();
+    const { open: openPastaBuilder } = usePastaBuilder();
     const isOpen = isWithinOperatingHours();
+    // Los dias de pasta el resto del menu no se vende: no se ofrecen sus accesos
+    const isPastaDay = settings.pastaMode;
     const cookies = getCategoryLink("galletas");
     const savory = getCategoryLink("salados");
     const drinks = getCategoryLink("bebidas");
@@ -63,17 +68,29 @@ export const Home = () => {
         <main className="home">
             <section className="hero">
                 <div className="hero__copy">
+                    {isPastaDay && <span className="today-chip"><i aria-hidden />Hoy: día de pasta</span>}
                     <h1 className="hero__title">
                         <span className="hero__title-block">De New York a Kioto,</span>
                         <span className="script hero__title-script">con escala en Italia.</span>
                     </h1>
                     <p className="hero__sub">
-                        Galletas estilo New York, focaccias con pesto y matcha, nuestra bebida estrella. Arma tu pedido y envíalo por WhatsApp.
+                        {isPastaDay
+                            ? "Hoy armas tu pasta: eliges la pasta, la salsa y la proteína. También hay bebidas, y todo llega a tu puerta."
+                            : "Galletas estilo New York, focaccias con pesto y matcha, nuestra bebida estrella. Arma tu pedido y envíalo por WhatsApp."}
                     </p>
                     <div className="hero__actions">
-                        <Link to="/menu" className="button button--primary button--lg">
-                            Ver el menú <PiArrowRightBold aria-hidden />
-                        </Link>
+                        {isPastaDay && settings.pasta ? (
+                            <>
+                                <button type="button" className="button button--primary button--lg" onClick={openPastaBuilder}>
+                                    Arma tu pasta <PiArrowRightBold aria-hidden />
+                                </button>
+                                <Link to="/menu" className="text-link">Ver el menú de hoy</Link>
+                            </>
+                        ) : (
+                            <Link to="/menu" className="button button--primary button--lg">
+                                Ver el menú <PiArrowRightBold aria-hidden />
+                            </Link>
+                        )}
                         <span className="hero__status">{getOpeningStatusLabel(isOpen)}</span>
                     </div>
                 </div>
@@ -90,6 +107,7 @@ export const Home = () => {
 
             <Marquee />
 
+            {!isPastaDay && (
             <section id="pasaporte" className="section passport">
                 <div className="section__inner">
                     <h2 className="section__title">
@@ -134,6 +152,7 @@ export const Home = () => {
                     </div>
                 </div>
             </section>
+            )}
 
             <section id="menu" className="section counter">
                 <div className="section__inner counter__grid">

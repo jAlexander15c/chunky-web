@@ -139,6 +139,10 @@ export const createSupply = (
     supply: { name: string; unit: string; minStock: number; supplier?: string; purchaseUnit?: string; purchaseSize?: number }
 ) => httpPost<{ supply: ISupplyStatus }>("/admin/supplies", supply, { headers: getAdminHeaders(token) });
 
+/** Enciende o apaga el modo pasta: el menu de todos los clientes cambia al instante. */
+export const setPastaMode = (token: string, enabled: boolean) =>
+    httpPost<{ pastaMode: boolean }>("/admin/pasta-mode", { enabled }, { headers: getAdminHeaders(token) });
+
 export const syncReceiptsNow = (token: string) =>
     httpPost<{ applied: number; skipped: number; synced: number }>("/admin/sync", {}, { headers: getAdminHeaders(token) });
 

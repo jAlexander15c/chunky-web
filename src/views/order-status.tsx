@@ -9,6 +9,7 @@ import {
     PAID_ORDER_STATUSES,
     buildPaymentHelpMessage,
     fetchOrder,
+    formatPastaOptions,
     formatPrice,
     getFailedOrderReason,
     getLastOrderId,
@@ -36,9 +37,13 @@ const formatTime = (value: string | null) =>
 /** Aviso que aparece en la pagina cuando el pedido cambia de paso estando abierta. */
 type StepAlert = "accepted" | "ready";
 
-const STEP_ALERT_TEXT: Record<StepAlert, { title: string; text: string; tabTitle: string }> = {
-    accepted: { title: "Estamos preparando tu pedido", text: "La cocina ya lo tomó.", tabTitle: "👩‍🍳 Preparando tu pedido" },
-    ready: { title: "¡Tu pedido está listo!", text: "Pasa a retirarlo cuando quieras.", tabTitle: "✅ ¡Pedido listo!" },
+const getStepAlertText = (alert: StepAlert, isDelivery: boolean) => {
+    if (alert === "accepted") return { title: "Estamos preparando tu pedido", text: "La cocina ya lo tomó.", tabTitle: "👩‍🍳 Preparando tu pedido" };
+    return {
+        title: "¡Tu pedido está listo!",
+        text: isDelivery ? "Sale hacia tu dirección." : "Pasa a retirarlo cuando quieras.",
+        tabTitle: "✅ ¡Pedido listo!",
+    };
 };
 
 /** Que aviso corresponde al pasar de un estado al siguiente (null si no cambio de paso). */
@@ -99,7 +104,10 @@ const OrderTicket = ({ order }: { order: IPublicOrder }) => (
         <ul className="order-ticket__body">
             {order.lines.map((line, index) => (
                 <li key={`${line.name}-${index}`} className="order-ticket__row">
-                    <span>{line.name} × {line.quantity}</span>
+                    <span>
+                        {line.name} × {line.quantity}
+                        {line.options && <small className="order-ticket__options">{formatPastaOptions(line.options)}</small>}
+                    </span>
                     <span className="order-ticket__amount">{formatPrice(line.price * line.quantity)}</span>
                 </li>
             ))}
@@ -108,6 +116,13 @@ const OrderTicket = ({ order }: { order: IPublicOrder }) => (
                 <span className="order-ticket__amount">{formatPrice(order.total)}</span>
             </li>
         </ul>
+        {order.delivery && (
+            <p className="order-ticket__note order-ticket__delivery">
+                <b>Entrega en</b>
+                {order.delivery.address}
+                {order.delivery.details && <span>{order.delivery.details}</span>}
+            </p>
+        )}
         {order.note && <p className="order-ticket__note">Nota: {order.note}</p>}
         <div className="order-ticket__perf" aria-hidden />
         <div className="order-ticket__foot">
@@ -120,7 +135,9 @@ const OrderTicket = ({ order }: { order: IPublicOrder }) => (
 /** Titulo y texto segun el paso que marco la cocina. */
 const getPaidOrderCopy = (order: IPublicOrder) => {
     if (order.status === "DELIVERED") return { title: `¡Buen provecho, ${order.customerName}!`, lede: "Tu pedido ya fue entregado. ¡Gracias por pedir en Chunky Bites!" };
-    if (order.status === "READY") return { title: `¡Listo, ${order.customerName}!`, lede: "Tu pedido está listo para retirar." };
+    if (order.status === "READY") {
+        return { title: `¡Listo, ${order.customerName}!`, lede: order.delivery ? "Tu pedido está listo y sale hacia tu dirección." : "Tu pedido está listo para retirar." };
+    }
     if (order.acceptedAt) return { title: `¡Gracias, ${order.customerName}!`, lede: "Tu pago está confirmado y ya estamos preparando tu pedido." };
     return { title: `¡Gracias, ${order.customerName}!`, lede: "Tu pago está confirmado. La cocina recibió tu pedido y lo toma en un momento." };
 };
@@ -150,7 +167,7 @@ const PaidOrder = ({ order }: { order: IPublicOrder }) => {
                 </li>
                 <li className={`order-step ${order.status === "DELIVERED" ? "order-step--done" : isReady ? "order-step--now" : ""}`}>
                     <span className="order-step__dot" aria-hidden>{order.status === "DELIVERED" ? "✓" : "3"}</span>
-                    <span>Listo para retirar<small>{order.readyAt ? `Desde las ${formatTime(order.readyAt)}` : ""}</small></span>
+                    <span>{order.delivery ? "Listo para salir" : "Listo para retirar"}<small>{order.readyAt ? `Desde las ${formatTime(order.readyAt)}` : ""}</small></span>
                 </li>
             </ol>
             <OrderTicket order={order} />
@@ -213,15 +230,17 @@ export const OrderStatusView = () => {
 
     const { order, isNotFound } = useOrderStatus(orderId, announceStep);
 
+    const isDelivery = Boolean(order?.delivery);
+
     // El titulo de la pestana tambien avisa si el cliente esta en otra pestana
     useEffect(() => {
         if (!alert) return;
         const previousTitle = document.title;
-        document.title = STEP_ALERT_TEXT[alert].tabTitle;
+        document.title = getStepAlertText(alert, isDelivery).tabTitle;
         return () => {
             document.title = previousTitle;
         };
-    }, [alert]);
+    }, [alert, isDelivery]);
 
     // El carrito se vacia una sola vez, cuando se confirma el pago del pedido que se inicio aqui
     useEffect(() => {
@@ -241,8 +260,8 @@ export const OrderStatusView = () => {
                     <div className={`order-alert order-alert--${alert}`} role="status">
                         <span className="order-alert__icon" aria-hidden>{alert === "ready" ? "✓" : "♪"}</span>
                         <span>
-                            <b>{STEP_ALERT_TEXT[alert].title}</b>
-                            <span>{STEP_ALERT_TEXT[alert].text}</span>
+                            <b>{getStepAlertText(alert, isDelivery).title}</b>
+                            <span>{getStepAlertText(alert, isDelivery).text}</span>
                         </span>
                     </div>
                 )}

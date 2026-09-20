@@ -7,6 +7,7 @@ import {
     disableKitchenPush,
     enableKitchenPush,
     fetchKitchenOrders,
+    formatPastaOptions,
     formatPhone,
     formatPrice,
     getKitchenToken,
@@ -257,16 +258,30 @@ const KitchenTicket = ({ order, now, onStep }: { order: IKitchenOrder; now: numb
     return (
         <article className={`kitchen-ticket ${isNew ? "kitchen-ticket--new" : ""} ${isReady ? "kitchen-ticket--ready" : ""}`}>
             <header className="kitchen-ticket__top">
-                <span className="kitchen-ticket__name">{order.customerName}</span>
+                <span className="kitchen-ticket__name">
+                    {order.customerName}
+                    {order.delivery && <span className="kitchen-ticket__badge">Delivery</span>}
+                </span>
                 <span className={`kitchen-ticket__time ${isLate ? "kitchen-ticket__time--late" : ""}`}>
                     {timeLabel} <b>{minutes}</b> min
                 </span>
             </header>
             <ul className="kitchen-ticket__items">
                 {order.lines.map((line, index) => (
-                    <li key={`${line.name}-${index}`}><b>{line.quantity}×</b>{line.name}</li>
+                    <li key={`${line.name}-${index}`}>
+                        <b>{line.quantity}×</b>{line.name}
+                        {line.options && <span className="kitchen-ticket__options">{formatPastaOptions(line.options)}</span>}
+                    </li>
                 ))}
             </ul>
+            {order.delivery && (
+                <div className="kitchen-ticket__dest">
+                    <b>Entregar en</b>
+                    <span>{order.delivery.address}</span>
+                    {order.delivery.details && <span>{order.delivery.details}</span>}
+                    <a href={order.delivery.mapUrl} target="_blank" rel="noopener noreferrer">Abrir en Maps</a>
+                </div>
+            )}
             {order.note && <p className="kitchen-ticket__note">Nota: {order.note}</p>}
             <div className="kitchen-ticket__meta">
                 <span>{order.id} · {formatPrice(order.total)} Yappy · {formatClock(order.paidAt)}</span>
@@ -401,15 +416,15 @@ const KitchenBoard = ({ token, hasPush, onLogout, onSessionExpired }: {
             <main className="kitchen-board">
                 <KitchenColumn title="Nuevos" orders={newOrders} empty="Sin pedidos nuevos" isNew now={now} onStep={runStep} />
                 <KitchenColumn title="Preparando" orders={preparingOrders} empty="Nada en preparación" now={now} onStep={runStep} />
-                <KitchenColumn title="Listos para retirar" orders={readyOrders} empty="Nada por entregar" now={now} onStep={runStep} />
+                <KitchenColumn title="Listos para retirar o enviar" orders={readyOrders} empty="Nada por entregar" now={now} onStep={runStep} />
             </main>
 
             {toast && (
                 <div className="kitchen-toast" role="status">
                     <span className="kitchen-toast__bell" aria-hidden>♪</span>
                     <span>
-                        <b>Nuevo pedido · {toast.customerName}</b>
-                        <small>{toast.lines.map((line) => `${line.quantity}× ${line.name}`).join(", ")}</small>
+                        <b>Nuevo pedido{toast.delivery ? " · Delivery" : ""} · {toast.customerName}</b>
+                        <small>{toast.lines.map((line) => `${line.quantity}× ${line.name}${line.options ? ` (${formatPastaOptions(line.options, ", ")})` : ""}`).join(", ")}</small>
                     </span>
                 </div>
             )}
