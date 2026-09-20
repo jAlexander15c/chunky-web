@@ -29,6 +29,7 @@ import {
 } from "@/helpers";
 import type { IDashboard, IDaySales, IMovement, IProductStatus, ISupplyStatus, MovementType, SupplyCategory, SupplyState } from "@/helpers";
 
+import { AdminCaja } from "./admin-caja";
 import { AdminCollaborators } from "./admin-collaborators";
 
 import "./admin.css";
@@ -969,6 +970,7 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
                     </div>
                 </section>
 
+                <AdminCaja token={token} onSessionExpired={onLogout} />
                 <AdminCollaborators token={token} onSessionExpired={onLogout} />
             </main>
 

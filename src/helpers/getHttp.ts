@@ -29,10 +29,14 @@ if (!API_BASE) {
     throw new Error("VITE_API_BASE_URL is not defined");
 }
 
-/** POST JSON a chunky-api. Si falla, el HttpError trae el `message` del API cuando existe. */
-export const httpPost = async <T>(path: string, body: unknown, options?: { headers?: Record<string, string> }): Promise<T> => {
+const sendJson = async <T>(
+    method: "POST" | "PUT",
+    path: string,
+    body: unknown,
+    options?: { headers?: Record<string, string> }
+): Promise<T> => {
     const res = await fetch(`${API_BASE}${path}`, {
-        method: "POST",
+        method,
         headers: {
             "Content-Type": "application/json",
             ...(API_KEY ? { "x-api-key": API_KEY } : {}),
@@ -48,6 +52,13 @@ export const httpPost = async <T>(path: string, body: unknown, options?: { heade
 
     return res.json() as Promise<T>;
 };
+
+/** POST JSON a chunky-api. Si falla, el HttpError trae el `message` del API cuando existe. */
+export const httpPost = <T>(path: string, body: unknown, options?: { headers?: Record<string, string> }) =>
+    sendJson<T>("POST", path, body, options);
+
+export const httpPut = <T>(path: string, body: unknown, options?: { headers?: Record<string, string> }) =>
+    sendJson<T>("PUT", path, body, options);
 
 export async function httpGet<T>(
     path: string,

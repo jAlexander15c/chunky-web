@@ -561,6 +561,30 @@
 
 .adm-table tr.is-off td { color: var(--adm-text-3); }
 
+.adm-pill + .adm-pill { margin-left: 0.25rem; }
+
+/* Roles del colaborador: casillas con lo que implica cada una */
+.adm-roles { border: 0; padding: 0; margin: 0 0 0.3rem; display: grid; gap: 0.5rem; }
+
+.adm-roles legend {
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--adm-text-3);
+    padding: 0;
+    margin-bottom: 0.4rem;
+}
+
+.adm-roles__row { display: flex; align-items: flex-start; gap: 0.6rem; cursor: pointer; }
+.adm-roles__row input { width: 20px; height: 20px; margin-top: 0.15rem; flex: none; accent-color: var(--mora); }
+.adm-roles__row b { display: block; font-weight: 800; font-size: 0.88rem; }
+.adm-roles__row em { font-style: normal; font-size: 0.76rem; color: var(--adm-text-2); }
+
+/* Número de mesas, junto a su botón de guardar */
+.adm-tables { display: flex; gap: 0.4rem; align-items: center; }
+.adm-tables .adm-form__input { width: 5rem; text-align: center; font-weight: 800; font-variant-numeric: tabular-nums; }
+
 /* ============ Diálogo ============ */
 
 .adm-modal {

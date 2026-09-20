@@ -1,4 +1,4 @@
-import { httpGet, httpPost } from "./getHttp";
+import { httpGet, httpPost, httpPut } from "./getHttp";
 
 export type SupplyState = "comprar" | "pedir" | "contar" | "bien";
 export type ProductState = "agotado" | "poco" | "disponible" | "sin-control";
@@ -61,13 +61,36 @@ export interface IMovement {
     createdAt: string;
 }
 
+/** Una persona puede tener varios: quien cuenta insumos también puede estar en caja. */
+export type CollaboratorRole = "inventario" | "caja";
+
+export const COLLABORATOR_ROLES: CollaboratorRole[] = ["inventario", "caja"];
+
+export const ROLE_LABEL: Record<CollaboratorRole, string> = {
+    inventario: "Inventario",
+    caja: "Caja",
+};
+
 export interface ICollaborator {
     id: number;
     name: string;
+    roles: CollaboratorRole[];
     isActive: boolean;
     lastLoginAt: string | null;
     createdAt: string;
     movementsToday: number;
+}
+
+export interface IShiftRow {
+    id: number;
+    openedByName: string;
+    openedAt: string;
+    startingCash: number;
+    closedByName: string | null;
+    closedAt: string | null;
+    expectedCash: number | null;
+    countedCash: number | null;
+    difference: number | null;
 }
 
 export interface IDaySales {
@@ -180,12 +203,28 @@ export const fetchCollaborators = (token: string, signal?: AbortSignal) =>
     httpGet<{ collaborators: ICollaborator[] }>("/admin/collaborators", { signal, headers: getAdminHeaders(token) });
 
 /** El PIN viene en claro solo en esta respuesta: después únicamente queda su hash. */
-export const createCollaborator = (token: string, name: string) =>
+export const createCollaborator = (token: string, name: string, roles: CollaboratorRole[]) =>
     httpPost<{ collaborator: ICollaborator; pin: string }>(
         "/admin/collaborators",
-        { name },
+        { name, roles },
         { headers: getAdminHeaders(token) }
     );
+
+/** Cambia nombre y roles. El PIN se toca aparte, con resetCollaboratorPin. */
+export const updateCollaborator = (token: string, id: number, name: string, roles: CollaboratorRole[]) =>
+    httpPut<{ collaborator: ICollaborator }>(
+        `/admin/collaborators/${id}`,
+        { name, roles },
+        { headers: getAdminHeaders(token) }
+    );
+
+/* ============ Caja ============ */
+
+export const fetchShifts = (token: string, signal?: AbortSignal) =>
+    httpGet<{ shifts: IShiftRow[]; tables: number }>("/admin/shifts", { signal, headers: getAdminHeaders(token) });
+
+export const setTablesCount = (token: string, tables: number) =>
+    httpPost<{ tables: number }>("/admin/tables", { tables }, { headers: getAdminHeaders(token) });
 
 /** Además cierra las sesiones abiertas de esa persona. */
 export const resetCollaboratorPin = (token: string, id: number) =>

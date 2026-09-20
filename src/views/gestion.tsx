@@ -1,58 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 
-import { AmountDialog } from "@/components";
 import {
     HttpError,
-    SUPPLY_CATEGORY_LABEL,
-    fetchGestionMovements,
-    fetchGestionProducts,
-    fetchGestionSupplies,
-    formatClock,
-    formatCountAge,
-    formatQuantity,
+    formatCash,
     getGestionName,
+    getGestionRoles,
     getGestionToken,
     loginGestion,
-    registerGestionCount,
-    registerGestionProduction,
-    registerGestionPurchase,
-    registerGestionWaste,
     setGestionSession,
 } from "@/helpers";
-import type { IMovement, IProductStatus, ISupplyStatus, SupplyCategory } from "@/helpers";
+import type { CollaboratorRole, IShiftDetail } from "@/helpers";
+
+import { GestionCaja } from "./gestion/caja";
+import { GestionInventario } from "./gestion/inventario";
+import { GestionTurno } from "./gestion/turno";
 
 import "./gestion.css";
-
-/** Las pestañas: las tres categorías de insumo más los productos terminados. */
-type Tab = SupplyCategory | "productos";
-
-const TABS: Tab[] = ["alimento", "limpieza", "mantenimiento", "productos"];
-
-const TAB_LABEL: Record<Tab, string> = { ...SUPPLY_CATEGORY_LABEL, productos: "Productos" };
-
-const STATE_LABEL: Record<ISupplyStatus["state"], string> = {
-    comprar: "Comprar ya",
-    pedir: "Pedir",
-    contar: "Contar",
-    bien: "Bien",
-};
-
-const STATE_TONE: Record<ISupplyStatus["state"], string> = {
-    comprar: "crit",
-    pedir: "warn",
-    contar: "idle",
-    bien: "ok",
-};
-
-const MOVEMENT_LABEL: Record<string, string> = {
-    compra: "Compra",
-    conteo: "Conteo",
-    merma: "Merma",
-    produccion: "Producción",
-};
-
-/** Pasado este plazo el conteo dejó de ser confiable. Mismo umbral que usa el API. */
-const STALE_COUNT_DAYS = 7;
 
 const PIN_LENGTH = 6;
 
@@ -71,7 +35,7 @@ const useGestionHead = () => {
 const PIN_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"];
 
 interface IGestionLoginProps {
-    onLogin: (token: string, name: string) => void;
+    onLogin: (token: string, name: string, roles: CollaboratorRole[]) => void;
 }
 
 const GestionLogin = ({ onLogin }: IGestionLoginProps) => {
@@ -86,7 +50,7 @@ const GestionLogin = ({ onLogin }: IGestionLoginProps) => {
 
             try {
                 const { token, collaborator } = await loginGestion(candidate);
-                onLogin(token, collaborator.name);
+                onLogin(token, collaborator.name, collaborator.roles);
             } catch (loginError) {
                 setPin("");
                 setIsSending(false);
@@ -156,264 +120,135 @@ const GestionLogin = ({ onLogin }: IGestionLoginProps) => {
     );
 };
 
-/* ============ Pantalla del colaborador ============ */
+/* ============ Armazón ============ */
 
-type PendingAction =
-    | { kind: "purchase" | "count" | "waste"; supply: ISupplyStatus }
-    | { kind: "production"; product: IProductStatus };
+type Section = "caja" | "turno" | "inventario";
 
-interface IGestionBoardProps {
+interface ISectionInfo {
+    id: Section;
+    label: string;
+    role: CollaboratorRole;
+    sub: string;
+    icon: ReactNode;
+}
+
+const SECTIONS: ISectionInfo[] = [
+    {
+        id: "caja",
+        label: "Caja",
+        role: "caja",
+        sub: "Toma las mesas, envía a cocina y cobra",
+        icon: (
+            <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="2" y="7" width="20" height="13" rx="2" />
+                <path d="M6 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2M2 12h20" />
+            </svg>
+        ),
+    },
+    {
+        id: "turno",
+        label: "Turno",
+        role: "caja",
+        sub: "Fondo inicial, movimientos de efectivo y cierre",
+        icon: (
+            <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 7v5l3 2" />
+            </svg>
+        ),
+    },
+    {
+        id: "inventario",
+        label: "Inventario",
+        role: "inventario",
+        sub: "Compras, conteos y mermas",
+        icon: (
+            <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M3 7l9-4 9 4v10l-9 4-9-4z" />
+                <path d="M3 7l9 4 9-4M12 11v10" />
+            </svg>
+        ),
+    },
+];
+
+interface IGestionShellProps {
     token: string;
     name: string;
-    onRename: (name: string) => void;
+    roles: CollaboratorRole[];
     onLogout: () => void;
 }
 
-const GestionBoard = ({ token, name, onRename, onLogout }: IGestionBoardProps) => {
-    const [supplies, setSupplies] = useState<ISupplyStatus[]>([]);
-    const [products, setProducts] = useState<IProductStatus[]>([]);
-    const [movements, setMovements] = useState<IMovement[]>([]);
-    const [tab, setTab] = useState<Tab>("alimento");
-    const [pending, setPending] = useState<PendingAction | null>(null);
-    const [error, setError] = useState("");
-    const [isLoading, setIsLoading] = useState(true);
+const GestionShell = ({ token, name, roles, onLogout }: IGestionShellProps) => {
+    const [shift, setShift] = useState<IShiftDetail | null>(null);
 
-    const loadAll = useCallback(
-        async (signal?: AbortSignal) => {
-            try {
-                const [suppliesData, productsData, movementsData] = await Promise.all([
-                    fetchGestionSupplies(token, signal),
-                    fetchGestionProducts(token, signal),
-                    fetchGestionMovements(token, signal),
-                ]);
+    // Solo se ofrece lo que esta persona puede hacer
+    const available = useMemo(() => SECTIONS.filter((one) => roles.includes(one.role)), [roles]);
+    const [section, setSection] = useState<Section>(() => available[0]?.id ?? "inventario");
 
-                setSupplies(suppliesData.supplies);
-                setProducts(productsData.products);
-                setMovements(movementsData.movements);
-                onRename(movementsData.collaborator.name);
-                setError("");
-            } catch (requestError) {
-                if (signal?.aborted) return;
-                if (requestError instanceof HttpError && requestError.status === 401) return onLogout();
-                setError(
-                    requestError instanceof HttpError ? requestError.message : "No pudimos cargar el inventario."
-                );
-            } finally {
-                setIsLoading(false);
-            }
-        },
-        [token, onRename, onLogout]
-    );
+    const current = available.find((one) => one.id === section) ?? available[0];
 
-    useEffect(() => {
-        const controller = new AbortController();
-        void loadAll(controller.signal);
-        return () => controller.abort();
-    }, [loadAll]);
-
-    // Se cuenta por pestaña para que se vea dónde hay trabajo sin entrar a cada una
-    const counts = useMemo(() => {
-        const byCategory = { alimento: 0, limpieza: 0, mantenimiento: 0 };
-        supplies.forEach((supply) => {
-            byCategory[supply.category] += 1;
-        });
-        return { ...byCategory, productos: products.length };
-    }, [supplies, products]);
-
-    const visibleSupplies = useMemo(
-        () => (tab === "productos" ? [] : supplies.filter((supply) => supply.category === tab)),
-        [supplies, tab]
-    );
-
-    const isEmpty = tab === "productos" ? products.length === 0 : visibleSupplies.length === 0;
+    if (!current) {
+        return (
+            <div className="ges ges-gate">
+                <div className="ges-gate__panel">
+                    <span className="ges-gate__mark script">Gestión</span>
+                    <h1>Sin permisos</h1>
+                    <p>Tu PIN funciona, pero todavía no tiene ninguna sección asignada. Pídele al administrador que te dé caja o inventario.</p>
+                    <button type="button" className="ges-btn ges-btn--block" onClick={onLogout}>Salir</button>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="ges">
-            <header className="ges-bar">
-                <div>
-                    <div className="ges-bar__hi script">Hola, {name || "equipo"}</div>
-                    <div className="ges-bar__sub">Registra compras, conteos y mermas</div>
-                </div>
-                <button type="button" className="ges-btn" onClick={onLogout}>Salir</button>
-            </header>
-
-            <div className="ges-tabs" role="tablist" aria-label="Qué vas a registrar">
-                {TABS.map((option) => (
+        <div className="ges ges-shell">
+            <nav className="ges-nav" aria-label="Secciones de gestión">
+                <div className="ges-nav__brand script">Gestión</div>
+                {available.map((one) => (
                     <button
-                        key={option}
+                        key={one.id}
                         type="button"
-                        role="tab"
-                        className="ges-tab"
-                        aria-selected={tab === option}
-                        onClick={() => setTab(option)}
+                        className="ges-nav__item"
+                        aria-current={current.id === one.id}
+                        onClick={() => setSection(one.id)}
                     >
-                        {TAB_LABEL[option]}
-                        <small>{counts[option]}</small>
+                        {one.icon}
+                        {one.label}
                     </button>
                 ))}
+                <div className="ges-nav__foot">
+                    {name || "equipo"}
+                    <span>{roles.map((role) => (role === "caja" ? "Caja" : "Inventario")).join(" · ") || "sin permisos"}</span>
+                </div>
+            </nav>
+
+            <div className="ges-panel">
+                <header className="ges-top">
+                    <div>
+                        <h1>{current.label}</h1>
+                        <p className="ges-top__sub">{current.sub}</p>
+                    </div>
+                    <div className="ges-top__right">
+                        {roles.includes("caja") ? (
+                            <span className={`ges-chip${shift ? "" : " is-off"}`} role="status">
+                                <i aria-hidden="true" />
+                                {shift ? `Turno abierto · ${formatCash(shift.expected)}` : "Sin turno abierto"}
+                            </span>
+                        ) : null}
+                        <button type="button" className="ges-btn ges-btn--sm" onClick={onLogout}>Salir</button>
+                    </div>
+                </header>
+
+                <main className="ges-body">
+                    {current.id === "caja" ? (
+                        <GestionCaja token={token} onSessionExpired={onLogout} onShiftChange={setShift} />
+                    ) : current.id === "turno" ? (
+                        <GestionTurno token={token} onSessionExpired={onLogout} onShiftChange={setShift} />
+                    ) : (
+                        <GestionInventario token={token} onSessionExpired={onLogout} />
+                    )}
+                </main>
             </div>
-
-            <main className="ges-main">
-                {error ? <p className="ges-error" role="alert">{error}</p> : null}
-
-                {isLoading ? (
-                    <p className="ges-empty">Cargando…</p>
-                ) : isEmpty ? (
-                    <p className="ges-empty">
-                        {tab === "productos"
-                            ? "Ningún producto está bajo control de stock todavía."
-                            : `Todavía no hay insumos de ${TAB_LABEL[tab].toLowerCase()}. El administrador los da de alta desde el tablero.`}
-                    </p>
-                ) : tab === "productos" ? (
-                    products.map((product) => (
-                        <article className="ges-row" key={product.variantId}>
-                            <div className="ges-row__top">
-                                <div>
-                                    <div className="ges-row__name">{product.name}</div>
-                                    <div className="ges-row__meta">
-                                        Producidos hoy: {formatQuantity(product.producedToday)}
-                                    </div>
-                                </div>
-                                <div className="ges-qty">
-                                    <b>{formatQuantity(product.stock)}</b>
-                                    <span>u</span>
-                                </div>
-                            </div>
-                            <div className="ges-acts ges-acts--one">
-                                <button
-                                    type="button"
-                                    className="ges-btn ges-btn--solid"
-                                    onClick={() => setPending({ kind: "production", product })}
-                                >
-                                    Cargar producción
-                                </button>
-                            </div>
-                        </article>
-                    ))
-                ) : (
-                    visibleSupplies.map((supply) => {
-                        const isStale = supply.countAge !== null && supply.countAge > STALE_COUNT_DAYS;
-
-                        return (
-                            <article className="ges-row" key={supply.id}>
-                                <div className="ges-row__top">
-                                    <div>
-                                        <div className="ges-row__name">{supply.name}</div>
-                                        <div className={`ges-row__meta${isStale ? " is-stale" : ""}`}>
-                                            {supply.countAge === null
-                                                ? "Nunca se ha contado"
-                                                : `Contado ${formatCountAge(supply.countAge)}${isStale ? " · toca contar" : ""}`}
-                                        </div>
-                                        <span className={`ges-pill is-${STATE_TONE[supply.state]}`}>
-                                            {STATE_LABEL[supply.state]}
-                                        </span>
-                                    </div>
-                                    <div className="ges-qty">
-                                        <b>{formatQuantity(supply.stock)}</b>
-                                        <span>{supply.unit}</span>
-                                    </div>
-                                </div>
-                                <div className="ges-acts">
-                                    <button type="button" className="ges-btn" onClick={() => setPending({ kind: "purchase", supply })}>
-                                        Compra
-                                    </button>
-                                    <button type="button" className="ges-btn" onClick={() => setPending({ kind: "count", supply })}>
-                                        Conteo
-                                    </button>
-                                    <button type="button" className="ges-btn" onClick={() => setPending({ kind: "waste", supply })}>
-                                        Merma
-                                    </button>
-                                </div>
-                            </article>
-                        );
-                    })
-                )}
-            </main>
-
-            <section className="ges-mine">
-                <h2>Lo que registraste hoy</h2>
-                {movements.length === 0 ? (
-                    <p className="ges-empty">Nada todavía. Lo que cargues aparece aquí.</p>
-                ) : (
-                    <ul>
-                        {movements.map((movement) => (
-                            <li key={movement.id}>
-                                <span>
-                                    <b>{MOVEMENT_LABEL[movement.type] ?? movement.type}</b> · {movement.name}{" "}
-                                    <em>
-                                        {/* En un conteo importa lo que se contó, no la diferencia que corrigió */}
-                                        {movement.type === "conteo"
-                                            ? `${formatQuantity(movement.balance ?? 0)} ${movement.unit}`
-                                            : `${movement.quantity < 0 ? "−" : "+"}${formatQuantity(Math.abs(movement.quantity))} ${movement.unit}`}
-                                    </em>
-                                </span>
-                                <time dateTime={movement.createdAt}>{formatClock(movement.createdAt)}</time>
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </section>
-
-            {pending?.kind === "purchase" ? (
-                <AmountDialog
-                    title={`Compra de ${pending.supply.name}`}
-                    hint={`Cuánto entró, en ${pending.supply.unit}. Se suma a los ${formatQuantity(pending.supply.stock)} que hay.`}
-                    unit={pending.supply.unit}
-                    confirmLabel="Guardar compra"
-                    buttonClass="ges-btn"
-                    onConfirm={async (amount) => {
-                        await registerGestionPurchase(token, pending.supply.id, amount);
-                        await loadAll();
-                    }}
-                    onClose={() => setPending(null)}
-                />
-            ) : null}
-
-            {pending?.kind === "count" ? (
-                <AmountDialog
-                    title={`Conteo de ${pending.supply.name}`}
-                    hint={`Cuánto hay ahora mismo, en ${pending.supply.unit}. El sistema dice ${formatQuantity(pending.supply.stock)}.`}
-                    unit={pending.supply.unit}
-                    initial={formatQuantity(pending.supply.stock)}
-                    confirmLabel="Guardar conteo"
-                    buttonClass="ges-btn"
-                    onConfirm={async (amount) => {
-                        await registerGestionCount(token, pending.supply.id, amount);
-                        await loadAll();
-                    }}
-                    onClose={() => setPending(null)}
-                />
-            ) : null}
-
-            {pending?.kind === "waste" ? (
-                <AmountDialog
-                    title={`Merma de ${pending.supply.name}`}
-                    hint={`Cuánto se perdió o se dañó, en ${pending.supply.unit}. Se resta de los ${formatQuantity(pending.supply.stock)} que hay.`}
-                    unit={pending.supply.unit}
-                    confirmLabel="Guardar merma"
-                    buttonClass="ges-btn"
-                    onConfirm={async (amount) => {
-                        await registerGestionWaste(token, pending.supply.id, amount);
-                        await loadAll();
-                    }}
-                    onClose={() => setPending(null)}
-                />
-            ) : null}
-
-            {pending?.kind === "production" ? (
-                <AmountDialog
-                    title={`Producción de ${pending.product.name}`}
-                    hint="Cuántas unidades se hicieron. Si es la primera carga del día, reemplaza el saldo anterior."
-                    unit="u"
-                    confirmLabel="Guardar producción"
-                    buttonClass="ges-btn"
-                    onConfirm={async (amount) => {
-                        await registerGestionProduction(token, pending.product.variantId, amount);
-                        await loadAll();
-                    }}
-                    onClose={() => setPending(null)}
-                />
-            ) : null}
         </div>
     );
 };
@@ -421,29 +256,23 @@ const GestionBoard = ({ token, name, onRename, onLogout }: IGestionBoardProps) =
 export const GestionView = () => {
     const [token, setToken] = useState<string | null>(() => getGestionToken());
     const [name, setName] = useState(() => getGestionName());
+    const [roles, setRoles] = useState<CollaboratorRole[]>(() => getGestionRoles());
     useGestionHead();
 
-    const login = useCallback((newToken: string, newName: string) => {
-        setGestionSession(newToken, newName);
+    const login = useCallback((newToken: string, newName: string, newRoles: CollaboratorRole[]) => {
+        setGestionSession(newToken, newName, newRoles);
         setToken(newToken);
         setName(newName);
+        setRoles(newRoles);
     }, []);
 
     const logout = useCallback(() => {
         setGestionSession(null);
         setToken(null);
         setName("");
-    }, []);
-
-    // El administrador puede renombrar a alguien: el saludo se corrige con lo que diga el API
-    const rename = useCallback((newName: string) => {
-        setName((current) => {
-            if (current === newName) return current;
-            setGestionSession(getGestionToken(), newName);
-            return newName;
-        });
+        setRoles([]);
     }, []);
 
     if (!token) return <GestionLogin onLogin={login} />;
-    return <GestionBoard token={token} name={name} onRename={rename} onLogout={logout} />;
+    return <GestionShell token={token} name={name} roles={roles} onLogout={logout} />;
 };
