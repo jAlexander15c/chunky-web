@@ -248,6 +248,77 @@ export const setPastaMode = (token: string, enabled: boolean) =>
 export const syncReceiptsNow = (token: string) =>
     httpPost<{ applied: number; skipped: number; synced: number }>("/admin/sync", {}, { headers: getAdminHeaders(token) });
 
+/* ============ Descuadres de pago ============ */
+
+export type IncidentKind = "RECEIPT_MISSING" | "IPN_UNMATCHED" | "LATE_PAYMENT" | "IPN_INVALID_HASH";
+export type IncidentStatus = "open" | "resolved";
+
+export const INCIDENT_LABEL: Record<IncidentKind, string> = {
+    RECEIPT_MISSING: "Cobrado sin recibo",
+    LATE_PAYMENT: "Pago tardío",
+    IPN_UNMATCHED: "Pago sin pedido",
+    IPN_INVALID_HASH: "Firma inválida",
+};
+
+/** Cuánto pesa cada tipo: un pago sin pedido es plata cobrada sin nada que entregar; uno tardío solo avisa. */
+export const INCIDENT_TONE: Record<IncidentKind, "warn" | "crit" | "idle"> = {
+    RECEIPT_MISSING: "warn",
+    LATE_PAYMENT: "idle",
+    IPN_UNMATCHED: "crit",
+    IPN_INVALID_HASH: "crit",
+};
+
+export interface IIncident {
+    id: number;
+    orderId: string;
+    kind: IncidentKind;
+    status: IncidentStatus;
+    detail: string | null;
+    lastError: string | null;
+    attempts: number;
+    lastAttemptAt: string | null;
+    firstDetectedAt: string;
+    resolvedAt: string | null;
+    /** "auto" si el sistema lo cerró solo; si no, quien lo resolvió. */
+    resolvedBy: string | null;
+    resolution: string | null;
+    /** Llegó al límite de reintentos: solo se sale reintentando desde aquí o resolviéndolo a mano. */
+    needsManualAction: boolean;
+    /** Cuándo vuelve a intentarlo el sistema. null si ya no reintenta solo o no aplica. */
+    nextRetryAt: string | null;
+    order: {
+        customerName: string;
+        total: number;
+        status: string;
+        paidAt: string | null;
+        acceptedAt: string | null;
+        deliveredAt: string | null;
+        loyverseReceiptNumber: string | null;
+    } | null;
+}
+
+export interface IIncidentList {
+    incidents: IIncident[];
+    /** Abiertos en total, sin importar qué pestaña se esté mirando. */
+    openCount: number;
+    maxReceiptAttempts: number;
+}
+
+export const fetchIncidents = (token: string, status: IncidentStatus, signal?: AbortSignal) =>
+    httpGet<IIncidentList>(`/admin/incidents?status=${status}`, { signal, headers: getAdminHeaders(token) });
+
+/** Reintenta ya el recibo. isCreated es false si Loyverse sigue rechazándolo. */
+export const retryIncidentReceipt = (token: string, id: number) =>
+    httpPost<{ incident: IIncident; isCreated: boolean }>(
+        `/admin/incidents/${id}/retry-receipt`,
+        {},
+        { headers: getAdminHeaders(token) }
+    );
+
+/** Con un recibo faltante, el pedido deja de reintentarse: con el número si se hizo a mano, o sin él si no hace falta. */
+export const resolveIncident = (token: string, id: number, input: { note: string; receiptNumber?: string }) =>
+    httpPost<{ incident: IIncident }>(`/admin/incidents/${id}/resolve`, input, { headers: getAdminHeaders(token) });
+
 /* ============ Formato ============ */
 
 export const formatMoney = (value: number) =>

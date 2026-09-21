@@ -778,3 +778,74 @@ select.adm-form__input { cursor: pointer; }
     color: var(--adm-text-2);
     font-size: 0.85rem;
 }
+
+/* ============ Descuadres de pago ============ */
+
+/* El acceso del encabezado es un ancla al tablero, no un botón: mismo aspecto */
+a.adm-btn { display: inline-flex; align-items: center; text-decoration: none; }
+
+.adm-btn--alert { color: var(--adm-crit); border-color: var(--adm-crit); }
+
+.adm-btn__count {
+    min-width: 1.15rem;
+    padding: 0 0.3rem;
+    margin-left: 0.35rem;
+    border-radius: var(--radius-pill);
+    background: var(--adm-crit);
+    color: #fff;
+    font-size: 0.65rem;
+    text-align: center;
+}
+
+.adm-card-head__hint { text-align: right; }
+
+.adm-table--incidents { min-width: 860px; }
+.adm-table--incidents tbody td { vertical-align: top; padding-block: 0.7rem; }
+.adm-nowrap { white-space: nowrap; }
+.adm-mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.72rem; }
+
+.adm-cause { max-width: 26ch; font-size: 0.75rem; color: var(--adm-text-2); }
+
+.adm-cause code {
+    display: block;
+    margin-top: 0.25rem;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.68rem;
+    color: var(--adm-crit);
+    overflow-wrap: anywhere;
+}
+
+.adm-cause__hint { display: block; margin-top: 0.25rem; font-size: 0.7rem; color: var(--adm-text-3); }
+
+.adm-actions--wrap { flex-wrap: wrap; }
+
+/* Intentos del recibo: una barra por intento, roja al llegar al límite */
+.adm-meter { display: inline-flex; align-items: center; gap: 0.4rem; font-variant-numeric: tabular-nums; font-size: 0.75rem; }
+.adm-meter__bars { display: inline-flex; gap: 3px; }
+.adm-meter__bars i { width: 7px; height: 12px; border-radius: 2px; background: var(--adm-line); }
+.adm-meter__bars i.is-on { background: var(--adm-warn); }
+.adm-meter.is-full .adm-meter__bars i.is-on { background: var(--adm-crit); }
+
+.adm-feedback {
+    margin: 0.9rem 0 0;
+    border-radius: 14px;
+    padding: 0.7rem 1rem;
+    font-weight: 700;
+    font-size: 0.8rem;
+}
+
+.adm-feedback.is-ok { background: var(--adm-good-bg); color: var(--adm-good); }
+
+.adm-steps {
+    margin: 0.9rem 0 0;
+    padding: 0.8rem 1rem;
+    border-radius: 14px;
+    background: var(--adm-panel-2);
+    font-size: 0.75rem;
+    color: var(--adm-text-2);
+}
+
+.adm-steps strong { color: var(--ink); }
+
+.adm-form--single { grid-template-columns: 1fr; }
+.adm-form__textarea { resize: vertical; min-height: 4.5rem; }

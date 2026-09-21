@@ -31,6 +31,7 @@ import type { IDashboard, IDaySales, IMovement, IProductStatus, ISupplyStatus, M
 
 import { AdminCaja } from "./admin-caja";
 import { AdminCollaborators } from "./admin-collaborators";
+import { AdminIncidents } from "./admin-incidents";
 
 import "./admin.css";
 
@@ -543,6 +544,7 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
+    const [openIncidents, setOpenIncidents] = useState(0);
     const [pending, setPending] = useState<PendingAction | null>(null);
     const [isCreatingSupply, setIsCreatingSupply] = useState(false);
     const [supplyFilter, setSupplyFilter] = useState<SupplyFilter>("todos");
@@ -623,6 +625,11 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
                     <span className="adm-bar__where">
                         Tablero · {dashboard ? new Date(dashboard.serverTime).toLocaleDateString("es-PA", { weekday: "short", day: "numeric", month: "short" }) : ""}
                     </span>
+                    {openIncidents > 0 ? (
+                        <a className="adm-btn adm-btn--sm adm-btn--alert" href="#descuadres">
+                            Descuadres <span className="adm-btn__count">{openIncidents}</span>
+                        </a>
+                    ) : null}
                     <button type="button" className="adm-btn adm-btn--sm" onClick={runSync} disabled={isSyncing}>
                         {isSyncing ? "Leyendo…" : "Leer recibos"}
                     </button>
@@ -640,6 +647,8 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
                 ) : null}
 
                 <PastaModePanel token={token} onSessionExpired={onLogout} />
+
+                <AdminIncidents token={token} onSessionExpired={onLogout} onOpenCountChange={setOpenIncidents} />
 
                 {/* ===== El día ===== */}
                 <section className="adm-band">
