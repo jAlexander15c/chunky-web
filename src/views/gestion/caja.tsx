@@ -11,9 +11,11 @@ import {
     formatQuantity,
     getItemModifiers,
     getItemPrice,
+    hasItemAvailableForSale,
     hasItemModifiers,
     openTable,
     payTicket,
+    releaseTicket,
     sendTicketToKitchen,
     useCategories,
     useItems,
@@ -378,6 +380,8 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
     const [options, setOptions] = useState<IItem | null>(null);
     const [isPaying, setIsPaying] = useState(false);
     const [isVoiding, setIsVoiding] = useState(false);
+    const [isReleasing, setIsReleasing] = useState(false);
+    const [isConfirmingRelease, setIsConfirmingRelease] = useState(false);
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(true);
 
@@ -431,6 +435,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
         try {
             const data = await action();
             setTicket(data.ticket);
+            setIsConfirmingRelease(false);
             setError("");
             return data.ticket;
         } catch (requestError) {
@@ -439,8 +444,9 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
         }
     };
 
+    // Solo lo que Loyverse tiene a la venta: un producto agotado o apagado no se ofrece en caja
     const visibleItems = useMemo(
-        () => items.filter((item) => item.variants?.[0]?.variant_id),
+        () => items.filter((item) => item.variants?.[0]?.variant_id && hasItemAvailableForSale(item)),
         [items]
     );
 
@@ -510,6 +516,27 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
     const sent = ticket.lines.filter((line) => line.sentAt);
     const label = ticket.tableNumber === null ? "Para llevar" : `Mesa ${ticket.tableNumber}`;
 
+    // Vacía se cierra al tocar; con productos sin enviar pide un segundo toque para no perderlos
+    const release = async () => {
+        if (pending.length > 0 && !isConfirmingRelease) {
+            setIsConfirmingRelease(true);
+            return;
+        }
+
+        setIsReleasing(true);
+        try {
+            await releaseTicket(token, ticket.id);
+            setTicket(null);
+            setError("");
+            await loadTables();
+        } catch (requestError) {
+            handleError(requestError, "No pudimos cerrar la mesa.");
+        } finally {
+            setIsReleasing(false);
+            setIsConfirmingRelease(false);
+        }
+    };
+
     const addItem = async (item: IItem) => {
         const variantId = item.variants?.[0]?.variant_id;
         if (!variantId) return;
@@ -575,7 +602,14 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                 <aside className="ges-ticket">
                     <div className="ges-ticket__head">
                         <h2>Cuenta de {label.toLowerCase()}</h2>
-                        <button type="button" className="ges-btn ges-btn--sm" onClick={() => setTicket(null)}>
+                        <button
+                            type="button"
+                            className="ges-btn ges-btn--sm"
+                            onClick={() => {
+                                setIsConfirmingRelease(false);
+                                setTicket(null);
+                            }}
+                        >
                             Ver mesas
                         </button>
                     </div>
@@ -660,7 +694,21 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                             {hasShift ? "Cobrar y cerrar la mesa" : "Abre el turno primero"}
                         </button>
 
-                        {ticket.lines.length > 0 ? (
+                        {/* Sin nada en cocina la mesa se cierra sin motivo; con algo ya enviado se anula */}
+                        {sent.length === 0 ? (
+                            <button
+                                type="button"
+                                className="ges-btn ges-btn--sm ges-btn--block"
+                                disabled={isReleasing}
+                                onClick={() => void release()}
+                            >
+                                {isReleasing
+                                    ? "Cerrando…"
+                                    : isConfirmingRelease
+                                      ? `Sí, cerrar y borrar ${pending.length} ${pending.length === 1 ? "producto" : "productos"}`
+                                      : "Cerrar la mesa"}
+                            </button>
+                        ) : (
                             <button
                                 type="button"
                                 className="ges-btn ges-btn--sm ges-btn--block"
@@ -668,7 +716,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                             >
                                 Anular la cuenta
                             </button>
-                        ) : null}
+                        )}
                     </div>
                 </aside>
             </div>

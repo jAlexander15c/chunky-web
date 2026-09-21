@@ -234,6 +234,10 @@ export const payTicket = (token: string, ticketId: number, payments: ITicketPaym
         { headers: getGestionHeaders(token) }
     );
 
+/** Cierra una mesa abierta por error. El API la rechaza si ya mandó algo a cocina. */
+export const releaseTicket = (token: string, ticketId: number) =>
+    httpPost<{ released: boolean }>(`/gestion/caja/cuentas/${ticketId}/liberar`, {}, { headers: getGestionHeaders(token) });
+
 export const voidTicket = (token: string, ticketId: number, reason: string) =>
     httpPost<{ ticket: ITicket }>(
         `/gestion/caja/cuentas/${ticketId}/anular`,
