@@ -33,6 +33,12 @@ const QUOTE_BASE_PRICES: Record<QuoteSize, Record<QuoteHeight, number>> = {
 const SURCHARGE_REFERENCE_PRICE = KNOWN_6_DOUBLE;
 
 export const QUOTE_SIZES: QuoteSize[] = ["4.5", "6", "7"];
+
+/**
+ * El 4.5" solo se ofrece en doble altura. Su precio de 1 altura sigue en la tabla porque
+ * de él salen los de 1 altura de 6" y 7", pero no se puede cotizar. El API aplica la misma regla.
+ */
+export const isQuoteSizeAvailable = (size: QuoteSize, height: QuoteHeight) => !(size === "4.5" && height === 1);
 export const QUOTE_HEIGHTS: { value: QuoteHeight; label: string }[] = [
     { value: 1, label: "1 altura" },
     { value: 2, label: "Doble altura" },

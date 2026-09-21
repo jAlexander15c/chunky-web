@@ -232,6 +232,21 @@
     outline-offset: 2px;
 }
 
+/* 1 altura no existe para el 4.5" */
+.quote-heights input:disabled {
+    cursor: not-allowed;
+}
+
+.quote-heights input:disabled + span {
+    opacity: 0.42;
+}
+
+.quote-size__note {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--mora);
+}
+
 /* ============ Chips de masa y relleno ============ */
 
 .quote-chips {
