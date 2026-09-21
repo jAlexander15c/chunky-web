@@ -387,50 +387,31 @@
     font-variant-numeric: tabular-nums;
 }
 
-.ges-avail__stock { font-size: 0.72rem; font-weight: 700; color: var(--ges-warn); margin-top: 0.2rem; }
-
-/* Toda la zona derecha es el botón: un solo toque */
-.ges-switch {
+/* Toda la zona derecha es la casilla: un solo toque */
+.ges-check {
     flex: none;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    font: inherit;
-    border: 0;
-    background: transparent;
-    cursor: pointer;
+    gap: 0.6rem;
     min-height: 44px;
     padding: 6px 0 6px 8px;
+    cursor: pointer;
 }
 
-/* Ancho fijo para que el switch no se mueva entre "Disponible" y "Apagado" */
-.ges-switch__label { font-size: 0.7rem; font-weight: 800; min-width: 6.6em; white-space: nowrap; text-align: right; color: var(--ges-crit); }
+/* Ancho fijo para que la casilla no se mueva entre "Disponible" y "Apagado" */
+.ges-check__label { font-size: 0.7rem; font-weight: 800; min-width: 6.6em; white-space: nowrap; text-align: right; color: var(--ges-crit); }
+.ges-check:has(input:checked) .ges-check__label { color: var(--ges-good); }
 
-.ges-switch__track {
-    position: relative;
-    width: 50px;
-    height: 30px;
-    border-radius: var(--radius-pill);
-    background: var(--ges-crit-bg);
-    transition: background-color 160ms ease;
+.ges-check input {
+    width: 26px;
+    height: 26px;
+    margin: 0;
+    accent-color: var(--ges-good);
+    cursor: pointer;
 }
 
-.ges-switch__thumb {
-    position: absolute;
-    top: 3px;
-    left: 3px;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: var(--ges-crit);
-    transition: transform 180ms var(--ease-out), background-color 160ms ease;
-}
-
-.ges-switch[aria-checked="true"] .ges-switch__label { color: var(--ges-good); }
-.ges-switch[aria-checked="true"] .ges-switch__track { background: var(--ges-good-bg); }
-.ges-switch[aria-checked="true"] .ges-switch__thumb { transform: translateX(20px); background: var(--ges-good); }
-.ges-switch.is-busy { opacity: 0.55; cursor: progress; }
-.ges-switch:focus-visible { outline: 3px solid var(--mora); outline-offset: 2px; border-radius: 10px; }
+.ges-check input:focus-visible { outline: 3px solid var(--mora); outline-offset: 2px; }
+.ges-check.is-busy { opacity: 0.55; cursor: progress; }
 
 .ges-pager {
     display: flex;
@@ -445,7 +426,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .ges-seg button, .ges-switch__track, .ges-switch__thumb { transition: none; }
+    .ges-seg button { transition: none; }
 }
 
 /* ============ Lista ============ */

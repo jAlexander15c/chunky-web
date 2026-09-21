@@ -211,8 +211,6 @@ export interface ISaleAvailability {
     categoryName: string;
     price: number | null;
     isAvailable: boolean;
-    /** Solo en los productos con control de stock: se apagan solos al llegar a cero. */
-    stock: number | null;
 }
 
 export const fetchGestionAvailability = (token: string, signal?: AbortSignal) =>

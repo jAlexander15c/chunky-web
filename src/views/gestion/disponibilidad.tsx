@@ -5,7 +5,6 @@ import {
     changeGestionAvailability,
     fetchGestionAvailability,
     formatCash,
-    formatQuantity,
 } from "@/helpers";
 import type { ISaleAvailability } from "@/helpers";
 
@@ -224,29 +223,20 @@ export const GestionDisponibilidad = ({ token, onSessionExpired }: IGestionDispo
                                         {product.categoryName}
                                         {product.price !== null ? ` · ${formatCash(product.price)}` : ""}
                                     </div>
-                                    {product.stock !== null ? (
-                                        <div className="ges-avail__stock">
-                                            Stock: {formatQuantity(product.stock)} u · se apaga solo al llegar a 0
-                                        </div>
-                                    ) : null}
                                 </div>
-                                <button
-                                    type="button"
-                                    role="switch"
-                                    className={`ges-switch${isPending ? " is-busy" : ""}`}
-                                    aria-checked={product.isAvailable}
-                                    aria-busy={isPending}
-                                    aria-label={`${fullName} disponible`}
-                                    disabled={isPending}
-                                    onClick={() => void toggleAvailability(product)}
-                                >
-                                    <span className="ges-switch__label">
+                                <label className={`ges-check${isPending ? " is-busy" : ""}`}>
+                                    <span className="ges-check__label">
                                         {product.isAvailable ? "Disponible" : "Apagado"}
                                     </span>
-                                    <span className="ges-switch__track" aria-hidden="true">
-                                        <span className="ges-switch__thumb" />
-                                    </span>
-                                </button>
+                                    <input
+                                        type="checkbox"
+                                        checked={product.isAvailable}
+                                        aria-label={`${fullName} disponible`}
+                                        aria-busy={isPending}
+                                        disabled={isPending}
+                                        onChange={() => void toggleAvailability(product)}
+                                    />
+                                </label>
                             </li>
                         );
                     })}
