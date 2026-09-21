@@ -869,6 +869,9 @@
     min-width: 0;
 }
 
+/* Tenue a propósito: un ejemplo no debe parecer una cifra ya escrita */
+.ges-field input::placeholder { color: var(--ges-text-3); opacity: 0.45; }
+
 .ges-field__hint { font-size: 0.75rem; font-weight: 600; color: var(--ges-text-3); }
 
 .ges-quick { display: flex; gap: 0.35rem; flex-wrap: wrap; }
@@ -952,6 +955,7 @@
 
 .ges-r:last-child { border-bottom: 0; }
 .ges-r b { font-variant-numeric: tabular-nums; font-weight: 800; }
+.ges-r > b { white-space: nowrap; }
 .ges-r em { font-style: normal; color: var(--ges-text-3); font-size: 0.76rem; }
 
 .ges-r.is-big { font-size: 1rem; padding-top: 0.35rem; border-top: 2px solid var(--ges-line); border-bottom: 0; }
@@ -962,3 +966,39 @@
 .ges-diff b { font-size: 1.45rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .ges-diff.is-ok { background: var(--ges-good-bg); color: var(--ges-good); }
 .ges-diff.is-bad { background: var(--ges-crit-bg); color: var(--ges-crit); }
+
+/* Subtítulo dentro de una tarjeta: separa las ventas por método del efectivo del cajón */
+.ges-sec { margin: 0.3rem 0 -0.2rem; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ges-text-3); }
+.ges-r.is-sub > span { padding-left: 0.9rem; color: var(--ges-text-2); }
+.ges-r b.is-in { color: var(--ges-good); }
+
+.ges-field__req { font-weight: 700; letter-spacing: 0; text-transform: none; color: var(--ges-crit); }
+
+/* Lo que el turno saca del fondo aparte o le devuelve */
+.ges-from { display: flex; justify-content: space-between; gap: 0.8rem; font-size: 0.82rem; background: var(--ges-panel-2); border-radius: 12px; padding: 0.55rem 0.8rem; }
+.ges-from b { font-variant-numeric: tabular-nums; font-weight: 800; }
+.ges-from.is-bad { background: var(--ges-crit-bg); color: var(--ges-crit); }
+
+/* ============ Fondo aparte ============ */
+
+.ges-fund__head { display: flex; justify-content: space-between; align-items: end; gap: 1rem; flex-wrap: wrap; }
+.ges-fund__bal { display: grid; gap: 0.2rem; text-align: right; }
+.ges-fund__bal span { font-size: 0.68rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ges-text-3); }
+.ges-fund__bal b { font-size: 1.8rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; letter-spacing: -0.02em; }
+.ges-fund__acts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+
+.ges-tag {
+    display: inline-block;
+    margin-right: 0.35rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: var(--radius-pill);
+    background: var(--ges-panel-2);
+    color: var(--ges-text-2);
+    font-size: 0.64rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.ges-tag.is-shift { background: var(--sky); color: var(--ink); }

@@ -1,7 +1,134 @@
 import { useCallback, useEffect, useState } from "react";
+import type { FormEvent } from "react";
 
-import { HttpError, fetchShifts, formatMoney, setTablesCount } from "@/helpers";
-import type { IShiftRow } from "@/helpers";
+import {
+    FUND_MOVEMENT_LABEL,
+    HttpError,
+    fetchAdminFund,
+    fetchShifts,
+    formatMoney,
+    registerAdminFundMovement,
+    setTablesCount,
+} from "@/helpers";
+import type { IFund, IShiftRow, ManualFundMovementType } from "@/helpers";
+
+const roundMoney = (value: number) => Math.round(value * 100) / 100;
+
+/** Una cifra por método que puede faltar en turnos cerrados antes del desglose. */
+const formatOptionalMoney = (value: number | null) => (value === null ? "—" : formatMoney(value));
+
+const FUND_DIALOG: Record<ManualFundMovementType, { title: string; hint: string; amountLabel: string; placeholder: string }> = {
+    entrada: {
+        title: "Entra al fondo",
+        hint: "Efectivo que se suma al fondo aparte y no viene de un cierre.",
+        amountLabel: "Monto",
+        placeholder: "Cambio en monedas",
+    },
+    salida: {
+        title: "Sale del fondo",
+        hint: "Efectivo que sale del fondo aparte, por ejemplo un depósito al banco.",
+        amountLabel: "Monto",
+        placeholder: "Depósito al banco",
+    },
+    ajuste: {
+        title: "Ajustar el fondo",
+        hint: "Escribe cuánto hay de verdad. Se guarda la diferencia con el saldo.",
+        amountLabel: "Hay de verdad",
+        placeholder: "Recuento del sobre",
+    },
+};
+
+interface IFundDialogProps {
+    type: ManualFundMovementType;
+    balance: number;
+    onSave: (amount: number, reason: string) => Promise<void>;
+    onClose: () => void;
+}
+
+const FundDialog = ({ type, balance, onSave, onClose }: IFundDialogProps) => {
+    const [amount, setAmount] = useState("");
+    const [reason, setReason] = useState("");
+    const [error, setError] = useState("");
+    const [isSending, setIsSending] = useState(false);
+    const copy = FUND_DIALOG[type];
+
+    const parsed = amount.trim() === "" ? NaN : Number(amount.replace(",", "."));
+    const isValidAmount = Number.isFinite(parsed) && (type === "ajuste" ? parsed >= 0 : parsed > 0);
+    const difference = type === "ajuste" && isValidAmount ? roundMoney(parsed - balance) : null;
+
+    const submit = async (event: FormEvent) => {
+        event.preventDefault();
+        if (!isValidAmount) {
+            setError(type === "ajuste" ? "Escribe cuánto hay." : "Escribe un monto mayor que cero.");
+            return;
+        }
+        if (reason.trim().length < 3) {
+            setError("Escribe para qué fue.");
+            return;
+        }
+
+        setIsSending(true);
+        setError("");
+        try {
+            await onSave(roundMoney(parsed), reason.trim());
+        } catch (requestError) {
+            setError(requestError instanceof HttpError ? requestError.message : "No se pudo guardar.");
+            setIsSending(false);
+        }
+    };
+
+    return (
+        <div className="adm-modal" role="dialog" aria-modal="true" aria-label={copy.title}>
+            <form className="adm-modal__panel" onSubmit={submit}>
+                <h3 className="script">{copy.title}</h3>
+                <p className="adm-modal__hint">{copy.hint}</p>
+
+                <div className="adm-form">
+                    <label className="adm-form__row">
+                        <span>{copy.amountLabel}</span>
+                        <input
+                            id="admin-fondo-monto"
+                            className="adm-form__input"
+                            type="text"
+                            inputMode="decimal"
+                            autoFocus
+                            placeholder="0.00"
+                            value={amount}
+                            onChange={(event) => setAmount(event.target.value)}
+                        />
+                    </label>
+                    <label className="adm-form__row">
+                        <span>Para qué</span>
+                        <input
+                            id="admin-fondo-motivo"
+                            className="adm-form__input"
+                            type="text"
+                            placeholder={copy.placeholder}
+                            value={reason}
+                            onChange={(event) => setReason(event.target.value)}
+                        />
+                    </label>
+                </div>
+
+                {difference !== null ? (
+                    <p className="adm-modal__diff">
+                        Hoy dice {formatMoney(balance)}: se guarda {difference > 0 ? "+" : difference < 0 ? "−" : ""}
+                        {formatMoney(Math.abs(difference))}.
+                    </p>
+                ) : null}
+
+                {error ? <p className="adm-error">{error}</p> : null}
+
+                <div className="adm-modal__actions">
+                    <button type="button" className="adm-btn" onClick={onClose} disabled={isSending}>Cancelar</button>
+                    <button type="submit" className="adm-btn adm-btn--solid" disabled={isSending}>
+                        {isSending ? "Guardando…" : "Guardar"}
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
+};
 
 const formatMoment = (value: string) =>
     new Date(value).toLocaleString("es-PA", {
@@ -25,6 +152,8 @@ const getDifferenceTone = (difference: number | null) => {
  */
 export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessionExpired: () => void }) => {
     const [shifts, setShifts] = useState<IShiftRow[]>([]);
+    const [fund, setFund] = useState<IFund | null>(null);
+    const [fundMovement, setFundMovement] = useState<ManualFundMovementType | null>(null);
     const [tables, setTables] = useState(0);
     const [draftTables, setDraftTables] = useState("");
     const [error, setError] = useState("");
@@ -33,8 +162,9 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
     const load = useCallback(
         async (signal?: AbortSignal) => {
             try {
-                const data = await fetchShifts(token, signal);
+                const [data, fundData] = await Promise.all([fetchShifts(token, signal), fetchAdminFund(token, signal)]);
                 setShifts(data.shifts);
+                setFund(fundData.fund);
                 setTables(data.tables);
                 setDraftTables(String(data.tables));
                 setError("");
@@ -76,7 +206,7 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
         <section className="adm-band">
             <div className="adm-band__head">
                 <h2 className="script">Caja del local</h2>
-                <span className="adm-band__sub">Cierres de turno y cuántas mesas hay</span>
+                <span className="adm-band__sub">Cierres de turno, fondo aparte y cuántas mesas hay</span>
                 <span className="adm-src is-own">Postgres</span>
             </div>
 
@@ -122,6 +252,9 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
                                     <th>Abrió</th>
                                     <th>Cerró</th>
                                     <th className="num">Fondo</th>
+                                    <th className="num">Efectivo</th>
+                                    <th className="num">Tarjeta</th>
+                                    <th className="num">Yappy</th>
                                     <th className="num">Esperado</th>
                                     <th className="num">Contado</th>
                                     <th className="num">Diferencia</th>
@@ -145,6 +278,9 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
                                             )}
                                         </td>
                                         <td className="num">{formatMoney(shift.startingCash)}</td>
+                                        <td className="num">{formatOptionalMoney(shift.salesCash)}</td>
+                                        <td className="num">{formatOptionalMoney(shift.salesCard)}</td>
+                                        <td className="num">{formatOptionalMoney(shift.salesYappy)}</td>
                                         <td className="num">{shift.expectedCash === null ? "—" : formatMoney(shift.expectedCash)}</td>
                                         <td className="num">{shift.countedCash === null ? "—" : formatMoney(shift.countedCash)}</td>
                                         <td className="num">
@@ -164,6 +300,77 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
                     </div>
                 )}
             </div>
+
+            {fund ? (
+                <div className="adm-card">
+                    <div className="adm-card-head">
+                        <div className="grow">
+                            <h3 className="script">Fondo aparte</h3>
+                            <p className="adm-note">
+                                El efectivo que no está en el cajón. Da el fondo inicial al abrir cada turno y recibe
+                                lo contado al cerrar. El cajero lo ve y lo mueve igual en /gestion.
+                            </p>
+                        </div>
+                        <div className="adm-fund">
+                            <div className="adm-fund__bal">
+                                <span>Hay ahora</span>
+                                <b>{formatMoney(fund.balance)}</b>
+                            </div>
+                            <button type="button" className="adm-btn adm-btn--sm" onClick={() => setFundMovement("entrada")}>Entrada</button>
+                            <button type="button" className="adm-btn adm-btn--sm" onClick={() => setFundMovement("salida")}>Salida</button>
+                            <button type="button" className="adm-btn adm-btn--sm" onClick={() => setFundMovement("ajuste")}>Ajuste</button>
+                        </div>
+                    </div>
+
+                    {fund.movements.length === 0 ? (
+                        <p className="adm-empty">
+                            Ningún movimiento todavía. Registra un ajuste con lo que hay hoy en el fondo para empezar.
+                        </p>
+                    ) : (
+                        <div className="adm-scroll">
+                            <table className="adm-table">
+                                <thead>
+                                    <tr>
+                                        <th>Cuándo</th>
+                                        <th>Movimiento</th>
+                                        <th>Quién</th>
+                                        <th className="num">Monto</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {fund.movements.map((one) => (
+                                        <tr key={one.id}>
+                                            <td className="adm-name">{formatMoment(one.createdAt)}</td>
+                                            <td className="adm-name">
+                                                {FUND_MOVEMENT_LABEL[one.type]}
+                                                <em>{one.reason}</em>
+                                            </td>
+                                            <td>{one.actorName}</td>
+                                            <td className={`num ${one.amount > 0 ? "is-in" : "is-out"}`}>
+                                                {one.amount > 0 ? "+" : "−"}
+                                                {formatMoney(Math.abs(one.amount))}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            ) : null}
+
+            {fundMovement && fund ? (
+                <FundDialog
+                    type={fundMovement}
+                    balance={fund.balance}
+                    onClose={() => setFundMovement(null)}
+                    onSave={async (amount, reason) => {
+                        const data = await registerAdminFundMovement(token, { type: fundMovement, amount, reason });
+                        setFund(data.fund);
+                        setFundMovement(null);
+                    }}
+                />
+            ) : null}
         </section>
     );
 };

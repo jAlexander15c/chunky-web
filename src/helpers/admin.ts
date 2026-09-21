@@ -92,6 +92,46 @@ export interface IShiftRow {
     expectedCash: number | null;
     countedCash: number | null;
     difference: number | null;
+    /** Lo vendido por método, guardado al cerrar. Null en turnos abiertos o anteriores al desglose. */
+    salesCash: number | null;
+    salesCard: number | null;
+    salesYappy: number | null;
+}
+
+/** apertura y cierre los genera el turno; entrada, salida y ajuste se cargan a mano. */
+export type FundMovementType = "apertura" | "cierre" | "entrada" | "salida" | "ajuste";
+export type ManualFundMovementType = "entrada" | "salida" | "ajuste";
+
+export const FUND_MOVEMENT_LABEL: Record<FundMovementType, string> = {
+    apertura: "Apertura",
+    cierre: "Cierre",
+    entrada: "Entrada",
+    salida: "Salida",
+    ajuste: "Ajuste",
+};
+
+export interface IFundMovement {
+    id: number;
+    type: FundMovementType;
+    /** Con signo: positivo entra al fondo, negativo sale. */
+    amount: number;
+    reason: string;
+    shiftId: number | null;
+    actorName: string;
+    createdAt: string;
+}
+
+/** El fondo aparte: el efectivo que no está en el cajón. */
+export interface IFund {
+    balance: number;
+    movements: IFundMovement[];
+}
+
+/** En el ajuste, amount es cuánto hay de verdad; la API guarda la diferencia. */
+export interface IFundMovementInput {
+    type: ManualFundMovementType;
+    amount: number;
+    reason: string;
 }
 
 export interface IDaySales {
@@ -231,6 +271,12 @@ export const fetchShifts = (token: string, signal?: AbortSignal) =>
 export const setTablesCount = (token: string, tables: number) =>
     httpPost<{ tables: number }>("/admin/tables", { tables }, { headers: getAdminHeaders(token) });
 
+export const fetchAdminFund = (token: string, signal?: AbortSignal) =>
+    httpGet<{ fund: IFund }>("/admin/fund?limit=100", { signal, headers: getAdminHeaders(token) });
+
+export const registerAdminFundMovement = (token: string, movement: IFundMovementInput) =>
+    httpPost<{ fund: IFund }>("/admin/fund/movement", movement, { headers: getAdminHeaders(token) });
+
 /** Además cierra las sesiones abiertas de esa persona. */
 export const resetCollaboratorPin = (token: string, id: number) =>
     httpPost<{ collaborator: ICollaborator; pin: string }>(
@@ -342,6 +388,17 @@ export const formatDayLabel = (date: string) => {
 
 export const formatClock = (value: string) =>
     new Date(value).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", hour12: false });
+
+/** Día y hora, para movimientos que cruzan varios turnos como los del fondo aparte. */
+export const formatDayClock = (value: string) =>
+    new Date(value).toLocaleString("es-PA", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+    });
 
 /** "hoy", "ayer" o "hace N d": lo que importa es si el conteo ya envejecio. */
 export const formatCountAge = (days: number | null) => {

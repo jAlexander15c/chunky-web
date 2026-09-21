@@ -668,6 +668,16 @@
 .adm-tables { display: flex; gap: 0.4rem; align-items: center; }
 .adm-tables .adm-form__input { width: 5rem; text-align: center; font-weight: 800; font-variant-numeric: tabular-nums; }
 
+/* Fondo aparte: saldo grande junto a sus acciones */
+.adm-fund { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
+.adm-fund__bal { display: grid; text-align: right; }
+.adm-fund__bal span { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--adm-text-3); }
+.adm-fund__bal b { font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.adm-table td.is-in { color: var(--adm-good); font-weight: 800; }
+.adm-table td.is-out { font-weight: 800; }
+.adm-modal__diff { margin: 0 0 1rem; font-size: 0.8rem; font-weight: 700; color: var(--adm-text-2); }
+.adm-modal__panel .adm-form { grid-template-columns: 1fr; }
+
 /* ============ Diálogo ============ */
 
 .adm-modal {

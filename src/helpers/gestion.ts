@@ -1,5 +1,12 @@
 import { COLLABORATOR_ROLES } from "./admin";
-import type { CollaboratorRole, IMovement, IProductStatus, ISupplyStatus } from "./admin";
+import type {
+    CollaboratorRole,
+    IFund,
+    IFundMovementInput,
+    IMovement,
+    IProductStatus,
+    ISupplyStatus,
+} from "./admin";
 import { httpGet, httpPost } from "./getHttp";
 
 /** Quién entró: su nombre para el saludo y qué secciones puede ver. */
@@ -98,6 +105,9 @@ export interface IShiftDetail extends IShift {
     salesCount: number;
     /** Solo la parte en efectivo: es la única que toca el cajón. */
     salesCash: number;
+    /** Tarjeta y Yappy no pasan por el cajón: solo se muestran. */
+    salesCard: number;
+    salesYappy: number;
     cashIn: number;
     cashOut: number;
     expected: number;
@@ -296,6 +306,14 @@ export const closeShift = (token: string, countedCash: number, note?: string) =>
         { countedCash, note: note || null },
         { headers: getGestionHeaders(token) }
     );
+
+/* ============ Caja: fondo aparte ============ */
+
+export const fetchFund = (token: string, signal?: AbortSignal) =>
+    httpGet<{ fund: IFund }>("/gestion/caja/fondo", { signal, headers: getGestionHeaders(token) });
+
+export const registerFundMovement = (token: string, movement: IFundMovementInput) =>
+    httpPost<{ fund: IFund }>("/gestion/caja/fondo/movimiento", movement, { headers: getGestionHeaders(token) });
 
 /** Dinero con dos decimales y signo de dólar, como lo lee el cajero. */
 export const formatCash = (value: number) =>
