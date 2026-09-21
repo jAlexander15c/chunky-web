@@ -1002,3 +1002,19 @@
 }
 
 .ges-tag.is-shift { background: var(--sky); color: var(--ink); }
+.ges-tag.is-crit { background: var(--ges-crit-bg); color: var(--ges-crit); }
+
+/* ============ Cuentas cobradas y reembolso ============ */
+
+/* Columna derecha con dos tarjetas una sobre otra */
+.ges-stack { display: grid; gap: 0.8rem; align-content: start; }
+
+.ges-r__end { display: flex; align-items: center; gap: 0.5rem; flex: none; }
+.ges-r.is-ticket { align-items: center; }
+.ges-r.is-ticket > span:first-child em { display: block; }
+.ges-r.is-refunded b { text-decoration: line-through; color: var(--ges-text-3); }
+
+/* Lo que el cajero tiene que devolver a mano: se lee antes de confirmar */
+.ges-warn { margin: 0; background: var(--ges-warn-bg); color: var(--ges-warn); border-radius: 12px; padding: 0.6rem 0.8rem; font-size: 0.82rem; font-weight: 700; line-height: 1.45; }
+
+.ges-btn--danger { background: var(--ges-crit); border-color: var(--ges-crit); color: var(--crema); }

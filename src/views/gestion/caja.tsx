@@ -13,6 +13,7 @@ import {
     getItemModifiers,
     getItemPrice,
     getTicketLabel,
+    getTicketLineTotal,
     hasItemAvailableForSale,
     hasItemModifiers,
     openTable,
@@ -715,7 +716,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                                         {pending.map((line) => (
                                             <div className="ges-tl" key={line.id}>
                                                 <b>{line.name}</b>
-                                                <span>{formatCash((line.unitPrice + line.modifiers.reduce((sum, one) => sum + one.price, 0)) * line.quantity)}</span>
+                                                <span>{formatCash(getTicketLineTotal(line))}</span>
                                                 <small>
                                                     <button
                                                         type="button"
@@ -747,7 +748,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                                         {sent.map((line) => (
                                             <div className="ges-tl is-sent" key={line.id}>
                                                 <b>{line.name}</b>
-                                                <span>{formatCash((line.unitPrice + line.modifiers.reduce((sum, one) => sum + one.price, 0)) * line.quantity)}</span>
+                                                <span>{formatCash(getTicketLineTotal(line))}</span>
                                                 <small>
                                                     <em>{formatQuantity(line.quantity)}</em> × {formatCash(line.unitPrice)}
                                                     {line.modifiers.length > 0 ? ` · ${line.modifiers.map((one) => one.option).join(", ")}` : ""}

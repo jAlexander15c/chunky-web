@@ -8,14 +8,26 @@ import {
     closeShift,
     fetchFund,
     fetchShift,
+    fetchTicket,
     formatCash,
     formatClock,
     formatDayClock,
+    formatQuantity,
+    getTicketLineTotal,
     openShift,
+    refundTicket,
     registerCashMovement,
     registerFundMovement,
 } from "@/helpers";
-import type { IFund, IShiftDetail, ManualFundMovementType } from "@/helpers";
+import type {
+    IFund,
+    IShiftDetail,
+    IShiftTicket,
+    ITicketLine,
+    ITicketPayment,
+    ManualFundMovementType,
+    PaymentMethod,
+} from "@/helpers";
 
 const parseAmount = (value: string) => {
     if (value.trim() === "") return NaN;
@@ -203,6 +215,200 @@ const FundCard = ({ fund, onMove }: IFundCardProps) => (
     </section>
 );
 
+/** Cuántas cuentas cobradas se ven de entrada; el resto se abre con "Ver todas". */
+const SHIFT_TICKETS_SHOWN = 8;
+
+/** "Tarjeta" o "Efectivo 6.00 + Yappy 8.00": cómo se pagó, dicho corto. */
+const getPaymentsSummary = (payments: ITicketPayment[] | null) => {
+    if (!payments?.length) return "Sin pago registrado";
+    if (payments.length === 1) return PAYMENT_LABEL[payments[0].method];
+    return payments.map((one) => `${PAYMENT_LABEL[one.method]} ${one.amount.toFixed(2)}`).join(" + ");
+};
+
+const REFUND_CHANNEL: Record<PaymentMethod, string> = {
+    efectivo: "en efectivo del cajón",
+    tarjeta: "por tarjeta",
+    yappy: "por Yappy",
+};
+
+/** "Devuelve $6.00 en efectivo del cajón y $8.00 por Yappy.": lo que el cajero tiene que devolver. */
+const getRefundInstructions = (payments: ITicketPayment[]) => {
+    const parts = payments.map((one) => `${formatCash(one.amount)} ${REFUND_CHANNEL[one.method]}`);
+    const joined = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} y ${parts[parts.length - 1]}` : parts[0];
+    const cash = roundMoney(
+        payments.filter((one) => one.method === "efectivo").reduce((sum, one) => sum + one.amount, 0)
+    );
+    return `Devuelve ${joined}.${cash > 0 ? ` El efectivo esperado baja ${formatCash(cash)}.` : ""}`;
+};
+
+interface IRefundDialogProps {
+    token: string;
+    ticket: IShiftTicket;
+    onRefunded: (shift: IShiftDetail | null) => void;
+    onClose: () => void;
+    onSessionExpired: () => void;
+}
+
+/** Devuelve completa una cuenta cobrada por error. Muestra lo que tenía y cuánto vuelve por cada método. */
+const RefundDialog = ({ token, ticket, onRefunded, onClose, onSessionExpired }: IRefundDialogProps) => {
+    const [lines, setLines] = useState<ITicketLine[] | null>(null);
+    const [reason, setReason] = useState("");
+    const [error, setError] = useState("");
+    const [isSending, setIsSending] = useState(false);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        fetchTicket(token, ticket.id, controller.signal)
+            .then((data) => setLines(data.ticket.lines))
+            .catch((requestError) => {
+                if (controller.signal.aborted) return;
+                if (requestError instanceof HttpError && requestError.status === 401) return onSessionExpired();
+                setError("No pudimos leer las líneas de la cuenta.");
+            });
+        return () => controller.abort();
+    }, [token, ticket.id, onSessionExpired]);
+
+    const submit = async () => {
+        if (reason.trim().length < 3) {
+            setError("Escribe por qué se reembolsa.");
+            return;
+        }
+
+        setIsSending(true);
+        setError("");
+        try {
+            const data = await refundTicket(token, ticket.id, reason.trim());
+            onRefunded(data.shift);
+        } catch (requestError) {
+            if (requestError instanceof HttpError && requestError.status === 401) return onSessionExpired();
+            setError(requestError instanceof HttpError ? requestError.message : "No se pudo reembolsar.");
+            setIsSending(false);
+        }
+    };
+
+    return (
+        <div className="ges-modal" role="dialog" aria-modal="true" aria-label={`Reembolsar ${ticket.label}`}>
+            <div className="ges-modal__panel">
+                <h3 className="script">Reembolsar {ticket.label}</h3>
+
+                <div className="ges-rows">
+                    {lines === null ? (
+                        <p className="ges-empty">Cargando la cuenta…</p>
+                    ) : (
+                        lines.map((line) => (
+                            <div className="ges-r" key={line.id}>
+                                <span>{formatQuantity(line.quantity)} × {line.name}</span>
+                                <b>{formatCash(getTicketLineTotal(line))}</b>
+                            </div>
+                        ))
+                    )}
+                    <div className="ges-r is-big"><span>Se devuelve</span><b>{formatCash(ticket.total)}</b></div>
+                </div>
+
+                {ticket.payments?.length ? (
+                    <p className="ges-warn">{getRefundInstructions(ticket.payments)}</p>
+                ) : null}
+
+                <label className="ges-field">
+                    <span>Motivo</span>
+                    <input
+                        id="turno-reembolso-motivo"
+                        type="text"
+                        autoFocus
+                        value={reason}
+                        placeholder="Se cobró a la mesa equivocada"
+                        onChange={(event) => setReason(event.target.value)}
+                    />
+                </label>
+
+                <p className="ges-note">
+                    En Loyverse queda un recibo de reembolso ligado al original y los productos vuelven al stock.
+                    Si algo sí se entregó, regístralo como merma en Inventario. No se puede deshacer.
+                </p>
+
+                {error ? <p className="ges-error" role="alert">{error}</p> : null}
+
+                <div className="ges-modal__acts">
+                    <button type="button" className="ges-btn" onClick={onClose} disabled={isSending}>Cancelar</button>
+                    <button
+                        type="button"
+                        className="ges-btn ges-btn--danger"
+                        onClick={() => void submit()}
+                        disabled={isSending}
+                    >
+                        {isSending ? "Reembolsando…" : `Reembolsar ${formatCash(ticket.total)}`}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+interface IShiftTicketsCardProps {
+    tickets: IShiftTicket[];
+    onRefund: (ticket: IShiftTicket) => void;
+}
+
+/** Las cuentas cobradas del turno, la más reciente arriba, con su reembolso a mano. */
+const ShiftTicketsCard = ({ tickets, onRefund }: IShiftTicketsCardProps) => {
+    const [showAll, setShowAll] = useState(false);
+    const shown = showAll ? tickets : tickets.slice(0, SHIFT_TICKETS_SHOWN);
+
+    return (
+        <section className="ges-card">
+            <h2>Cuentas cobradas</h2>
+            <p className="ges-field__hint">Las de este turno. Si una se cobró por error, se reembolsa completa.</p>
+
+            <div className="ges-rows">
+                {tickets.length === 0 ? (
+                    <p className="ges-empty">Ninguna todavía.</p>
+                ) : (
+                    shown.map((one) =>
+                        one.status === "reembolsada" ? (
+                            <div className="ges-r is-ticket is-refunded" key={one.id}>
+                                <span>
+                                    {one.label}{" "}
+                                    <em>
+                                        {getPaymentsSummary(one.payments)} · reembolsada por {one.refundedByName}
+                                        {one.refundedAt ? ` · ${formatClock(one.refundedAt)}` : ""} · “{one.refundReason}”
+                                        {one.refundPending ? " · Loyverse pendiente" : ""}
+                                    </em>
+                                </span>
+                                <span className="ges-r__end">
+                                    <span className="ges-tag is-crit">Reembolsada</span>
+                                    <b>{formatCash(one.total)}</b>
+                                </span>
+                            </div>
+                        ) : (
+                            <div className="ges-r is-ticket" key={one.id}>
+                                <span>
+                                    {one.label}{" "}
+                                    <em>
+                                        {getPaymentsSummary(one.payments)} · {one.closedByName}
+                                        {one.closedAt ? ` · ${formatClock(one.closedAt)}` : ""}
+                                    </em>
+                                </span>
+                                <span className="ges-r__end">
+                                    <b>{formatCash(one.total)}</b>
+                                    <button type="button" className="ges-btn ges-btn--sm" onClick={() => onRefund(one)}>
+                                        Reembolsar
+                                    </button>
+                                </span>
+                            </div>
+                        )
+                    )
+                )}
+            </div>
+
+            {tickets.length > SHIFT_TICKETS_SHOWN ? (
+                <button type="button" className="ges-btn" onClick={() => setShowAll(!showAll)}>
+                    {showAll ? "Ver menos" : `Ver todas (${tickets.length})`}
+                </button>
+            ) : null}
+        </section>
+    );
+};
+
 interface IGestionTurnoProps {
     token: string;
     onSessionExpired: () => void;
@@ -216,6 +422,7 @@ export const GestionTurno = ({ token, onSessionExpired, onShiftChange }: IGestio
     const [counted, setCounted] = useState("");
     const [movement, setMovement] = useState<"entrada" | "salida" | null>(null);
     const [fundMovement, setFundMovement] = useState<ManualFundMovementType | null>(null);
+    const [refunding, setRefunding] = useState<IShiftTicket | null>(null);
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(true);
     const [isSending, setIsSending] = useState(false);
@@ -404,6 +611,18 @@ export const GestionTurno = ({ token, onSessionExpired, onShiftChange }: IGestio
                         <div className="ges-r is-sub"><span>{PAYMENT_LABEL.efectivo}</span><b>{formatCash(shift.salesCash)}</b></div>
                         <div className="ges-r is-sub"><span>{PAYMENT_LABEL.tarjeta}</span><b>{formatCash(shift.salesCard)}</b></div>
                         <div className="ges-r is-sub"><span>{PAYMENT_LABEL.yappy}</span><b>{formatCash(shift.salesYappy)}</b></div>
+                        {shift.refundsCount > 0 ? (
+                            <div className="ges-r">
+                                <span>
+                                    Reembolsos{" "}
+                                    <em>
+                                        {shift.refundsCount} {shift.refundsCount === 1 ? "cuenta" : "cuentas"} · ya
+                                        descontados arriba
+                                    </em>
+                                </span>
+                                <b>{formatCash(shift.refundsTotal)}</b>
+                            </div>
+                        ) : null}
                     </div>
 
                     <p className="ges-sec">Efectivo en caja</p>
@@ -417,28 +636,32 @@ export const GestionTurno = ({ token, onSessionExpired, onShiftChange }: IGestio
                     <p className="ges-field__hint">Tarjeta y Yappy no pasan por el cajón: solo se cuenta el efectivo.</p>
                 </section>
 
-                <section className="ges-card">
-                    <h2>Movimientos de efectivo</h2>
-                    <div className="ges-rows">
-                        {shift.movements.length === 0 ? (
-                            <p className="ges-empty">Ninguno todavía.</p>
-                        ) : (
-                            shift.movements.map((one) => (
-                                <div className="ges-r" key={one.id}>
-                                    <span>
-                                        <b>{one.type === "entrada" ? "Entrada" : "Salida"}</b> · {one.reason}{" "}
-                                        <em>{one.actorName} · {formatClock(one.createdAt)}</em>
-                                    </span>
-                                    <b>{one.type === "salida" ? "−" : "+"}{formatCash(one.amount)}</b>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                    <div className="ges-cards__two">
-                        <button type="button" className="ges-btn" onClick={() => setMovement("entrada")}>Entrada</button>
-                        <button type="button" className="ges-btn" onClick={() => setMovement("salida")}>Salida</button>
-                    </div>
-                </section>
+                <div className="ges-stack">
+                    <ShiftTicketsCard tickets={shift.tickets} onRefund={setRefunding} />
+
+                    <section className="ges-card">
+                        <h2>Movimientos de efectivo</h2>
+                        <div className="ges-rows">
+                            {shift.movements.length === 0 ? (
+                                <p className="ges-empty">Ninguno todavía.</p>
+                            ) : (
+                                shift.movements.map((one) => (
+                                    <div className="ges-r" key={one.id}>
+                                        <span>
+                                            <b>{one.type === "entrada" ? "Entrada" : "Salida"}</b> · {one.reason}{" "}
+                                            <em>{one.actorName} · {formatClock(one.createdAt)}</em>
+                                        </span>
+                                        <b>{one.type === "salida" ? "−" : "+"}{formatCash(one.amount)}</b>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                        <div className="ges-cards__two">
+                            <button type="button" className="ges-btn" onClick={() => setMovement("entrada")}>Entrada</button>
+                            <button type="button" className="ges-btn" onClick={() => setMovement("salida")}>Salida</button>
+                        </div>
+                    </section>
+                </div>
             </div>
 
             <div className="ges-cards__two">
@@ -521,6 +744,20 @@ export const GestionTurno = ({ token, onSessionExpired, onShiftChange }: IGestio
                         const data = await registerCashMovement(token, { type: movement, amount, reason });
                         apply(data.shift);
                         setMovement(null);
+                    }}
+                />
+            ) : null}
+
+            {refunding ? (
+                <RefundDialog
+                    token={token}
+                    ticket={refunding}
+                    onClose={() => setRefunding(null)}
+                    onSessionExpired={onSessionExpired}
+                    onRefunded={(next) => {
+                        apply(next);
+                        setRefunding(null);
+                        setError("");
                     }}
                 />
             ) : null}

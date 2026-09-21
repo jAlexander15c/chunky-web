@@ -44,13 +44,20 @@ export interface ITicketLine {
     addedByName: string;
 }
 
+/** Lo que vale la línea con sus modificadores. */
+export const getTicketLineTotal = (line: Pick<ITicketLine, "unitPrice" | "modifiers" | "quantity">) =>
+    (line.unitPrice + line.modifiers.reduce((sum, one) => sum + one.price, 0)) * line.quantity;
+
+/** anulada: se cerró sin cobrar. reembolsada: se cobró y luego se devolvió completa. */
+export type TicketStatus = "abierta" | "cobrada" | "anulada" | "reembolsada";
+
 export interface ITicket {
     id: number;
     /** Null en una cuenta para llevar. */
     tableNumber: number | null;
     /** A nombre de quien va la cuenta para llevar (opcional). */
     customerName: string | null;
-    status: "abierta" | "cobrada" | "anulada";
+    status: TicketStatus;
     openedByName: string;
     openedAt: string;
     total: number;
@@ -98,6 +105,22 @@ export interface IShift {
     difference: number | null;
 }
 
+/** Una cuenta cobrada (o ya reembolsada) del turno, sin sus líneas. */
+export interface IShiftTicket {
+    id: number;
+    label: string;
+    status: TicketStatus;
+    total: number;
+    payments: ITicketPayment[] | null;
+    closedAt: string | null;
+    closedByName: string | null;
+    refundedAt: string | null;
+    refundedByName: string | null;
+    refundReason: string | null;
+    /** Se reembolsó aquí pero Loyverse aún no tiene el recibo de reembolso: se reintenta solo. */
+    refundPending: boolean;
+}
+
 /** El turno en curso con todo lo que hace falta para cuadrarlo. */
 export interface IShiftDetail extends IShift {
     movements: ICashMovement[];
@@ -108,6 +131,11 @@ export interface IShiftDetail extends IShift {
     /** Tarjeta y Yappy no pasan por el cajón: solo se muestran. */
     salesCard: number;
     salesYappy: number;
+    /** Cuentas reembolsadas: ya no cuentan en las ventas de arriba. */
+    refundsTotal: number;
+    refundsCount: number;
+    /** Las cuentas cobradas y reembolsadas del turno, la más reciente primero. */
+    tickets: IShiftTicket[];
     cashIn: number;
     cashOut: number;
     expected: number;
@@ -283,6 +311,14 @@ export const releaseTicket = (token: string, ticketId: number) =>
 export const voidTicket = (token: string, ticketId: number, reason: string) =>
     httpPost<{ ticket: ITicket }>(
         `/gestion/caja/cuentas/${ticketId}/anular`,
+        { reason },
+        { headers: getGestionHeaders(token) }
+    );
+
+/** Devuelve completa una cuenta cobrada del turno abierto. Trae el turno con las ventas ya ajustadas. */
+export const refundTicket = (token: string, ticketId: number, reason: string) =>
+    httpPost<{ ticket: ITicket; shift: IShiftDetail | null }>(
+        `/gestion/caja/cuentas/${ticketId}/reembolsar`,
         { reason },
         { headers: getGestionHeaders(token) }
     );
