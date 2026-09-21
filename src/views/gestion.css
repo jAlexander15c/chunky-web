@@ -518,20 +518,39 @@
     background: var(--ges-panel);
     border: 2px solid var(--ges-line);
     border-radius: 16px;
-    padding: 0.7rem;
+    padding: 0;
+    overflow: hidden;
     text-align: left;
     display: grid;
-    gap: 0.2rem;
-    align-content: start;
-    min-height: 86px;
+    grid-template-rows: auto 1fr;
     color: inherit;
     cursor: pointer;
     transition: transform 150ms var(--ease-out), border-color 150ms ease;
 }
 
 .ges-prod:active:not(:disabled) { transform: scale(0.97); }
+
+/* Misma proporción para todas: las fotos de Loyverse vienen de cualquier tamaño */
+.ges-prod__img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    background: var(--sky);
+}
+
+.ges-prod__img--none {
+    display: grid;
+    place-items: center;
+    font-weight: 800;
+    font-size: 1.4rem;
+    letter-spacing: 0.02em;
+    color: var(--mora);
+}
+
+.ges-prod__txt { display: grid; gap: 0.15rem; align-content: start; padding: 0.55rem 0.7rem 0.7rem; }
 .ges-prod b { font-weight: 800; font-size: 0.86rem; line-height: 1.25; }
-.ges-prod span { font-weight: 800; color: var(--mora); font-variant-numeric: tabular-nums; }
+.ges-prod__txt > span { font-weight: 800; color: var(--mora); font-variant-numeric: tabular-nums; }
 .ges-prod em { font-style: normal; font-size: 0.65rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ges-text-3); }
 
 @media (hover: hover) and (pointer: fine) {

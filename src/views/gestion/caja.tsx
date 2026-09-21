@@ -38,7 +38,13 @@ const formatWaiting = (value: string) => {
     return `hace ${Math.floor(minutes / 60)} h ${minutes % 60}`;
 };
 
-const roundMoney = (value: number) => Math.round(value * 100) / 100;
+/** "Galleta New York" -> "GN". Va en lugar de la foto cuando el producto no tiene una en Loyverse. */
+const getItemInitials = (name: string) => {
+    const words = name.split(/\s+/).filter((word) => word.length > 2);
+    return (words.length ? words : [name]).slice(0, 2).map((word) => word[0]).join("").toUpperCase();
+};
+
+const roundMoney =(value: number) => Math.round(value * 100) / 100;
 
 const parseAmount = (value: string) => {
     const parsed = Number(value.replace(",", "."));
@@ -549,9 +555,18 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                                 disabled={!hasShift}
                                 onClick={() => void addItem(item)}
                             >
-                                <b>{item.item_name}</b>
-                                {hasItemModifiers(item, modifiers) ? <em>Con opciones</em> : null}
-                                <span>{formatCash(getItemPrice(item))}</span>
+                                {item.image_url ? (
+                                    <img className="ges-prod__img" src={item.image_url} alt="" loading="lazy" />
+                                ) : (
+                                    <span className="ges-prod__img ges-prod__img--none" aria-hidden="true">
+                                        {getItemInitials(item.item_name)}
+                                    </span>
+                                )}
+                                <span className="ges-prod__txt">
+                                    <b>{item.item_name}</b>
+                                    {hasItemModifiers(item, modifiers) ? <em>Con opciones</em> : null}
+                                    <span>{formatCash(getItemPrice(item))}</span>
+                                </span>
                             </button>
                         ))}
                     </div>
