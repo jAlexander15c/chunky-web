@@ -337,6 +337,16 @@
 
 .ges-row__meta.is-stale { color: var(--ges-warn); font-weight: 700; }
 
+/* Ficha informativa: en qué unidad se mide y con qué mínimo avisa */
+.ges-row__facts {
+    font-size: 0.75rem;
+    color: var(--ges-text-2);
+    margin-top: 0.15rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.ges-row__facts b { font-weight: 700; color: var(--text); }
+
 .ges-qty { text-align: right; flex: none; }
 
 .ges-qty b {

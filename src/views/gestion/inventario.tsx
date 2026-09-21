@@ -154,6 +154,9 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                                     <div className="ges-row__meta">
                                         Producidos hoy: {formatQuantity(product.producedToday)}
                                     </div>
+                                    <div className="ges-row__facts">
+                                        Se mide en <b>unidades</b> · Mínimo <b>{formatQuantity(product.lowStock)} u</b>
+                                    </div>
                                 </div>
                                 <div className="ges-qty">
                                     <b>{formatQuantity(product.stock)}</b>
@@ -184,6 +187,10 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                                             {supply.countAge === null
                                                 ? "Nunca se ha contado"
                                                 : `Contado ${formatCountAge(supply.countAge)}${isStale ? " · toca contar" : ""}`}
+                                        </div>
+                                        <div className="ges-row__facts">
+                                            Se mide en <b>{supply.unit}</b> · Mínimo{" "}
+                                            <b>{formatQuantity(supply.minStock)} {supply.unit}</b>
                                         </div>
                                         <span className={`ges-pill is-${STATE_TONE[supply.state]}`}>
                                             {STATE_LABEL[supply.state]}
