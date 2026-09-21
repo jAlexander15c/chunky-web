@@ -25,8 +25,10 @@ import {
     setAdminToken,
     setPastaMode,
     syncReceiptsNow,
+    updateSupply,
     useSettings,
 } from "@/helpers";
+import type { ISupplyInput } from "@/helpers";
 import type { IDashboard, IDaySales, IMovement, IProductStatus, ISupplyStatus, MovementType, SupplyCategory, SupplyState } from "@/helpers";
 
 import { AdminCaja } from "./admin-caja";
@@ -353,26 +355,21 @@ const SUPPLY_UNITS = [
 const SUPPLY_CATEGORIES: SupplyCategory[] = ["alimento", "limpieza", "mantenimiento"];
 
 interface ISupplyFormProps {
-    onCreate: (supply: {
-        name: string;
-        unit: string;
-        category: SupplyCategory;
-        minStock: number;
-        supplier?: string;
-        purchaseUnit?: string;
-        purchaseSize?: number;
-    }) => Promise<void>;
+    /** Con un insumo es edición: el formulario arranca con sus datos. */
+    supply?: ISupplyStatus;
+    onSave: (supply: ISupplyInput) => Promise<void>;
     onClose: () => void;
 }
 
-const SupplyFormDialog = ({ onCreate, onClose }: ISupplyFormProps) => {
-    const [name, setName] = useState("");
-    const [unit, setUnit] = useState("kg");
-    const [category, setCategory] = useState<SupplyCategory>("alimento");
-    const [minStock, setMinStock] = useState("");
-    const [supplier, setSupplier] = useState("");
-    const [purchaseUnit, setPurchaseUnit] = useState("");
-    const [purchaseSize, setPurchaseSize] = useState("");
+const SupplyFormDialog = ({ supply, onSave, onClose }: ISupplyFormProps) => {
+    const isEditing = Boolean(supply);
+    const [name, setName] = useState(supply?.name ?? "");
+    const [unit, setUnit] = useState(supply?.unit ?? "kg");
+    const [category, setCategory] = useState<SupplyCategory>(supply?.category ?? "alimento");
+    const [minStock, setMinStock] = useState(supply ? formatQuantity(supply.minStock) : "");
+    const [supplier, setSupplier] = useState(supply?.supplier ?? "");
+    const [purchaseUnit, setPurchaseUnit] = useState(supply?.purchaseUnit ?? "");
+    const [purchaseSize, setPurchaseSize] = useState(supply?.purchaseSize ? formatQuantity(supply.purchaseSize) : "");
     const [error, setError] = useState("");
     const [isSending, setIsSending] = useState(false);
 
@@ -402,7 +399,7 @@ const SupplyFormDialog = ({ onCreate, onClose }: ISupplyFormProps) => {
         setError("");
 
         try {
-            await onCreate({
+            await onSave({
                 name: name.trim(),
                 unit,
                 category,
@@ -413,17 +410,25 @@ const SupplyFormDialog = ({ onCreate, onClose }: ISupplyFormProps) => {
             });
             onClose();
         } catch (requestError) {
-            setError(requestError instanceof HttpError ? requestError.message : "No se pudo crear el insumo.");
+            setError(
+                requestError instanceof HttpError
+                    ? requestError.message
+                    : isEditing
+                      ? "No se pudo guardar el insumo."
+                      : "No se pudo crear el insumo."
+            );
             setIsSending(false);
         }
     };
 
     return (
-        <div className="adm-modal" role="dialog" aria-modal="true" aria-label="Nuevo insumo">
+        <div className="adm-modal" role="dialog" aria-modal="true" aria-label={isEditing ? `Editar ${supply?.name}` : "Nuevo insumo"}>
             <form className="adm-modal__panel adm-modal__panel--wide" onSubmit={submit}>
-                <h3 className="script">Nuevo insumo</h3>
+                <h3 className="script">{isEditing ? "Editar insumo" : "Nuevo insumo"}</h3>
                 <p className="adm-modal__hint">
-                    El stock arranca en cero: se carga con el primer conteo o con una compra.
+                    {isEditing
+                        ? "Aquí se cambian los datos, no el stock: eso va por compra, conteo o merma."
+                        : "El stock arranca en cero: se carga con el primer conteo o con una compra."}
                 </p>
 
                 <div className="adm-form">
@@ -513,12 +518,19 @@ const SupplyFormDialog = ({ onCreate, onClose }: ISupplyFormProps) => {
                     como se le pide al proveedor, en vez de en {unit}.
                 </p>
 
+                {supply && unit !== supply.unit ? (
+                    <p className="adm-warning">
+                        El stock no se convierte: los {formatQuantity(supply.stock)} {supply.unit} que hay pasan a ser{" "}
+                        {formatQuantity(supply.stock)} {unit}. Haz un conteo después de guardar.
+                    </p>
+                ) : null}
+
                 {error ? <p className="adm-gate__error">{error}</p> : null}
 
                 <div className="adm-modal__actions">
                     <button type="button" className="adm-btn" onClick={onClose} disabled={isSending}>Cancelar</button>
                     <button type="submit" className="adm-btn adm-btn--solid" disabled={isSending}>
-                        {isSending ? "Creando…" : "Crear insumo"}
+                        {isEditing ? (isSending ? "Guardando…" : "Guardar cambios") : isSending ? "Creando…" : "Crear insumo"}
                     </button>
                 </div>
             </form>
@@ -527,7 +539,7 @@ const SupplyFormDialog = ({ onCreate, onClose }: ISupplyFormProps) => {
 };
 
 type PendingAction =
-    | { kind: "purchase" | "count" | "waste"; supply: ISupplyStatus }
+    | { kind: "purchase" | "count" | "waste" | "edit"; supply: ISupplyStatus }
     | { kind: "production"; product: IProductStatus };
 
 type SupplyFilter = SupplyCategory | "todos";
@@ -884,6 +896,14 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
                                                     <button type="button" className="adm-btn adm-btn--sm" onClick={() => setPending({ kind: "waste", supply })}>
                                                         Merma
                                                     </button>
+                                                    <button
+                                                        type="button"
+                                                        className="adm-btn adm-btn--sm"
+                                                        aria-label={`Editar ${supply.name}`}
+                                                        onClick={() => setPending({ kind: "edit", supply })}
+                                                    >
+                                                        Editar
+                                                    </button>
                                                 </td>
                                             </tr>
                                         ))}
@@ -1055,11 +1075,22 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
 
             {isCreatingSupply ? (
                 <SupplyFormDialog
-                    onCreate={async (supply) => {
+                    onSave={async (supply) => {
                         await createSupply(token, supply);
                         await loadAll();
                     }}
                     onClose={() => setIsCreatingSupply(false)}
+                />
+            ) : null}
+
+            {pending?.kind === "edit" ? (
+                <SupplyFormDialog
+                    supply={pending.supply}
+                    onSave={async (supply) => {
+                        await updateSupply(token, pending.supply.id, supply);
+                        await loadAll();
+                    }}
+                    onClose={() => setPending(null)}
                 />
             ) : null}
 

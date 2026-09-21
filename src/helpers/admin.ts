@@ -185,18 +185,22 @@ export const registerWaste = (token: string, supplyId: number, quantity: number)
         { headers: getAdminHeaders(token) }
     );
 
-export const createSupply = (
-    token: string,
-    supply: {
-        name: string;
-        unit: string;
-        category: SupplyCategory;
-        minStock: number;
-        supplier?: string;
-        purchaseUnit?: string;
-        purchaseSize?: number;
-    }
-) => httpPost<{ supply: ISupplyStatus }>("/admin/supplies", supply, { headers: getAdminHeaders(token) });
+export interface ISupplyInput {
+    name: string;
+    unit: string;
+    category: SupplyCategory;
+    minStock: number;
+    supplier?: string;
+    purchaseUnit?: string;
+    purchaseSize?: number;
+}
+
+export const createSupply = (token: string, supply: ISupplyInput) =>
+    httpPost<{ supply: ISupplyStatus }>("/admin/supplies", supply, { headers: getAdminHeaders(token) });
+
+/** Cambia los datos del insumo. El stock no se toca: eso va por compra, conteo o merma. */
+export const updateSupply = (token: string, id: number, supply: ISupplyInput) =>
+    httpPut<{ supply: ISupplyStatus }>(`/admin/supplies/${id}`, supply, { headers: getAdminHeaders(token) });
 
 /* ============ Colaboradores ============ */
 
