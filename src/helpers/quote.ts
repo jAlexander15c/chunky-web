@@ -142,9 +142,12 @@ export const getQuoteBreakdown = (draft: Pick<IQuoteDraft, "size" | "height" | "
     return { base, lines, total };
 };
 
-/** Hoy en Panamá como AAAA-MM-DD, para el mínimo del campo de fecha. */
-export const getTodayInPanama = () =>
-    new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+/** Días que necesita la pastelería para preparar un cake. El API valida lo mismo. */
+export const QUOTE_LEAD_DAYS = 4;
+
+/** El primer día que se puede pedir, como AAAA-MM-DD: hoy en Panamá más los días de preparación. */
+export const getEarliestQuoteDate = () =>
+    new Date(Date.now() - 5 * 60 * 60 * 1000 + QUOTE_LEAD_DAYS * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
 /** Lo que falta para poder enviar, en palabras del cliente. Vacío es listo. */
 export const getQuoteMissing = (draft: IQuoteDraft) => {
@@ -155,7 +158,8 @@ export const getQuoteMissing = (draft: IQuoteDraft) => {
     if (draft.customerName.trim().length < 2) missing.push("Escribe tu nombre");
     if (!/^6\d{7}$/.test(getPhoneDigits(draft.customerPhone))) missing.push("Escribe tu WhatsApp (8 dígitos, empieza en 6)");
     if (!draft.desiredDate) missing.push("Elige la fecha deseada");
-    else if (draft.desiredDate < getTodayInPanama()) missing.push("La fecha deseada ya pasó");
+    else if (draft.desiredDate < getEarliestQuoteDate())
+        missing.push(`La fecha tiene que ser con ${QUOTE_LEAD_DAYS} días de anticipación o más`);
     return missing;
 };
 
@@ -274,26 +278,20 @@ export const submitQuote = (draft: IQuoteDraft) =>
         topperImage: draft.topper ? draft.topperImage : null,
     });
 
-/**
- * Quién mira las cotizaciones: el dueño desde /admin o la pastelera desde /gestion.
- * Las rutas son iguales; cambian el prefijo y el header de la sesión.
- */
-export type QuoteArea = "admin" | "gestion";
+/** Solo la pastelera las ve, desde /gestion con su PIN. */
+const getQuoteHeaders = (token: string) => ({ "x-gestion-token": token });
 
-const getQuoteHeaders = (area: QuoteArea, token: string): Record<string, string> =>
-    area === "admin" ? { "x-admin-token": token } : { "x-gestion-token": token };
-
-export const fetchQuotes = (area: QuoteArea, token: string, status: QuoteStatus, signal?: AbortSignal) =>
-    httpGet<{ quotes: IQuote[]; counts: Record<QuoteStatus, number> }>(`/${area}/quotes?status=${status}`, {
+export const fetchQuotes = (token: string, status: QuoteStatus, signal?: AbortSignal) =>
+    httpGet<{ quotes: IQuote[]; counts: Record<QuoteStatus, number> }>(`/gestion/quotes?status=${status}`, {
         signal,
-        headers: getQuoteHeaders(area, token),
+        headers: getQuoteHeaders(token),
     });
 
-export const fetchQuote = (area: QuoteArea, token: string, id: number, signal?: AbortSignal) =>
-    httpGet<{ quote: IQuoteDetail }>(`/${area}/quotes/${id}`, { signal, headers: getQuoteHeaders(area, token) });
+export const fetchQuote = (token: string, id: number, signal?: AbortSignal) =>
+    httpGet<{ quote: IQuoteDetail }>(`/gestion/quotes/${id}`, { signal, headers: getQuoteHeaders(token) });
 
-export const changeQuoteStatus = (area: QuoteArea, token: string, id: number, status: QuoteStatus) =>
-    httpPost<{ quote: IQuoteDetail }>(`/${area}/quotes/${id}/status`, { status }, { headers: getQuoteHeaders(area, token) });
+export const changeQuoteStatus = (token: string, id: number, status: QuoteStatus) =>
+    httpPost<{ quote: IQuoteDetail }>(`/gestion/quotes/${id}/status`, { status }, { headers: getQuoteHeaders(token) });
 
 /** "2026-10-03" -> "sáb 3 oct". La fecha es un día, no un instante: se arma sin zona horaria. */
 export const formatQuoteDate = (value: string) => {

@@ -260,7 +260,7 @@ const GestionShell = ({ token, name, roles, onLogout }: IGestionShellProps) => {
                         <GestionTurno token={token} onSessionExpired={onLogout} onShiftChange={setShift} />
                     ) : current.id === "cotizaciones" ? (
                         <div className="ges-quotes">
-                            <QuotesPanel area="gestion" token={token} onSessionExpired={onLogout} />
+                            <QuotesPanel token={token} onSessionExpired={onLogout} />
                         </div>
                     ) : (
                         <GestionInventario token={token} onSessionExpired={onLogout} />

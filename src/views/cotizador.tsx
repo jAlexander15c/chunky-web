@@ -9,6 +9,7 @@ import {
     QUOTE_DOUGHS,
     QUOTE_FILLINGS,
     QUOTE_HEIGHTS,
+    QUOTE_LEAD_DAYS,
     QUOTE_SIZES,
     TOPPER_PRICE,
     canAddFilling,
@@ -20,7 +21,7 @@ import {
     getQuoteBreakdown,
     getQuoteMissing,
     getQuoteSurcharge,
-    getTodayInPanama,
+    getEarliestQuoteDate,
     getWhatsAppUrl,
     submitQuote,
 } from "@/helpers";
@@ -446,10 +447,14 @@ export const Cotizador = () => {
                                 <input
                                     id="quote-date"
                                     type="date"
-                                    min={getTodayInPanama()}
+                                    min={getEarliestQuoteDate()}
+                                    aria-describedby="quote-date-hint"
                                     value={draft.desiredDate}
                                     onChange={(event) => update("desiredDate", event.target.value)}
                                 />
+                                <small id="quote-date-hint" className="quote-field__hint">
+                                    Con {QUOTE_LEAD_DAYS} días de anticipación como mínimo.
+                                </small>
                             </div>
                             <div className="quote-field quote-field--wide">
                                 <label htmlFor="quote-note">Nota (opcional)</label>

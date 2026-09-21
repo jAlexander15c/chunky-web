@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 
-import { AmountDialog, QuotesPanel } from "@/components";
+import { AmountDialog } from "@/components";
 import {
     HttpError,
     SUPPLY_CATEGORY_LABEL,
     createSupply,
     fetchDashboard,
-    fetchQuotes,
     fetchMovements,
     fetchProducts,
     fetchSupplies,
@@ -535,23 +534,13 @@ type SupplyFilter = SupplyCategory | "todos";
 
 /* ============ Menú ============ */
 
-type AdminSection = "tablero" | "cotizaciones" | "caja" | "colaboradores";
+type AdminSection = "tablero" | "caja" | "colaboradores";
 
 const ADMIN_SECTIONS: { id: AdminSection; label: string; icon: ReactNode }[] = [
     {
         id: "tablero",
         label: "Tablero",
         icon: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
-    },
-    {
-        id: "cotizaciones",
-        label: "Cotizaciones",
-        icon: (
-            <>
-                <path d="M4 21V11h16v10M2 11h20M12 11V7" />
-                <circle cx="12" cy="5" r="2" />
-            </>
-        ),
     },
     {
         id: "caja",
@@ -575,28 +564,6 @@ const ADMIN_SECTIONS: { id: AdminSection; label: string; icon: ReactNode }[] = [
     },
 ];
 
-/** Cuántas cotizaciones esperan respuesta, para el contador del menú aunque se esté en otra sección. */
-const useNewQuotesCount = (token: string) => {
-    const [count, setCount] = useState(0);
-
-    useEffect(() => {
-        const controller = new AbortController();
-        const load = () =>
-            fetchQuotes("admin", token, "nueva", controller.signal)
-                .then((data) => setCount(data.counts.nueva))
-                .catch(() => undefined);
-
-        void load();
-        const timer = window.setInterval(() => void load(), REFRESH_MS);
-        return () => {
-            controller.abort();
-            window.clearInterval(timer);
-        };
-    }, [token]);
-
-    return [count, setCount] as const;
-};
-
 const SUPPLY_FILTERS: SupplyFilter[] = ["todos", "alimento", "limpieza", "mantenimiento"];
 
 /* ============ Tablero ============ */
@@ -614,7 +581,6 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
     const [isCreatingSupply, setIsCreatingSupply] = useState(false);
     const [supplyFilter, setSupplyFilter] = useState<SupplyFilter>("todos");
     const [section, setSection] = useState<AdminSection>("tablero");
-    const [newQuotes, setNewQuotes] = useNewQuotesCount(token);
 
     const loadAll = useCallback(
         async (signal?: AbortSignal) => {
@@ -729,24 +695,11 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
                             {one.icon}
                         </svg>
                         {one.label}
-                        {one.id === "cotizaciones" && newQuotes > 0 ? (
-                            <span className="adm-menu__count" aria-label={`${newQuotes} nuevas`}>{newQuotes}</span>
-                        ) : null}
                     </button>
                 ))}
             </nav>
 
-            {section === "cotizaciones" ? (
-                <main className="adm-wrap">
-                    <section className="adm-band">
-                        <div className="adm-band__head">
-                            <h2 className="script">Cotizaciones</h2>
-                            <span className="adm-band__sub">Cakes que piden los clientes desde la web, con sus fotos</span>
-                        </div>
-                        <QuotesPanel area="admin" token={token} onSessionExpired={onLogout} onNewCountChange={setNewQuotes} />
-                    </section>
-                </main>
-            ) : section === "caja" ? (
+            {section === "caja" ? (
                 <main className="adm-wrap">
                     <AdminCaja token={token} onSessionExpired={onLogout} />
                 </main>

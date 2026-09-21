@@ -454,13 +454,14 @@
     transition: transform 150ms var(--ease-out), border-color 150ms ease;
 }
 
-.ges-table:active { transform: scale(0.97); }
+.ges-table:active:not(:disabled) { transform: scale(0.97); }
+.ges-table:disabled, .ges-prod:disabled { opacity: 0.45; cursor: not-allowed; }
 .ges-table.is-busy { background: var(--sky); border-color: var(--mora); }
 .ges-table.is-ready { background: var(--ges-good-bg); border-color: var(--ges-good); }
 .ges-table--togo { border-style: dashed; }
 
 @media (hover: hover) and (pointer: fine) {
-    .ges-table:hover { border-color: var(--mora); }
+    .ges-table:hover:not(:disabled) { border-color: var(--mora); }
 }
 
 .ges-table__n { font-weight: 800; font-size: 1.05rem; }
@@ -528,13 +529,13 @@
     transition: transform 150ms var(--ease-out), border-color 150ms ease;
 }
 
-.ges-prod:active { transform: scale(0.97); }
+.ges-prod:active:not(:disabled) { transform: scale(0.97); }
 .ges-prod b { font-weight: 800; font-size: 0.86rem; line-height: 1.25; }
 .ges-prod span { font-weight: 800; color: var(--mora); font-variant-numeric: tabular-nums; }
 .ges-prod em { font-style: normal; font-size: 0.65rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ges-text-3); }
 
 @media (hover: hover) and (pointer: fine) {
-    .ges-prod:hover { border-color: var(--mora); }
+    .ges-prod:hover:not(:disabled) { border-color: var(--mora); }
 }
 
 .ges-ticket {
@@ -545,8 +546,13 @@
     min-width: 0;
 }
 
+/* La cuenta no crece con cada plato: mide lo que la pantalla, la lista hace scroll
+   y el total con los botones de cobrar siempre quedan a la vista */
 @media (min-width: 900px) {
-    .ges-ticket { border-top: 0; border-left: 1px solid var(--ges-line); }
+    .ges-panel:has(.ges-account) { height: 100dvh; }
+    .ges-account { overflow: hidden; grid-template-rows: minmax(0, 1fr); }
+    .ges-ticket { border-top: 0; border-left: 1px solid var(--ges-line); min-height: 0; }
+    .ges-ticket__list { min-height: 0; }
 }
 
 .ges-ticket__head {

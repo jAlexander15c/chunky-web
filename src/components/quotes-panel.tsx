@@ -13,7 +13,7 @@ import {
     formatQuoteDate,
     getQuoteSizeLabel,
 } from "@/helpers";
-import type { IQuote, IQuoteDetail, QuoteArea, QuoteStatus } from "@/helpers";
+import type { IQuote, IQuoteDetail, QuoteStatus } from "@/helpers";
 
 import "./quotes-panel.css";
 
@@ -21,11 +21,8 @@ import "./quotes-panel.css";
 const REFRESH_MS = 60 * 1000;
 
 interface IQuotesPanelProps {
-    area: QuoteArea;
     token: string;
     onSessionExpired: () => void;
-    /** Cuántas nuevas hay, para el contador del menú. */
-    onNewCountChange?: (count: number) => void;
 }
 
 const EMPTY_COUNTS: Record<QuoteStatus, number> = { nueva: 0, confirmada: 0, entregada: 0, cancelada: 0 };
@@ -155,8 +152,8 @@ const QuoteDetail = ({
     );
 };
 
-/** Lista y detalle de las cotizaciones de cakes. La usan /admin y la pastelera en /gestion. */
-export const QuotesPanel = ({ area, token, onSessionExpired, onNewCountChange }: IQuotesPanelProps) => {
+/** Lista y detalle de las cotizaciones de cakes. Solo la ve la pastelera en /gestion. */
+export const QuotesPanel = ({ token, onSessionExpired }: IQuotesPanelProps) => {
     const [status, setStatus] = useState<QuoteStatus>("nueva");
     const [quotes, setQuotes] = useState<IQuote[]>([]);
     const [counts, setCounts] = useState(EMPTY_COUNTS);
@@ -181,10 +178,9 @@ export const QuotesPanel = ({ area, token, onSessionExpired, onNewCountChange }:
     const loadList = useCallback(
         async (signal?: AbortSignal) => {
             try {
-                const data = await fetchQuotes(area, token, status, signal);
+                const data = await fetchQuotes(token, status, signal);
                 setQuotes(data.quotes);
                 setCounts(data.counts);
-                onNewCountChange?.(data.counts.nueva);
                 setError("");
                 // Si lo elegido ya no está en este filtro, se abre la primera
                 setSelectedId((current) =>
@@ -197,7 +193,7 @@ export const QuotesPanel = ({ area, token, onSessionExpired, onNewCountChange }:
                 if (!signal?.aborted) setIsLoading(false);
             }
         },
-        [area, token, status, onNewCountChange, handleError]
+        [token, status, handleError]
     );
 
     useEffect(() => {
@@ -221,7 +217,7 @@ export const QuotesPanel = ({ area, token, onSessionExpired, onNewCountChange }:
 
         const controller = new AbortController();
         setIsLoadingDetail(true);
-        fetchQuote(area, token, selectedId, controller.signal)
+        fetchQuote(token, selectedId, controller.signal)
             .then(({ quote }) => setDetail(quote))
             .catch((requestError) => {
                 if (!controller.signal.aborted) handleError(requestError, "No pudimos abrir la cotización.");
@@ -230,13 +226,13 @@ export const QuotesPanel = ({ area, token, onSessionExpired, onNewCountChange }:
                 if (!controller.signal.aborted) setIsLoadingDetail(false);
             });
         return () => controller.abort();
-    }, [area, token, selectedId, detail?.id, handleError]);
+    }, [token, selectedId, detail?.id, handleError]);
 
     const changeStatus = async (to: QuoteStatus) => {
         if (!detail) return;
         setIsChanging(true);
         try {
-            const { quote } = await changeQuoteStatus(area, token, detail.id, to);
+            const { quote } = await changeQuoteStatus(token, detail.id, to);
             setDetail(quote);
             // Se va al filtro nuevo para que quien la movió la siga viendo
             setSelectedId(quote.id);

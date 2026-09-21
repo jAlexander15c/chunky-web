@@ -181,9 +181,11 @@
     font-variant-numeric: tabular-nums;
 }
 
+/* Celeste y no mantequilla: el bizcocho del dibujo es mantequilla y se perdía en el fondo */
 .quote-size input:checked + .quote-size__card {
-    background: var(--mantequilla);
+    background: var(--sky);
     border-color: var(--mora);
+    box-shadow: inset 0 0 0 1px var(--mora);
 }
 
 .quote-size input:focus-visible + .quote-size__card {
@@ -499,6 +501,11 @@
     font: inherit;
     font-size: 1rem;
     color: var(--ink);
+}
+
+.quote-field__hint {
+    font-size: 0.78rem;
+    color: var(--text-soft);
 }
 
 .quote-field textarea {

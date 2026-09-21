@@ -243,18 +243,6 @@
     height: 20px;
 }
 
-.adm-menu__count {
-    margin-left: auto;
-    min-width: 22px;
-    padding: 0 0.4rem;
-    border-radius: var(--radius-pill);
-    background: var(--orquidea);
-    color: var(--ink);
-    font-size: 0.75rem;
-    font-weight: 800;
-    text-align: center;
-}
-
 @media (max-width: 860px) {
     .adm-shell {
         grid-template-columns: minmax(0, 1fr);

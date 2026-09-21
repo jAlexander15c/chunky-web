@@ -445,7 +445,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                 {error ? <p className="ges-error" role="alert">{error}</p> : null}
                 {!hasShift && !isLoading ? (
                     <p className="ges-warning">
-                        No hay turno abierto. Puedes tomar las mesas, pero para cobrar hay que abrirlo en Turno.
+                        No hay turno abierto. Ábrelo en Turno para tomar pedidos y cobrar.
                     </p>
                 ) : null}
 
@@ -462,6 +462,8 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                                     key={table.label}
                                     type="button"
                                     className={`ges-table${tone}${table.tableNumber === null ? " ges-table--togo" : ""}`}
+                                    // Sin turno no se abre una cuenta nueva; una que quedó abierta sí, para anularla
+                                    disabled={!hasShift && !busy}
                                     onClick={() =>
                                         void run(
                                             () => openTable(token, table.tableNumber ?? 0),
@@ -532,6 +534,11 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                     </div>
 
                     {error ? <p className="ges-error" role="alert">{error}</p> : null}
+                    {!hasShift ? (
+                        <p className="ges-warning">
+                            No hay turno abierto: no se pueden agregar productos ni cobrar. Ábrelo en Turno.
+                        </p>
+                    ) : null}
 
                     <div className="ges-grid">
                         {visibleItems.map((item) => (
@@ -539,6 +546,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                                 key={item.id}
                                 type="button"
                                 className="ges-prod"
+                                disabled={!hasShift}
                                 onClick={() => void addItem(item)}
                             >
                                 <b>{item.item_name}</b>
@@ -622,7 +630,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                         <button
                             type="button"
                             className="ges-btn ges-btn--block"
-                            disabled={pending.length === 0}
+                            disabled={pending.length === 0 || !hasShift}
                             onClick={() => void run(() => sendTicketToKitchen(token, ticket.id), "No pudimos enviar a cocina.")}
                         >
                             {pending.length > 0 ? `Enviar ${pending.length} a cocina` : "Todo está en cocina"}
