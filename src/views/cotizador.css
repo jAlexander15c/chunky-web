@@ -503,6 +503,20 @@
     color: var(--ink);
 }
 
+/* Safari en iPhone le da a la fecha un ancho mínimo propio y la saca del contenedor */
+.quote-field input[type="date"] {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    -webkit-appearance: none;
+    appearance: none;
+    text-align: left;
+}
+
+.quote-field input[type="date"]::-webkit-date-and-time-value {
+    text-align: left;
+}
+
 .quote-field__hint {
     font-size: 0.78rem;
     color: var(--text-soft);
