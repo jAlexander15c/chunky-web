@@ -792,6 +792,45 @@
     cursor: pointer;
 }
 
+/* Pasar un plato a otra cuenta de la mesa: va al final de la línea, con texto y no redondo */
+.ges-tl small .ges-tl__move { width: auto; height: 28px; margin-left: auto; padding: 0 0.7rem; font-size: 0.72rem; color: var(--ink); }
+
+/* ============ Cuentas de una mesa ============ */
+
+.ges-accounts { display: flex; gap: 0.4rem; overflow-x: auto; padding: 0.2rem var(--gutter) 0.4rem; }
+.ges-modal .ges-accounts { flex-wrap: wrap; overflow: visible; padding: 0; }
+
+.ges-account-chip {
+    font: inherit;
+    flex: none;
+    display: grid;
+    gap: 0.05rem;
+    text-align: left;
+    min-height: 44px;
+    padding: 0.35rem 0.75rem;
+    border: 2px solid var(--sky);
+    border-radius: 14px;
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.ges-account-chip b { font-size: 0.8rem; font-weight: 800; max-width: 12ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ges-account-chip span { font-size: 0.72rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ges-text-2); }
+.ges-account-chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--crema); }
+.ges-account-chip[aria-pressed="true"] span { color: var(--crema); opacity: 0.8; }
+.ges-account-chip.is-add { border-style: dashed; place-items: center; font-size: 0.78rem; font-weight: 800; }
+.ges-account-chip:disabled { opacity: 0.45; cursor: default; }
+
+.ges-table__accounts { justify-self: start; font-size: 0.66rem; font-weight: 800; color: var(--ges-warn); background: var(--ges-warn-bg); padding: 0.05rem 0.45rem; border-radius: var(--radius-pill); }
+
+/* Cuántas unidades se pasan a otra cuenta */
+.ges-qty { display: flex; align-items: center; gap: 0.8rem; }
+.ges-qty button { font: inherit; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--sky); background: transparent; font-weight: 800; font-size: 1.1rem; color: var(--ink); cursor: pointer; }
+.ges-qty button:disabled { opacity: 0.4; cursor: default; }
+.ges-qty b { font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 2ch; text-align: center; }
+.ges-qty em { font-style: normal; font-size: 0.8rem; color: var(--ges-text-2); }
+
 .ges-ticket__foot {
     padding: 0.7rem var(--gutter) calc(0.9rem + env(safe-area-inset-bottom, 0px));
     border-top: 1px solid var(--ges-line);

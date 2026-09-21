@@ -51,11 +51,19 @@ export const getTicketLineTotal = (line: Pick<ITicketLine, "unitPrice" | "modifi
 /** anulada: se cerró sin cobrar. reembolsada: se cobró y luego se devolvió completa. */
 export type TicketStatus = "abierta" | "cobrada" | "anulada" | "reembolsada";
 
+/** Una de las cuentas abiertas de la mesa, para cambiar entre ellas. */
+export interface ITableAccount {
+    id: number;
+    label: string;
+    customerName: string | null;
+    total: number;
+}
+
 export interface ITicket {
     id: number;
     /** Null en una cuenta para llevar. */
     tableNumber: number | null;
-    /** A nombre de quien va la cuenta para llevar (opcional). */
+    /** A nombre de quién va la cuenta: opcional en las de para llevar y en las de una mesa con varias. */
     customerName: string | null;
     status: TicketStatus;
     openedByName: string;
@@ -65,6 +73,8 @@ export interface ITicket {
     loyverseReceiptNumber: string | null;
     receiptPending: boolean;
     lines: ITicketLine[];
+    /** Las cuentas abiertas de la misma mesa, esta incluida. Vacío en las de para llevar. */
+    tableAccounts: ITableAccount[];
 }
 
 export interface ITableSummary {
@@ -75,13 +85,15 @@ export interface ITableSummary {
     total: number;
     items: number;
     pending: number;
+    /** Cuentas abiertas en la mesa. Total, platos y pendientes suman las de todas. */
+    accounts: number;
     openedAt: string | null;
 }
 
-/** "Mesa 3", "Para llevar · Ana" o "Para llevar · #18", igual que en cocina y en el recibo. */
+/** "Mesa 3", "Mesa 3 · Ana", "Para llevar · Ana" o "Para llevar · #18", igual que en cocina y en el recibo. */
 export const getTicketLabel = (ticket: Pick<ITicket, "id" | "tableNumber" | "customerName">) =>
     ticket.tableNumber !== null
-        ? `Mesa ${ticket.tableNumber}`
+        ? `Mesa ${ticket.tableNumber}${ticket.customerName ? ` · ${ticket.customerName}` : ""}`
         : `Para llevar · ${ticket.customerName || `#${ticket.id}`}`;
 
 export interface ICashMovement {
@@ -95,6 +107,8 @@ export interface ICashMovement {
 
 export interface IShift {
     id: number;
+    /** Solo quien abrió el turno lo cierra en caja; si no está, lo cierra el admin. */
+    openedById: number | null;
     openedByName: string;
     openedAt: string;
     startingCash: number;
@@ -274,6 +288,29 @@ export const fetchTables = (token: string, signal?: AbortSignal) =>
 export const openTable = (token: string, tableNumber: number, customerName?: string) =>
     httpPost<{ ticket: ITicket }>("/gestion/caja/mesas", { tableNumber, customerName }, { headers: getGestionHeaders(token) });
 
+/** Otra cuenta en una mesa que ya tiene alguna, para un grupo que paga por separado. */
+export const openTableAccount = (token: string, tableNumber: number, customerName: string) =>
+    httpPost<{ ticket: ITicket }>(
+        `/gestion/caja/mesas/${tableNumber}/cuentas`,
+        { customerName: customerName || null },
+        { headers: getGestionHeaders(token) }
+    );
+
+export const renameTicket = (token: string, ticketId: number, customerName: string) =>
+    httpPost<{ ticket: ITicket }>(
+        `/gestion/caja/cuentas/${ticketId}/nombre`,
+        { customerName: customerName || null },
+        { headers: getGestionHeaders(token) }
+    );
+
+/** Pasa unidades de un plato a otra cuenta de la misma mesa. Devuelve la cuenta de origen. */
+export const moveTicketLine = (token: string, ticketId: number, lineId: number, toTicketId: number, quantity: number) =>
+    httpPost<{ ticket: ITicket }>(
+        `/gestion/caja/cuentas/${ticketId}/lineas/${lineId}/mover`,
+        { toTicketId, quantity },
+        { headers: getGestionHeaders(token) }
+    );
+
 export const fetchTicket = (token: string, ticketId: number, signal?: AbortSignal) =>
     httpGet<{ ticket: ITicket }>(`/gestion/caja/cuentas/${ticketId}`, {
         signal,
@@ -325,8 +362,12 @@ export const refundTicket = (token: string, ticketId: number, reason: string) =>
 
 /* ============ Caja: turno ============ */
 
+/** canClose: solo quien abrió el turno lo cierra en caja. */
 export const fetchShift = (token: string, signal?: AbortSignal) =>
-    httpGet<{ shift: IShiftDetail | null }>("/gestion/caja/turno", { signal, headers: getGestionHeaders(token) });
+    httpGet<{ shift: IShiftDetail | null; canClose: boolean }>("/gestion/caja/turno", {
+        signal,
+        headers: getGestionHeaders(token),
+    });
 
 export const openShift = (token: string, startingCash: number) =>
     httpPost<{ shift: IShiftDetail }>("/gestion/caja/turno", { startingCash }, { headers: getGestionHeaders(token) });

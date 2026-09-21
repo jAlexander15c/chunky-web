@@ -16,16 +16,28 @@ import {
     getTicketLineTotal,
     hasItemAvailableForSale,
     hasItemModifiers,
+    moveTicketLine,
     openTable,
+    openTableAccount,
     payTicket,
     releaseTicket,
+    renameTicket,
     sendTicketToKitchen,
     useCategories,
     useItems,
     useModifiers,
     voidTicket,
 } from "@/helpers";
-import type { ICartModifier, IShiftDetail, ITableSummary, ITicket, ITicketPayment, PaymentMethod } from "@/helpers";
+import type {
+    ICartModifier,
+    IShiftDetail,
+    ITableAccount,
+    ITableSummary,
+    ITicket,
+    ITicketLine,
+    ITicketPayment,
+    PaymentMethod,
+} from "@/helpers";
 import type { IItem } from "@/interfaces";
 
 /** El mapa de mesas se relee solo: dos dispositivos tienen que ver lo mismo. */
@@ -423,6 +435,201 @@ const TogoDialog = ({ onOpen, onClose }: ITogoDialogProps) => {
     );
 };
 
+/* ============ Varias cuentas en una mesa ============ */
+
+/** Cómo se nombra una cuenta dentro de su mesa: su nombre, o "Sin nombre" la primera. */
+const getAccountName = (account: Pick<ITableAccount, "customerName">) => account.customerName || "Sin nombre";
+
+interface INewAccountDialogProps {
+    tableLabel: string;
+    /** La mesa tenía una sola cuenta sin nombre: se ofrece ponérselo de paso. */
+    askCurrentName: boolean;
+    onOpen: (customerName: string, currentName: string) => Promise<void>;
+    onClose: () => void;
+}
+
+const NewAccountDialog = ({ tableLabel, askCurrentName, onOpen, onClose }: INewAccountDialogProps) => {
+    const [customerName, setCustomerName] = useState("");
+    const [currentName, setCurrentName] = useState("");
+    const [error, setError] = useState("");
+    const [isSending, setIsSending] = useState(false);
+
+    const submit = async () => {
+        setIsSending(true);
+        setError("");
+        try {
+            await onOpen(customerName.trim(), currentName.trim());
+        } catch (requestError) {
+            setError(requestError instanceof HttpError ? requestError.message : "No se pudo abrir la cuenta.");
+            setIsSending(false);
+        }
+    };
+
+    return (
+        <div className="ges-modal" role="dialog" aria-modal="true" aria-label={`Nueva cuenta en ${tableLabel}`}>
+            <form
+                className="ges-modal__panel"
+                onSubmit={(event) => {
+                    event.preventDefault();
+                    void submit();
+                }}
+            >
+                <h3 className="script">Nueva cuenta en {getLowerLabel(tableLabel)}</h3>
+                <p className="ges-note">Para un grupo que paga por separado. Cada cuenta se cobra sola.</p>
+                <label className="ges-field">
+                    <span>A nombre de</span>
+                    <input
+                        id="caja-cuenta-nombre"
+                        type="text"
+                        autoFocus
+                        maxLength={40}
+                        autoComplete="off"
+                        value={customerName}
+                        placeholder="Luis"
+                        onChange={(event) => setCustomerName(event.target.value)}
+                    />
+                    <small className="ges-field__hint">Opcional. Sin nombre sale con su número de cuenta.</small>
+                </label>
+                {askCurrentName ? (
+                    <label className="ges-field">
+                        <span>Y la cuenta que ya estaba, a nombre de</span>
+                        <input
+                            id="caja-cuenta-actual"
+                            type="text"
+                            maxLength={40}
+                            autoComplete="off"
+                            value={currentName}
+                            placeholder="Ana"
+                            onChange={(event) => setCurrentName(event.target.value)}
+                        />
+                        <small className="ges-field__hint">Opcional, para distinguirlas en cocina y en el recibo.</small>
+                    </label>
+                ) : null}
+                {error ? <p className="ges-error" role="alert">{error}</p> : null}
+                <div className="ges-modal__acts">
+                    <button type="button" className="ges-btn" onClick={onClose} disabled={isSending}>Cancelar</button>
+                    <button type="submit" className="ges-btn ges-btn--solid" disabled={isSending}>
+                        {isSending ? "Abriendo…" : "Abrir cuenta"}
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
+};
+
+/** A dónde va el plato: otra cuenta de la mesa, o una nueva con este nombre. */
+type IMoveTarget = { ticketId: number } | { newName: string };
+
+interface IMoveDialogProps {
+    line: ITicketLine;
+    fromTotal: number;
+    accounts: ITableAccount[];
+    onMove: (target: IMoveTarget, quantity: number) => Promise<void>;
+    onClose: () => void;
+}
+
+/** Pasa un plato, o parte de sus unidades, a otra cuenta de la misma mesa. */
+const MoveDialog = ({ line, fromTotal, accounts, onMove, onClose }: IMoveDialogProps) => {
+    const [quantity, setQuantity] = useState(1);
+    const [targetId, setTargetId] = useState<number | "new">(accounts[0]?.id ?? "new");
+    const [newName, setNewName] = useState("");
+    const [error, setError] = useState("");
+    const [isSending, setIsSending] = useState(false);
+
+    // Cantidades con decimales (ej. por peso) se pasan completas
+    const isWhole = Number.isInteger(line.quantity);
+    const units = isWhole ? quantity : line.quantity;
+    const amount = roundMoney((getTicketLineTotal(line) / line.quantity) * units);
+    const target = accounts.find((one) => one.id === targetId);
+    const targetName = target ? getAccountName(target) : newName.trim() || "la cuenta nueva";
+
+    const submit = async () => {
+        setIsSending(true);
+        setError("");
+        try {
+            await onMove(targetId === "new" ? { newName: newName.trim() } : { ticketId: targetId }, units);
+        } catch (requestError) {
+            setError(requestError instanceof HttpError ? requestError.message : "No se pudo pasar.");
+            setIsSending(false);
+        }
+    };
+
+    return (
+        <div className="ges-modal" role="dialog" aria-modal="true" aria-label={`Pasar ${line.name}`}>
+            <div className="ges-modal__panel">
+                <h3 className="script">Pasar {line.name}</h3>
+
+                {isWhole && line.quantity > 1 ? (
+                    <div className="ges-field">
+                        <span>Cuántas</span>
+                        <div className="ges-qty">
+                            <button type="button" aria-label="Una menos" disabled={quantity <= 1} onClick={() => setQuantity(quantity - 1)}>−</button>
+                            <b>{quantity}</b>
+                            <button type="button" aria-label="Una más" disabled={quantity >= line.quantity} onClick={() => setQuantity(quantity + 1)}>+</button>
+                            <em>de {line.quantity}</em>
+                        </div>
+                    </div>
+                ) : null}
+
+                <div className="ges-field">
+                    <span>A la cuenta de</span>
+                    <div className="ges-accounts" role="group" aria-label="Cuenta de destino">
+                        {accounts.map((one) => (
+                            <button
+                                key={one.id}
+                                type="button"
+                                className="ges-account-chip"
+                                aria-pressed={targetId === one.id}
+                                onClick={() => setTargetId(one.id)}
+                            >
+                                <b>{getAccountName(one)}</b>
+                                <span>{formatCash(one.total)}</span>
+                            </button>
+                        ))}
+                        <button
+                            type="button"
+                            className="ges-account-chip is-add"
+                            aria-pressed={targetId === "new"}
+                            onClick={() => setTargetId("new")}
+                        >
+                            + Cuenta nueva
+                        </button>
+                    </div>
+                </div>
+
+                {targetId === "new" ? (
+                    <label className="ges-field">
+                        <span>A nombre de</span>
+                        <input
+                            id="caja-pasar-nombre"
+                            type="text"
+                            maxLength={40}
+                            autoComplete="off"
+                            value={newName}
+                            placeholder="Opcional"
+                            onChange={(event) => setNewName(event.target.value)}
+                        />
+                    </label>
+                ) : null}
+
+                <p className="ges-note">
+                    Esta cuenta queda en {formatCash(roundMoney(fromTotal - amount))} y {targetName}{" "}
+                    {target ? `sube a ${formatCash(roundMoney(target.total + amount))}` : `empieza con ${formatCash(amount)}`}.
+                </p>
+
+                {error ? <p className="ges-error" role="alert">{error}</p> : null}
+
+                <div className="ges-modal__acts">
+                    <button type="button" className="ges-btn" onClick={onClose} disabled={isSending}>Cancelar</button>
+                    <button type="button" className="ges-btn ges-btn--solid" onClick={() => void submit()} disabled={isSending}>
+                        {isSending ? "Pasando…" : `Pasar a ${targetName}`}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 /* ============ Caja ============ */
 
 interface IGestionCajaProps {
@@ -443,6 +650,8 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
     const [isReleasing, setIsReleasing] = useState(false);
     const [isConfirmingRelease, setIsConfirmingRelease] = useState(false);
     const [isOpeningTogo, setIsOpeningTogo] = useState(false);
+    const [isOpeningAccount, setIsOpeningAccount] = useState(false);
+    const [moving, setMoving] = useState<ITicketLine | null>(null);
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(true);
 
@@ -543,6 +752,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                 >
                     <span className="ges-table__n">{isTogo ? "Para llevar" : table.label}</span>
                     {isTogo ? <span className="ges-table__who">{table.customerName || `#${table.ticketId}`}</span> : null}
+                    {table.accounts > 1 ? <span className="ges-table__accounts">{table.accounts} cuentas</span> : null}
                     {busy ? (
                         <>
                             <span className="ges-table__t">{formatCash(table.total)}</span>
@@ -606,6 +816,22 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
     const pending = ticket.lines.filter((line) => !line.sentAt);
     const sent = ticket.lines.filter((line) => line.sentAt);
     const label = getTicketLabel(ticket);
+    const tableNumber = ticket.tableNumber;
+    // Una mesa con varias cuentas: los textos hablan de "la cuenta de Ana", no de cerrar la mesa
+    const hasSiblings = ticket.tableAccounts.length > 1;
+    const accountName = getAccountName(ticket);
+    const otherAccounts = ticket.tableAccounts.filter((one) => one.id !== ticket.id);
+
+    /** Tras cobrar o cerrar una cuenta, la siguiente de la mesa; si no queda ninguna, el mapa. */
+    const showNextAccount = async (remaining: ITableAccount[]) => {
+        const next = remaining.find((one) => one.id !== ticket.id);
+        if (next) {
+            await run(() => fetchTicket(token, next.id), "No pudimos abrir la siguiente cuenta.");
+            return;
+        }
+        setTicket(null);
+        await loadTables();
+    };
 
     // Vacía se cierra al tocar; con productos sin enviar pide un segundo toque para no perderlos
     const release = async () => {
@@ -617,9 +843,8 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
         setIsReleasing(true);
         try {
             await releaseTicket(token, ticket.id);
-            setTicket(null);
             setError("");
-            await loadTables();
+            await showNextAccount(otherAccounts);
         } catch (requestError) {
             handleError(requestError, "No pudimos cerrar la mesa.");
         } finally {
@@ -692,7 +917,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
 
                 <aside className="ges-ticket">
                     <div className="ges-ticket__head">
-                        <h2>Cuenta de {getLowerLabel(label)}</h2>
+                        <h2>{tableNumber !== null ? `Mesa ${tableNumber}` : `Cuenta de ${getLowerLabel(label)}`}</h2>
                         <button
                             type="button"
                             className="ges-btn ges-btn--sm"
@@ -704,6 +929,34 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                             Ver mesas
                         </button>
                     </div>
+
+                    {tableNumber !== null ? (
+                        <div className="ges-accounts" role="group" aria-label="Cuentas de la mesa">
+                            {ticket.tableAccounts.map((one) => (
+                                <button
+                                    key={one.id}
+                                    type="button"
+                                    className="ges-account-chip"
+                                    aria-pressed={one.id === ticket.id}
+                                    onClick={() => {
+                                        if (one.id === ticket.id) return;
+                                        void run(() => fetchTicket(token, one.id), "No pudimos abrir esa cuenta.");
+                                    }}
+                                >
+                                    <b>{getAccountName(one)}</b>
+                                    <span>{formatCash(one.id === ticket.id ? ticket.total : one.total)}</span>
+                                </button>
+                            ))}
+                            <button
+                                type="button"
+                                className="ges-account-chip is-add"
+                                disabled={!hasShift}
+                                onClick={() => setIsOpeningAccount(true)}
+                            >
+                                + Cuenta
+                            </button>
+                        </div>
+                    ) : null}
 
                     <div className="ges-ticket__list">
                         {ticket.lines.length === 0 ? (
@@ -736,6 +989,11 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                                                     {line.modifiers.length > 0
                                                         ? line.modifiers.map((one) => one.option).join(", ")
                                                         : `× ${formatCash(line.unitPrice)}`}
+                                                    {tableNumber !== null ? (
+                                                        <button type="button" className="ges-tl__move" onClick={() => setMoving(line)}>
+                                                            Pasar a…
+                                                        </button>
+                                                    ) : null}
                                                 </small>
                                             </div>
                                         ))}
@@ -752,6 +1010,11 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                                                 <small>
                                                     <em>{formatQuantity(line.quantity)}</em> × {formatCash(line.unitPrice)}
                                                     {line.modifiers.length > 0 ? ` · ${line.modifiers.map((one) => one.option).join(", ")}` : ""}
+                                                    {tableNumber !== null ? (
+                                                        <button type="button" className="ges-tl__move" onClick={() => setMoving(line)}>
+                                                            Pasar a…
+                                                        </button>
+                                                    ) : null}
                                                 </small>
                                             </div>
                                         ))}
@@ -763,7 +1026,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
 
                     <div className="ges-ticket__foot">
                         <div className="ges-total">
-                            <span>Total</span>
+                            <span>{hasSiblings ? `Cuenta de ${accountName}` : "Total"}</span>
                             <b>{formatCash(ticket.total)}</b>
                         </div>
 
@@ -782,7 +1045,11 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                             disabled={ticket.lines.length === 0 || !hasShift}
                             onClick={() => setIsPaying(true)}
                         >
-                            {hasShift ? "Cobrar y cerrar la mesa" : "Abre el turno primero"}
+                            {!hasShift
+                                ? "Abre el turno primero"
+                                : hasSiblings
+                                  ? `Cobrar la cuenta de ${accountName}`
+                                  : "Cobrar y cerrar la mesa"}
                         </button>
 
                         {/* Sin nada en cocina la mesa se cierra sin motivo; con algo ya enviado se anula */}
@@ -797,7 +1064,9 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                                     ? "Cerrando…"
                                     : isConfirmingRelease
                                       ? `Sí, cerrar y borrar ${pending.length} ${pending.length === 1 ? "producto" : "productos"}`
-                                      : "Cerrar la mesa"}
+                                      : hasSiblings
+                                        ? `Cerrar la cuenta de ${accountName}`
+                                        : "Cerrar la mesa"}
                             </button>
                         ) : (
                             <button
@@ -836,8 +1105,41 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                     onVoid={async (reason) => {
                         await voidTicket(token, ticket.id, reason);
                         setIsVoiding(false);
-                        setTicket(null);
-                        await loadTables();
+                        await showNextAccount(otherAccounts);
+                    }}
+                />
+            ) : null}
+
+            {isOpeningAccount && tableNumber !== null ? (
+                <NewAccountDialog
+                    tableLabel={`Mesa ${tableNumber}`}
+                    askCurrentName={ticket.tableAccounts.length === 1 && !ticket.customerName}
+                    onClose={() => setIsOpeningAccount(false)}
+                    onOpen={async (customerName, currentName) => {
+                        if (currentName) await renameTicket(token, ticket.id, currentName);
+                        const data = await openTableAccount(token, tableNumber, customerName);
+                        setTicket(data.ticket);
+                        setIsOpeningAccount(false);
+                        setError("");
+                    }}
+                />
+            ) : null}
+
+            {moving && tableNumber !== null ? (
+                <MoveDialog
+                    line={moving}
+                    fromTotal={ticket.total}
+                    accounts={otherAccounts}
+                    onClose={() => setMoving(null)}
+                    onMove={async (target, quantity) => {
+                        const toTicketId =
+                            "ticketId" in target
+                                ? target.ticketId
+                                : (await openTableAccount(token, tableNumber, target.newName)).ticket.id;
+                        const data = await moveTicketLine(token, ticket.id, moving.id, toTicketId, quantity);
+                        setTicket(data.ticket);
+                        setMoving(null);
+                        setError("");
                     }}
                 />
             ) : null}
@@ -847,10 +1149,10 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                     ticket={ticket}
                     onClose={() => setIsPaying(false)}
                     onPay={async (payments) => {
-                        await payTicket(token, ticket.id, payments);
+                        // Trae las cuentas que siguen abiertas en la mesa: se salta a la siguiente
+                        const data = await payTicket(token, ticket.id, payments);
                         setIsPaying(false);
-                        setTicket(null);
-                        await loadTables();
+                        await showNextAccount(data.ticket.tableAccounts);
                     }}
                 />
             ) : null}

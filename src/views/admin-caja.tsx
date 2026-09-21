@@ -4,13 +4,16 @@ import type { FormEvent } from "react";
 import {
     FUND_MOVEMENT_LABEL,
     HttpError,
+    closeAdminShift,
     fetchAdminFund,
+    fetchAdminShift,
     fetchShifts,
+    formatClock,
     formatMoney,
     registerAdminFundMovement,
     setTablesCount,
 } from "@/helpers";
-import type { IFund, IShiftRow, ManualFundMovementType } from "@/helpers";
+import type { IFund, IShiftDetail, IShiftRow, ManualFundMovementType } from "@/helpers";
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
 
@@ -154,6 +157,10 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
     const [shifts, setShifts] = useState<IShiftRow[]>([]);
     const [fund, setFund] = useState<IFund | null>(null);
     const [fundMovement, setFundMovement] = useState<ManualFundMovementType | null>(null);
+    // El turno en curso: el admin lo cierra si quien lo abrió ya no está
+    const [openShift, setOpenShift] = useState<IShiftDetail | null>(null);
+    const [counted, setCounted] = useState("");
+    const [isClosing, setIsClosing] = useState(false);
     const [tables, setTables] = useState(0);
     const [draftTables, setDraftTables] = useState("");
     const [error, setError] = useState("");
@@ -162,9 +169,14 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
     const load = useCallback(
         async (signal?: AbortSignal) => {
             try {
-                const [data, fundData] = await Promise.all([fetchShifts(token, signal), fetchAdminFund(token, signal)]);
+                const [data, fundData, current] = await Promise.all([
+                    fetchShifts(token, signal),
+                    fetchAdminFund(token, signal),
+                    fetchAdminShift(token, signal),
+                ]);
                 setShifts(data.shifts);
                 setFund(fundData.fund);
+                setOpenShift(current.shift);
                 setTables(data.tables);
                 setDraftTables(String(data.tables));
                 setError("");
@@ -202,6 +214,24 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
         }
     };
 
+    const countedValue = counted.trim() === "" ? NaN : Number(counted.replace(",", "."));
+    const hasCounted = Number.isFinite(countedValue) && countedValue >= 0;
+
+    const closeShift = async () => {
+        if (!hasCounted) return;
+        setIsClosing(true);
+        try {
+            await closeAdminShift(token, roundMoney(countedValue));
+            setCounted("");
+            await load();
+        } catch (requestError) {
+            if (requestError instanceof HttpError && requestError.status === 401) return onSessionExpired();
+            setError(requestError instanceof HttpError ? requestError.message : "No pudimos cerrar el turno.");
+        } finally {
+            setIsClosing(false);
+        }
+    };
+
     return (
         <section className="adm-band">
             <div className="adm-band__head">
@@ -209,6 +239,56 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
                 <span className="adm-band__sub">Cierres de turno, fondo aparte y cuántas mesas hay</span>
                 <span className="adm-src is-own">Postgres</span>
             </div>
+
+            {openShift ? (
+                <div className="adm-card">
+                    <div className="adm-card-head">
+                        <div className="grow">
+                            <h3 className="script">Turno en curso</h3>
+                            <p className="adm-note">
+                                Lo abrió {openShift.openedByName} a las {formatClock(openShift.openedAt)}. En caja solo esa
+                                persona puede cerrarlo; si ya no está, ciérralo aquí contando el efectivo del cajón.
+                            </p>
+                        </div>
+                        <div className="adm-fund__bal">
+                            <span>Efectivo esperado</span>
+                            <b>{formatMoney(openShift.expected)}</b>
+                        </div>
+                    </div>
+                    <div className="adm-close">
+                        <label className="adm-form__row">
+                            <span>Efectivo contado <em>(obligatorio)</em></span>
+                            <input
+                                id="admin-turno-contado"
+                                className="adm-form__input"
+                                type="text"
+                                inputMode="decimal"
+                                placeholder="0.00"
+                                value={counted}
+                                onChange={(event) => setCounted(event.target.value)}
+                            />
+                        </label>
+                        <button
+                            type="button"
+                            className="adm-btn adm-btn--solid"
+                            disabled={!hasCounted || isClosing}
+                            onClick={() => void closeShift()}
+                        >
+                            {isClosing ? "Cerrando…" : `Cerrar el turno de ${openShift.openedByName}`}
+                        </button>
+                    </div>
+                    {hasCounted ? (
+                        <p className="adm-note">
+                            {Math.abs(countedValue - openShift.expected) < 0.005
+                                ? "Cuadra."
+                                : countedValue > openShift.expected
+                                  ? `Sobran ${formatMoney(roundMoney(countedValue - openShift.expected))}.`
+                                  : `Faltan ${formatMoney(roundMoney(openShift.expected - countedValue))}.`}{" "}
+                            Lo contado pasa al fondo aparte y el cierre queda firmado como Admin.
+                        </p>
+                    ) : null}
+                </div>
+            ) : null}
 
             <div className="adm-card">
                 <div className="adm-card-head">

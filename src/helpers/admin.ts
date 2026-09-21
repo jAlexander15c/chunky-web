@@ -1,4 +1,5 @@
 import { httpGet, httpPost, httpPut } from "./getHttp";
+import type { IShiftDetail } from "./gestion";
 
 export type SupplyState = "comprar" | "pedir" | "contar" | "bien";
 export type ProductState = "agotado" | "poco" | "disponible" | "sin-control";
@@ -271,7 +272,14 @@ export const fetchShifts = (token: string, signal?: AbortSignal) =>
 export const setTablesCount = (token: string, tables: number) =>
     httpPost<{ tables: number }>("/admin/tables", { tables }, { headers: getAdminHeaders(token) });
 
-export const fetchAdminFund = (token: string, signal?: AbortSignal) =>
+/** El turno en curso, para cerrarlo desde el tablero si quien lo abrió ya no está. */
+export const fetchAdminShift = (token: string, signal?: AbortSignal) =>
+    httpGet<{ shift: IShiftDetail | null; canClose: boolean }>("/admin/shift", { signal, headers: getAdminHeaders(token) });
+
+export const closeAdminShift = (token: string, countedCash: number) =>
+    httpPost<{ shift: IShiftDetail }>("/admin/shift/close", { countedCash }, { headers: getAdminHeaders(token) });
+
+export const fetchAdminFund =(token: string, signal?: AbortSignal) =>
     httpGet<{ fund: IFund }>("/admin/fund?limit=100", { signal, headers: getAdminHeaders(token) });
 
 export const registerAdminFundMovement = (token: string, movement: IFundMovementInput) =>

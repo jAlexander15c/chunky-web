@@ -423,6 +423,8 @@ export const GestionTurno = ({ token, onSessionExpired, onShiftChange }: IGestio
     const [movement, setMovement] = useState<"entrada" | "salida" | null>(null);
     const [fundMovement, setFundMovement] = useState<ManualFundMovementType | null>(null);
     const [refunding, setRefunding] = useState<IShiftTicket | null>(null);
+    // Solo quien abrió el turno lo cierra: lo decide la API según la sesión
+    const [canClose, setCanClose] = useState(false);
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(true);
     const [isSending, setIsSending] = useState(false);
@@ -448,6 +450,7 @@ export const GestionTurno = ({ token, onSessionExpired, onShiftChange }: IGestio
             try {
                 const [shiftData, fundData] = await Promise.all([fetchShift(token, signal), fetchFund(token, signal)]);
                 apply(shiftData.shift);
+                setCanClose(shiftData.canClose);
                 setFund(fundData.fund);
                 setError("");
             } catch (requestError) {
@@ -562,6 +565,7 @@ export const GestionTurno = ({ token, onSessionExpired, onShiftChange }: IGestio
                                 setIsSending(true);
                                 try {
                                     apply((await openShift(token, roundMoney(startingValue))).shift);
+                                    setCanClose(true);
                                     setError("");
                                     await reloadFund();
                                 } catch (requestError) {
@@ -667,69 +671,83 @@ export const GestionTurno = ({ token, onSessionExpired, onShiftChange }: IGestio
             <div className="ges-cards__two">
                 <section className="ges-card">
                     <h2>Cerrar caja</h2>
-                    <label className="ges-field">
-                        <span>
-                            Efectivo contado <span className="ges-field__req">(obligatorio)</span>
-                        </span>
-                        <input
-                            id="turno-contado"
-                            type="text"
-                            inputMode="decimal"
-                            required
-                            aria-required="true"
-                            value={counted}
-                            placeholder="0.00"
-                            onChange={(event) => setCounted(event.target.value)}
-                        />
-                    </label>
+                    {!canClose ? (
+                        <>
+                            <p className="ges-note">
+                                Este turno lo abrió <b>{shift.openedByName}</b> a las {formatClock(shift.openedAt)}: solo
+                                esa persona puede cerrarlo. Si ya no está, lo cierra el admin desde el tablero.
+                            </p>
+                            <button type="button" className="ges-btn ges-btn--solid ges-btn--block" disabled>
+                                Cerrar el turno
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <label className="ges-field">
+                                <span>
+                                    Efectivo contado <span className="ges-field__req">(obligatorio)</span>
+                                </span>
+                                <input
+                                    id="turno-contado"
+                                    type="text"
+                                    inputMode="decimal"
+                                    required
+                                    aria-required="true"
+                                    value={counted}
+                                    placeholder="0.00"
+                                    onChange={(event) => setCounted(event.target.value)}
+                                />
+                            </label>
 
-                    {difference !== null ? (
-                        <div className={`ges-diff${Math.abs(difference) < 0.005 ? " is-ok" : " is-bad"}`}>
-                            <span>{Math.abs(difference) < 0.005 ? "Cuadra" : difference > 0 ? "Sobra" : "Falta"}</span>
-                            <b>{formatCash(Math.abs(difference))}</b>
-                        </div>
-                    ) : null}
+                            {difference !== null ? (
+                                <div className={`ges-diff${Math.abs(difference) < 0.005 ? " is-ok" : " is-bad"}`}>
+                                    <span>{Math.abs(difference) < 0.005 ? "Cuadra" : difference > 0 ? "Sobra" : "Falta"}</span>
+                                    <b>{formatCash(Math.abs(difference))}</b>
+                                </div>
+                            ) : null}
 
-                    {!hasCounted ? (
-                        <p className="ges-field__hint">Cuenta el efectivo del cajón y escríbelo para poder cerrar.</p>
-                    ) : null}
+                            {!hasCounted ? (
+                                <p className="ges-field__hint">Cuenta el efectivo del cajón y escríbelo para poder cerrar.</p>
+                            ) : null}
 
-                    {fund && hasCounted ? (
-                        <div className="ges-from">
-                            <span>Pasa al fondo aparte · quedará</span>
-                            <b>{formatCash(roundMoney(fund.balance + countedValue))}</b>
-                        </div>
-                    ) : null}
+                            {fund && hasCounted ? (
+                                <div className="ges-from">
+                                    <span>Pasa al fondo aparte · quedará</span>
+                                    <b>{formatCash(roundMoney(fund.balance + countedValue))}</b>
+                                </div>
+                            ) : null}
 
-                    <p className="ges-note">
-                        Se esperan {formatCash(shift.expected)}. Al cerrar, la cifra queda guardada tal cual, lo
-                        contado pasa al fondo aparte y el turno no se puede reabrir. Si hay mesas sin cobrar, el
-                        cierre no deja.
-                    </p>
+                            <p className="ges-note">
+                                Se esperan {formatCash(shift.expected)}. Al cerrar, la cifra queda guardada tal cual, lo
+                                contado pasa al fondo aparte y el turno no se puede reabrir. Si hay mesas sin cobrar, el
+                                cierre no deja.
+                            </p>
 
-                    <button
-                        type="button"
-                        className="ges-btn ges-btn--solid ges-btn--block"
-                        // Sin cifra no se cierra: un campo vacío no es "contado cero"
-                        disabled={!hasCounted || isSending}
-                        onClick={async () => {
-                            if (!hasCounted) return;
-                            setIsSending(true);
-                            try {
-                                await closeShift(token, roundMoney(countedValue));
-                                setCounted("");
-                                apply(null);
-                                setError("");
-                                await reloadFund();
-                            } catch (requestError) {
-                                handleError(requestError, "No pudimos cerrar el turno.");
-                            } finally {
-                                setIsSending(false);
-                            }
-                        }}
-                    >
-                        {isSending ? "Cerrando…" : "Cerrar el turno"}
-                    </button>
+                            <button
+                                type="button"
+                                className="ges-btn ges-btn--solid ges-btn--block"
+                                // Sin cifra no se cierra: un campo vacío no es "contado cero"
+                                disabled={!hasCounted || isSending}
+                                onClick={async () => {
+                                    if (!hasCounted) return;
+                                    setIsSending(true);
+                                    try {
+                                        await closeShift(token, roundMoney(countedValue));
+                                        setCounted("");
+                                        apply(null);
+                                        setError("");
+                                        await reloadFund();
+                                    } catch (requestError) {
+                                        handleError(requestError, "No pudimos cerrar el turno.");
+                                    } finally {
+                                        setIsSending(false);
+                                    }
+                                }}
+                            >
+                                {isSending ? "Cerrando…" : "Cerrar el turno"}
+                            </button>
+                        </>
+                    )}
                 </section>
 
                 {fundCard}
