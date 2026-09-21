@@ -58,6 +58,10 @@ const KitchenTicket = ({ order, now, onStep }: { order: IKitchenOrder; now: numb
     const minutes = getMinutesSince(isReady ? order.readyAt : isNew ? order.paidAt : order.acceptedAt, now);
     const isLate = !isNew && !isReady && minutes >= KITCHEN_LATE_MINUTES;
     const timeLabel = isReady ? "listo hace" : isNew ? "hace" : "preparando";
+    // Las comandas de la caja no traen telefono: sin esto la tarjeta rompia y la pantalla quedaba en blanco
+    const contactPhone = order.whatsappPhone
+        ? `WhatsApp ${formatPhone(order.whatsappPhone)}`
+        : order.customerPhone ? `Tel ${formatPhone(order.customerPhone)}` : null;
 
     return (
         <article className={`kitchen-ticket ${isNew ? "kitchen-ticket--new" : ""} ${isReady ? "kitchen-ticket--ready" : ""}`}>
@@ -95,10 +99,12 @@ const KitchenTicket = ({ order, now, onStep }: { order: IKitchenOrder; now: numb
             )}
             {order.note && <p className="kitchen-ticket__note">Nota: {order.note}</p>}
             <div className="kitchen-ticket__meta">
-                <span>{order.id} · {formatPrice(order.total)} Yappy · {formatClock(order.paidAt)}</span>
                 <span>
-                    {order.whatsappPhone ? `WhatsApp ${formatPhone(order.whatsappPhone)}` : `Tel ${formatPhone(order.customerPhone)}`}
+                    {order.channel === "mesa"
+                        ? `Caja · ${formatClock(order.paidAt)}`
+                        : `${order.id} · ${formatPrice(order.total)} Yappy · ${formatClock(order.paidAt)}`}
                 </span>
+                {contactPhone ? <span>{contactPhone}</span> : null}
             </div>
             <button type="button" className={`kitchen-ticket__action kitchen-ticket__action--${step}`} onClick={() => onStep(order, step)}>
                 {STEP_ACTION[step]}

@@ -4,8 +4,11 @@ import type { IPastaOptions } from "./pasta";
 export interface IKitchenOrder {
     id: string;
     customerName: string;
-    customerPhone: string;
+    // Las comandas de la caja (mesas y para llevar) llegan sin telefono
+    customerPhone: string | null;
     whatsappPhone: string | null;
+    // web: pagado con Yappy desde la pagina · mesa: enviado desde la caja de /gestion
+    channel?: "web" | "mesa";
     note: string | null;
     lines: { name: string; quantity: number; options?: IPastaOptions; modifiers?: { name: string; option: string }[] }[];
     // Solo el dia de pasta. mapUrl ya viene armado por el API (coordenadas o busqueda de la direccion)
