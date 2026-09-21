@@ -1,0 +1,408 @@
+/* Cotizaciones de cakes para el equipo (/admin y /gestion). Solo usa los tokens de index.css
+   y .script de App.css, así se ve igual dentro de los dos armazones. */
+
+.qp {
+    --qp-panel: #fffef6;
+    --qp-panel-2: #f6f2df;
+    --qp-line: #e4dec6;
+    --qp-good: #2f6f4c;
+    --qp-good-bg: #dfeee4;
+    --qp-warn: #8d5d0c;
+    --qp-warn-bg: #f8e9c9;
+    --qp-crit: #a33a2a;
+    --qp-crit-bg: #f6ddd7;
+
+    display: grid;
+    gap: 1.1rem;
+    min-width: 0;
+}
+
+/* ============ Filtros ============ */
+
+.qp-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.qp-filters button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 40px;
+    padding: 0.35rem 0.9rem;
+    border: 2px solid var(--qp-line);
+    border-radius: var(--radius-pill);
+    background: transparent;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-soft);
+    cursor: pointer;
+    transition: background-color 150ms var(--ease-out), color 150ms var(--ease-out);
+}
+
+.qp-filters button[aria-pressed="true"] {
+    background: var(--mora);
+    border-color: var(--mora);
+    color: var(--crema);
+}
+
+.qp-filters__n {
+    font-variant-numeric: tabular-nums;
+    opacity: 0.8;
+}
+
+.qp-error {
+    margin: 0;
+    padding: 0.7rem 0.9rem;
+    border-radius: 12px;
+    background: var(--qp-crit-bg);
+    color: var(--qp-crit);
+    font-weight: 700;
+    font-size: 0.88rem;
+}
+
+.qp-split {
+    display: grid;
+    grid-template-columns: minmax(0, 21rem) minmax(0, 1fr);
+    gap: 1.4rem;
+    align-items: start;
+}
+
+@media (max-width: 1000px) {
+    .qp-split {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* ============ Lista ============ */
+
+.qp-list {
+    display: grid;
+    gap: 0.6rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.qp-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.8rem;
+    align-items: center;
+    width: 100%;
+    padding: 0.75rem 0.9rem;
+    border: 2px solid var(--qp-line);
+    border-radius: 16px;
+    background: var(--qp-panel);
+    font: inherit;
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 150ms var(--ease-out), background-color 150ms var(--ease-out);
+}
+
+.qp-row[aria-current="true"] {
+    border-color: var(--mora);
+    background: var(--mantequilla);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .qp-row:not([aria-current="true"]):hover {
+        border-color: var(--mora);
+    }
+}
+
+.qp-row__main {
+    display: grid;
+    min-width: 0;
+}
+
+.qp-row__main b,
+.qp-row__main small {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.qp-row__main b {
+    font-weight: 800;
+}
+
+.qp-row__main small {
+    font-size: 0.8rem;
+    color: var(--text-soft);
+}
+
+.qp-row__end {
+    display: grid;
+    justify-items: end;
+    gap: 0.2rem;
+}
+
+.qp-row__total {
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.qp-row__code {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-soft);
+}
+
+.qp-empty {
+    margin: 0;
+    padding: 2rem 1rem;
+    border: 2px dashed var(--qp-line);
+    border-radius: 16px;
+    color: var(--text-soft);
+    text-align: center;
+}
+
+/* ============ Detalle ============ */
+
+.qp-detail {
+    display: grid;
+    gap: 1.3rem;
+    min-width: 0;
+    padding: 1.3rem clamp(1rem, 2.5vw, 1.6rem);
+    border-radius: var(--radius-panel);
+    background: var(--qp-panel);
+    box-shadow: 0 18px 34px -26px rgb(var(--shadow-tint) / 0.7);
+}
+
+.qp-detail--empty {
+    place-items: center;
+    min-height: 12rem;
+    color: var(--text-soft);
+}
+
+.qp-detail__head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.6rem 1rem;
+}
+
+.qp-detail__code {
+    font-size: 2.1rem;
+    line-height: 1;
+    color: var(--mora);
+}
+
+.qp-detail__head p {
+    margin: 0.25rem 0 0;
+    font-size: 0.85rem;
+    color: var(--text-soft);
+}
+
+.qp-pill {
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    border-radius: var(--radius-pill);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.qp-pill--nueva { background: var(--qp-warn-bg); color: var(--qp-warn); }
+.qp-pill--confirmada { background: var(--sky); color: var(--mora); }
+.qp-pill--entregada { background: var(--qp-good-bg); color: var(--qp-good); }
+.qp-pill--cancelada { background: var(--qp-crit-bg); color: var(--qp-crit); }
+
+.qp-photos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: 0.8rem;
+}
+
+.qp-photo {
+    display: grid;
+    gap: 0.4rem;
+    margin: 0;
+}
+
+.qp-photo figcaption,
+.qp-h {
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-soft);
+}
+
+.qp-h {
+    margin-bottom: 0.5rem;
+}
+
+.qp-photo__frame {
+    display: block;
+    aspect-ratio: 1;
+    max-width: 100%;
+    overflow: hidden;
+    border: 2px solid var(--qp-line);
+    border-radius: 16px;
+    background: var(--sky);
+}
+
+.qp-photo__frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.qp-photo__none {
+    display: grid;
+    place-items: center;
+    font-size: 0.85rem;
+    color: var(--text-soft);
+}
+
+.qp-cols {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.3rem;
+}
+
+@media (max-width: 640px) {
+    .qp-cols {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.qp-spec {
+    display: grid;
+    gap: 0.45rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.92rem;
+}
+
+.qp-spec li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    align-items: baseline;
+    padding-bottom: 0.45rem;
+    border-bottom: 1px dashed var(--qp-line);
+}
+
+.qp-spec li span:last-child {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.qp-spec li span.is-free {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--qp-good);
+}
+
+.qp-spec .qp-spec__sum {
+    padding-top: 0.2rem;
+    border-bottom: 0;
+    font-size: 1.05rem;
+    font-weight: 800;
+}
+
+.qp-client {
+    display: grid;
+    gap: 0.55rem;
+    margin: 0;
+    font-size: 0.92rem;
+}
+
+.qp-client dt {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-soft);
+}
+
+.qp-client dd {
+    margin: 0;
+}
+
+.qp-note {
+    margin: 0;
+    padding: 0.7rem 0.9rem;
+    border-radius: 12px;
+    background: var(--qp-panel-2);
+    font-size: 0.9rem;
+    white-space: pre-wrap;
+}
+
+.qp-changed {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-soft);
+}
+
+.qp-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--qp-line);
+}
+
+.qp-actions__end {
+    margin-left: auto;
+}
+
+.qp-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0.45rem 1.1rem;
+    border: 2px solid var(--sky);
+    border-radius: var(--radius-pill);
+    background: transparent;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: var(--text-soft);
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: transform 160ms var(--ease-out), background-color 150ms var(--ease-out);
+}
+
+.qp-btn:active:not(:disabled) {
+    transform: scale(0.97);
+}
+
+.qp-btn:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+
+.qp-btn--solid {
+    background: var(--mora);
+    border-color: var(--mora);
+    color: var(--crema);
+}
+
+.qp-btn--danger {
+    border-color: var(--qp-crit-bg);
+    color: var(--qp-crit);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .qp-btn:hover:not(:disabled) { background: var(--sky); }
+    .qp-btn--solid:hover:not(:disabled) { background: var(--ink); }
+    .qp-btn--danger:hover:not(:disabled) { background: var(--qp-crit-bg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .qp *,
+    .qp *::before {
+        transition: none !important;
+    }
+}

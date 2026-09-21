@@ -62,13 +62,14 @@ export interface IMovement {
 }
 
 /** Una persona puede tener varios: quien cuenta insumos también puede estar en caja. */
-export type CollaboratorRole = "inventario" | "caja";
+export type CollaboratorRole = "inventario" | "caja" | "pastelera";
 
-export const COLLABORATOR_ROLES: CollaboratorRole[] = ["inventario", "caja"];
+export const COLLABORATOR_ROLES: CollaboratorRole[] = ["inventario", "caja", "pastelera"];
 
 export const ROLE_LABEL: Record<CollaboratorRole, string> = {
     inventario: "Inventario",
     caja: "Caja",
+    pastelera: "Pastelera",
 };
 
 export interface ICollaborator {

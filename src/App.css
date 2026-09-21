@@ -1118,6 +1118,12 @@ main {
   gap: 1.25rem;
 }
 
+.closing__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
 .closing__mascot {
   width: 118px;
   transform: rotate(-8deg);

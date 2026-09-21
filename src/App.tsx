@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router";
 
 import { Cart, CartButton, CartProvider, PastaBuilder, PastaBuilderProvider, SiteFooter, SiteHeader } from "@/components";
-import { AdminView, GestionView, Home, Items, KitchenView, Mantenimiento, Menu, OrderStatusView } from "@/views";
+import { AdminView, Cotizador, GestionView, Home, Items, KitchenView, Mantenimiento, Menu, OrderStatusView } from "@/views";
 import { useWwwRedirect } from "@/hooks/useWwwRedirect";
 
 import './App.css'
@@ -61,6 +61,8 @@ const App = () => {
           <Route path="/menu" element={<Menu />} />
           <Route path="/items" element={<Items />} />
           <Route path="/pedido/:orderId" element={<OrderStatusView />} />
+          {/* Cotizador de cakes: no es carrito, se guarda en el API y se sigue por WhatsApp */}
+          <Route path="/cotizador" element={<Cotizador />} />
           <Route path="*" element={<Home />} />
         </Route>
       </Routes>

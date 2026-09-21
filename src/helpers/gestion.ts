@@ -1,3 +1,4 @@
+import { COLLABORATOR_ROLES } from "./admin";
 import type { CollaboratorRole, IMovement, IProductStatus, ISupplyStatus } from "./admin";
 import { httpGet, httpPost } from "./getHttp";
 
@@ -124,7 +125,7 @@ export const getGestionRoles = (): CollaboratorRole[] => {
     try {
         const raw = window.localStorage.getItem(GESTION_ROLES_STORAGE_KEY);
         const parsed = raw ? JSON.parse(raw) : [];
-        return Array.isArray(parsed) ? parsed.filter((role) => role === "inventario" || role === "caja") : [];
+        return Array.isArray(parsed) ? parsed.filter((role) => COLLABORATOR_ROLES.includes(role)) : [];
     } catch {
         return [];
     }

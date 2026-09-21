@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
+import { QuotesPanel } from "@/components";
 import {
     HttpError,
+    ROLE_LABEL,
     formatCash,
     getGestionName,
     getGestionRoles,
@@ -122,7 +124,7 @@ const GestionLogin = ({ onLogin }: IGestionLoginProps) => {
 
 /* ============ Armazón ============ */
 
-type Section = "caja" | "turno" | "inventario";
+type Section = "caja" | "turno" | "inventario" | "cotizaciones";
 
 interface ISectionInfo {
     id: Section;
@@ -169,6 +171,18 @@ const SECTIONS: ISectionInfo[] = [
             </svg>
         ),
     },
+    {
+        id: "cotizaciones",
+        label: "Cotizaciones",
+        role: "pastelera",
+        sub: "Cakes que piden los clientes desde la web, con sus fotos",
+        icon: (
+            <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 21V11h16v10M2 11h20M12 11V7" />
+                <circle cx="12" cy="5" r="2" />
+            </svg>
+        ),
+    },
 ];
 
 interface IGestionShellProps {
@@ -193,7 +207,7 @@ const GestionShell = ({ token, name, roles, onLogout }: IGestionShellProps) => {
                 <div className="ges-gate__panel">
                     <span className="ges-gate__mark script">Gestión</span>
                     <h1>Sin permisos</h1>
-                    <p>Tu PIN funciona, pero todavía no tiene ninguna sección asignada. Pídele al administrador que te dé caja o inventario.</p>
+                    <p>Tu PIN funciona, pero todavía no tiene ninguna sección asignada. Pídele al administrador que te dé caja, inventario o pastelería.</p>
                     <button type="button" className="ges-btn ges-btn--block" onClick={onLogout}>Salir</button>
                 </div>
             </div>
@@ -218,7 +232,7 @@ const GestionShell = ({ token, name, roles, onLogout }: IGestionShellProps) => {
                 ))}
                 <div className="ges-nav__foot">
                     {name || "equipo"}
-                    <span>{roles.map((role) => (role === "caja" ? "Caja" : "Inventario")).join(" · ") || "sin permisos"}</span>
+                    <span>{roles.map((role) => ROLE_LABEL[role]).join(" · ") || "sin permisos"}</span>
                 </div>
             </nav>
 
@@ -244,6 +258,10 @@ const GestionShell = ({ token, name, roles, onLogout }: IGestionShellProps) => {
                         <GestionCaja token={token} onSessionExpired={onLogout} onShiftChange={setShift} />
                     ) : current.id === "turno" ? (
                         <GestionTurno token={token} onSessionExpired={onLogout} onShiftChange={setShift} />
+                    ) : current.id === "cotizaciones" ? (
+                        <div className="ges-quotes">
+                            <QuotesPanel area="gestion" token={token} onSessionExpired={onLogout} />
+                        </div>
                     ) : (
                         <GestionInventario token={token} onSessionExpired={onLogout} />
                     )}

@@ -269,6 +269,9 @@
 
 .ges-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
+/* Las cotizaciones no traen margen propio: lo pone el armazón que las muestra */
+.ges-quotes { padding: 1rem var(--gutter) 2.5rem; }
+
 /* ============ Pestañas ============ */
 
 .ges-tabs {

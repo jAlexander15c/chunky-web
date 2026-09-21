@@ -13,3 +13,4 @@ export * from "./sound";
 export * from "./order-notify";
 export * from "./admin";
 export * from "./gestion";
+export * from "./quote";

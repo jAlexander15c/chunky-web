@@ -6,3 +6,4 @@ export * from "./order-status";
 export * from "./kitchen";
 export * from "./admin";
 export * from "./gestion";
+export * from "./cotizador";

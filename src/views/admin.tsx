@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { FormEvent } from "react";
+import type { FormEvent, ReactNode } from "react";
 
-import { AmountDialog } from "@/components";
+import { AmountDialog, QuotesPanel } from "@/components";
 import {
     HttpError,
     SUPPLY_CATEGORY_LABEL,
     createSupply,
     fetchDashboard,
+    fetchQuotes,
     fetchMovements,
     fetchProducts,
     fetchSupplies,
@@ -532,6 +533,70 @@ type PendingAction =
 
 type SupplyFilter = SupplyCategory | "todos";
 
+/* ============ Menú ============ */
+
+type AdminSection = "tablero" | "cotizaciones" | "caja" | "colaboradores";
+
+const ADMIN_SECTIONS: { id: AdminSection; label: string; icon: ReactNode }[] = [
+    {
+        id: "tablero",
+        label: "Tablero",
+        icon: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
+    },
+    {
+        id: "cotizaciones",
+        label: "Cotizaciones",
+        icon: (
+            <>
+                <path d="M4 21V11h16v10M2 11h20M12 11V7" />
+                <circle cx="12" cy="5" r="2" />
+            </>
+        ),
+    },
+    {
+        id: "caja",
+        label: "Caja",
+        icon: (
+            <>
+                <rect x="2" y="7" width="20" height="13" rx="2" />
+                <path d="M6 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2M2 12h20" />
+            </>
+        ),
+    },
+    {
+        id: "colaboradores",
+        label: "Colaboradores",
+        icon: (
+            <>
+                <circle cx="9" cy="8" r="3.5" />
+                <path d="M2 20c0-3.5 3-6 7-6s7 2.5 7 6M17 5a3.2 3.2 0 0 1 0 6M22 20c0-2.8-1.6-4.7-4-5.6" />
+            </>
+        ),
+    },
+];
+
+/** Cuántas cotizaciones esperan respuesta, para el contador del menú aunque se esté en otra sección. */
+const useNewQuotesCount = (token: string) => {
+    const [count, setCount] = useState(0);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        const load = () =>
+            fetchQuotes("admin", token, "nueva", controller.signal)
+                .then((data) => setCount(data.counts.nueva))
+                .catch(() => undefined);
+
+        void load();
+        const timer = window.setInterval(() => void load(), REFRESH_MS);
+        return () => {
+            controller.abort();
+            window.clearInterval(timer);
+        };
+    }, [token]);
+
+    return [count, setCount] as const;
+};
+
 const SUPPLY_FILTERS: SupplyFilter[] = ["todos", "alimento", "limpieza", "mantenimiento"];
 
 /* ============ Tablero ============ */
@@ -548,6 +613,8 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
     const [pending, setPending] = useState<PendingAction | null>(null);
     const [isCreatingSupply, setIsCreatingSupply] = useState(false);
     const [supplyFilter, setSupplyFilter] = useState<SupplyFilter>("todos");
+    const [section, setSection] = useState<AdminSection>("tablero");
+    const [newQuotes, setNewQuotes] = useNewQuotesCount(token);
 
     const loadAll = useCallback(
         async (signal?: AbortSignal) => {
@@ -626,7 +693,17 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
                         Tablero · {dashboard ? new Date(dashboard.serverTime).toLocaleDateString("es-PA", { weekday: "short", day: "numeric", month: "short" }) : ""}
                     </span>
                     {openIncidents > 0 ? (
-                        <a className="adm-btn adm-btn--sm adm-btn--alert" href="#descuadres">
+                        <a
+                            className="adm-btn adm-btn--sm adm-btn--alert"
+                            href="#descuadres"
+                            onClick={(event) => {
+                                if (section === "tablero") return;
+                                // Los descuadres viven en el tablero: primero se abre y luego se baja hasta ellos
+                                event.preventDefault();
+                                setSection("tablero");
+                                window.requestAnimationFrame(() => document.getElementById("descuadres")?.scrollIntoView());
+                            }}
+                        >
                             Descuadres <span className="adm-btn__count">{openIncidents}</span>
                         </a>
                     ) : null}
@@ -638,6 +715,46 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
                 <div className="awning" aria-hidden="true" />
             </header>
 
+            <div className="adm-shell">
+            <nav className="adm-menu" aria-label="Secciones del tablero">
+                {ADMIN_SECTIONS.map((one) => (
+                    <button
+                        key={one.id}
+                        type="button"
+                        className="adm-menu__item"
+                        aria-current={section === one.id}
+                        onClick={() => setSection(one.id)}
+                    >
+                        <svg className="adm-menu__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            {one.icon}
+                        </svg>
+                        {one.label}
+                        {one.id === "cotizaciones" && newQuotes > 0 ? (
+                            <span className="adm-menu__count" aria-label={`${newQuotes} nuevas`}>{newQuotes}</span>
+                        ) : null}
+                    </button>
+                ))}
+            </nav>
+
+            {section === "cotizaciones" ? (
+                <main className="adm-wrap">
+                    <section className="adm-band">
+                        <div className="adm-band__head">
+                            <h2 className="script">Cotizaciones</h2>
+                            <span className="adm-band__sub">Cakes que piden los clientes desde la web, con sus fotos</span>
+                        </div>
+                        <QuotesPanel area="admin" token={token} onSessionExpired={onLogout} onNewCountChange={setNewQuotes} />
+                    </section>
+                </main>
+            ) : section === "caja" ? (
+                <main className="adm-wrap">
+                    <AdminCaja token={token} onSessionExpired={onLogout} />
+                </main>
+            ) : section === "colaboradores" ? (
+                <main className="adm-wrap">
+                    <AdminCollaborators token={token} onSessionExpired={onLogout} />
+                </main>
+            ) : (
             <main className="adm-wrap">
                 {error ? <p className="adm-error">{error}</p> : null}
                 {dashboard?.salesError ? (
@@ -979,9 +1096,9 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
                     </div>
                 </section>
 
-                <AdminCaja token={token} onSessionExpired={onLogout} />
-                <AdminCollaborators token={token} onSessionExpired={onLogout} />
             </main>
+            )}
+            </div>
 
             {isCreatingSupply ? (
                 <SupplyFormDialog

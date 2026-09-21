@@ -212,9 +212,14 @@ export const Home = () => {
                     <h2 className="closing__title">
                         Próxima parada: <span className="script closing__script">tu antojo.</span>
                     </h2>
-                    <Link to="/menu" className="button button--primary button--lg">
-                        Ver el menú <PiArrowRightBold aria-hidden />
-                    </Link>
+                    <div className="closing__actions">
+                        <Link to="/menu" className="button button--primary button--lg">
+                            Ver el menú <PiArrowRightBold aria-hidden />
+                        </Link>
+                        <Link to="/cotizador" className="button button--ghost button--lg">
+                            Cotiza tu cake
+                        </Link>
+                    </div>
                 </div>
             </section>
         </main>

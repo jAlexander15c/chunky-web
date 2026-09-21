@@ -1,0 +1,772 @@
+/* Cotizador de cakes (/cotizador). Usa los tokens de index.css y .script de App.css.
+   Una sola página: elegir a la izquierda, el resumen con el total a la derecha (abajo en el celular). */
+
+.quote {
+    --quote-line: rgb(58 75 142 / 0.22);
+    --quote-field: rgb(255 255 255 / 0.55);
+
+    max-width: var(--max);
+    margin: 0 auto;
+    padding: 1rem var(--gutter) 7rem;
+}
+
+/* ============ Intro ============ */
+
+.quote__intro {
+    max-width: 40rem;
+    padding-block: 1.5rem 2.25rem;
+}
+
+.quote__script {
+    margin: 0 0 0.35rem;
+    font-size: clamp(1.9rem, 5vw, 2.6rem);
+    color: var(--mora);
+    line-height: 1;
+}
+
+.quote__intro h1 {
+    margin: 0 0 0.85rem;
+    font-size: clamp(1.9rem, 5.5vw, 3.1rem);
+    line-height: 1.05;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+}
+
+.quote__intro > p:last-child {
+    margin: 0;
+    max-width: 34rem;
+    color: var(--text-soft);
+}
+
+.quote__layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2rem;
+    align-items: start;
+}
+
+@media (min-width: 960px) {
+    .quote__layout {
+        grid-template-columns: minmax(0, 1fr) 24rem;
+        gap: 3rem;
+    }
+}
+
+/* ============ Pasos ============ */
+
+.quote-step {
+    display: grid;
+    gap: 0.6rem;
+    min-width: 0;
+    margin: 0 0 2.5rem;
+    padding: 0;
+    border: 0;
+}
+
+.quote-step__title {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    margin: 0 0 0.3rem;
+    padding: 0;
+    font-size: 1.15rem;
+    font-weight: 800;
+}
+
+.quote-step__n {
+    font-size: 1.9rem;
+    line-height: 1;
+    color: var(--mora);
+}
+
+.quote-step__hint,
+.quote-step__rule {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-soft);
+    max-width: 36rem;
+}
+
+.quote-step__rule {
+    margin-top: 0.4rem;
+}
+
+.quote-group {
+    margin: 0.6rem 0 0.1rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-soft);
+}
+
+.quote-counter {
+    justify-self: start;
+    padding: 0.2rem 0.75rem;
+    border-radius: var(--radius-pill);
+    background: var(--sky);
+    color: var(--mora);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.quote-counter.is-set {
+    background: var(--mora);
+    color: var(--crema);
+}
+
+/* Los inputs de radio y casilla quedan encima de su tarjeta, invisibles: la tarjeta es el control */
+.quote-size,
+.quote-chip,
+.quote-heights label,
+.quote-check,
+.quote-photo__drop {
+    position: relative;
+}
+
+.quote-size input,
+.quote-chip input,
+.quote-heights input,
+.quote-check input,
+.quote-photo__drop input {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+/* ============ Tamaño y altura ============ */
+
+.quote-sizes {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.quote-size__card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 1rem 0.5rem 0.95rem;
+    text-align: center;
+    background: var(--quote-field);
+    border: 2px solid var(--quote-line);
+    border-radius: var(--radius-panel);
+    transition: border-color 160ms var(--ease-out), background-color 160ms var(--ease-out), transform 160ms var(--ease-out);
+}
+
+.quote-size__drawing {
+    width: 100%;
+    max-width: 92px;
+    height: 78px;
+    margin-bottom: 0.4rem;
+}
+
+.quote-size__inch {
+    font-size: 1.5rem;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.quote-size__price {
+    margin-top: 0.3rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.quote-size input:checked + .quote-size__card {
+    background: var(--mantequilla);
+    border-color: var(--mora);
+}
+
+.quote-size input:focus-visible + .quote-size__card {
+    outline: 3px solid var(--focus);
+    outline-offset: 3px;
+}
+
+.quote-size input:active + .quote-size__card {
+    transform: scale(0.98);
+}
+
+.quote-heights {
+    justify-self: start;
+    display: inline-grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    margin-top: 0.4rem;
+    padding: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--sky);
+}
+
+.quote-heights span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 0 1.1rem;
+    border-radius: var(--radius-pill);
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--mora);
+    white-space: nowrap;
+    transition: background-color 160ms var(--ease-out), color 160ms var(--ease-out);
+}
+
+.quote-heights input:checked + span {
+    background: var(--mora);
+    color: var(--crema);
+}
+
+.quote-heights input:focus-visible + span {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+}
+
+/* ============ Chips de masa y relleno ============ */
+
+.quote-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.quote-chip__body {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    padding: 0.55rem 1rem;
+    border: 2px solid var(--quote-line);
+    border-radius: var(--radius-pill);
+    background: var(--quote-field);
+    font-weight: 600;
+    font-size: 0.92rem;
+    transition: border-color 160ms var(--ease-out), background-color 160ms var(--ease-out), color 160ms var(--ease-out),
+        transform 160ms var(--ease-out), opacity 160ms var(--ease-out);
+}
+
+/* Borde punteado: se ve de lejos cuál tiene costo */
+.quote-chip__body--special {
+    border-style: dashed;
+}
+
+.quote-chip__extra {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--mora);
+    font-variant-numeric: tabular-nums;
+}
+
+.quote-chip input:checked + .quote-chip__body {
+    background: var(--mora);
+    border-color: var(--mora);
+    border-style: solid;
+    color: var(--crema);
+}
+
+.quote-chip input:checked + .quote-chip__body .quote-chip__extra {
+    color: var(--mantequilla);
+}
+
+.quote-chip input:focus-visible + .quote-chip__body {
+    outline: 3px solid var(--focus);
+    outline-offset: 3px;
+}
+
+.quote-chip input:disabled {
+    cursor: not-allowed;
+}
+
+.quote-chip input:disabled + .quote-chip__body {
+    opacity: 0.42;
+}
+
+.quote-chip input:active:not(:disabled) + .quote-chip__body {
+    transform: scale(0.97);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .quote-size input:not(:checked):hover + .quote-size__card,
+    .quote-chip input:not(:checked):not(:disabled):hover + .quote-chip__body {
+        border-color: var(--mora);
+    }
+}
+
+/* ============ Fotos y topper ============ */
+
+.quote-extras {
+    display: grid;
+    gap: 1rem;
+}
+
+.quote-check {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.85rem 1rem;
+    border: 2px solid var(--quote-line);
+    border-radius: var(--radius-panel);
+    background: var(--quote-field);
+    cursor: pointer;
+    transition: border-color 160ms var(--ease-out), background-color 160ms var(--ease-out);
+}
+
+.quote-check:has(input:checked) {
+    border-color: var(--mora);
+    background: var(--mantequilla);
+}
+
+.quote-check:has(input:focus-visible) {
+    outline: 3px solid var(--focus);
+    outline-offset: 3px;
+}
+
+.quote-check__box {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border: 2px solid var(--mora);
+    border-radius: 8px;
+    color: var(--crema);
+}
+
+.quote-check__box svg {
+    opacity: 0;
+}
+
+.quote-check input:checked ~ .quote-check__box {
+    background: var(--mora);
+}
+
+.quote-check input:checked ~ .quote-check__box svg {
+    opacity: 1;
+}
+
+.quote-check__text {
+    display: grid;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.quote-check__text b,
+.quote-photo__text b {
+    font-weight: 800;
+}
+
+.quote-check__text small,
+.quote-photo__text small {
+    font-size: 0.82rem;
+    color: var(--text-soft);
+}
+
+.quote-check__price {
+    margin-left: auto;
+    font-weight: 800;
+    color: var(--mora);
+    font-variant-numeric: tabular-nums;
+}
+
+.quote-photo {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.quote-photo__label {
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.quote-photo__req {
+    color: var(--mora);
+}
+
+.quote-photo__drop {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 1rem;
+    align-items: center;
+    padding: 0.9rem 1rem;
+    border: 2px dashed var(--mora);
+    border-radius: var(--radius-panel);
+    background: var(--quote-field);
+    cursor: pointer;
+    transition: background-color 160ms var(--ease-out);
+}
+
+.quote-photo__drop.is-filled {
+    border-style: solid;
+}
+
+.quote-photo__drop:has(input:focus-visible) {
+    outline: 3px solid var(--focus);
+    outline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .quote-photo__drop:hover {
+        background: var(--sky);
+    }
+}
+
+.quote-photo__thumb {
+    display: grid;
+    place-items: center;
+    width: 84px;
+    height: 84px;
+    overflow: hidden;
+    border-radius: 14px;
+    background: var(--sky);
+    color: var(--mora);
+    font-size: 2rem;
+}
+
+.quote-photo__thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.quote-photo__text {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.quote-photo__error {
+    margin: 0;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #a33a2a;
+}
+
+.quote-photo__remove {
+    justify-self: start;
+    padding: 0.2rem 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--mora);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+    cursor: pointer;
+}
+
+/* ============ Datos ============ */
+
+.quote-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.9rem;
+}
+
+.quote-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 0;
+}
+
+.quote-field--wide {
+    grid-column: 1 / -1;
+}
+
+.quote-field label {
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+/* 16px o más: en iPhone un campo más chico hace zoom al tocarlo */
+.quote-field input,
+.quote-field textarea {
+    width: 100%;
+    min-height: 46px;
+    padding: 0.6rem 0.9rem;
+    border: 2px solid var(--quote-line);
+    border-radius: 14px;
+    background: rgb(255 255 255 / 0.8);
+    font: inherit;
+    font-size: 1rem;
+    color: var(--ink);
+}
+
+.quote-field textarea {
+    min-height: 90px;
+    resize: vertical;
+}
+
+.quote-field input:focus,
+.quote-field textarea:focus {
+    outline: none;
+    border-color: var(--mora);
+    box-shadow: 0 0 0 3px var(--focus);
+}
+
+@media (max-width: 520px) {
+    .quote-fields {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* ============ Resumen ============ */
+
+.quote-summary {
+    scroll-margin-top: 6rem;
+    padding: 1.5rem 1.4rem 1.4rem;
+    border-radius: var(--radius-panel);
+    background: var(--mora);
+    color: var(--on-mora);
+    box-shadow: 0 18px 40px -22px rgb(var(--shadow-tint) / 0.7);
+}
+
+@media (min-width: 960px) {
+    .quote-summary {
+        position: sticky;
+        top: 6.5rem;
+    }
+}
+
+.quote-summary__kicker {
+    margin: 0 0 0.9rem;
+    font-size: 1.9rem;
+    line-height: 1;
+    color: var(--mantequilla);
+}
+
+.quote-lines {
+    display: grid;
+    gap: 0.7rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.quote-lines li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.2rem 1rem;
+    align-items: baseline;
+    font-size: 0.93rem;
+}
+
+.quote-lines__what {
+    grid-column: 1 / -1;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--on-mora-soft);
+}
+
+.quote-lines__name {
+    font-weight: 700;
+}
+
+.quote-lines__name.is-empty {
+    font-weight: 450;
+    font-style: italic;
+    color: var(--on-mora-soft);
+}
+
+.quote-lines__amount {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.quote-lines__amount.is-free {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--lima);
+}
+
+.quote-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    margin-top: 1.1rem;
+    padding-top: 1rem;
+    border-top: 1px dashed rgb(215 224 249 / 0.5);
+    font-weight: 700;
+}
+
+.quote-total__value {
+    font-size: 2.4rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1;
+}
+
+.quote-summary__fine {
+    margin: 0.6rem 0 1.1rem;
+    font-size: 0.78rem;
+    color: var(--on-mora-soft);
+}
+
+.quote-missing {
+    display: grid;
+    gap: 0.3rem;
+    margin: 0 0 1rem;
+    padding: 0;
+    list-style: none;
+    font-size: 0.82rem;
+    color: var(--mantequilla);
+}
+
+.quote-missing li::before {
+    content: "· ";
+}
+
+.quote-summary__error {
+    margin: 0 0 1rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: 12px;
+    background: rgb(246 221 215 / 0.95);
+    color: #a33a2a;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.quote-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    width: 100%;
+    min-height: 52px;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--mantequilla);
+    color: var(--ink);
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 800;
+    text-decoration: none;
+    cursor: pointer;
+    transition: transform 160ms var(--ease-out), background-color 160ms var(--ease-out);
+}
+
+.quote-button:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+.quote-button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.quote-button--ghost {
+    background: transparent;
+    color: var(--crema);
+    box-shadow: inset 0 0 0 2px var(--sky);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .quote-button:hover:not(:disabled) {
+        background: var(--lima);
+    }
+
+    .quote-button--ghost:hover:not(:disabled) {
+        background: rgb(215 224 249 / 0.15);
+    }
+}
+
+.quote-sent {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.quote-sent .quote-summary__kicker {
+    margin: 0;
+}
+
+.quote-sent h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    text-wrap: balance;
+}
+
+.quote-sent p {
+    margin: 0;
+    font-size: 0.92rem;
+    color: var(--on-mora-soft);
+}
+
+.quote-sent .quote-sent__code {
+    font-size: 2.4rem;
+    line-height: 1;
+    color: var(--mantequilla);
+}
+
+/* ============ Barra del celular ============ */
+
+.quote-bar {
+    display: none;
+}
+
+@media (max-width: 959px) {
+    .quote-bar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: var(--z-cart-button);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.7rem var(--gutter) calc(0.7rem + env(safe-area-inset-bottom, 0px));
+        background: var(--mora);
+        color: var(--on-mora);
+        box-shadow: 0 -10px 30px -12px rgb(var(--shadow-tint) / 0.6);
+    }
+
+    .quote-bar__label {
+        display: block;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--on-mora-soft);
+    }
+
+    .quote-bar__value {
+        font-size: 1.55rem;
+        font-weight: 800;
+        line-height: 1.1;
+    }
+
+    .quote-bar__link {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        min-height: 44px;
+        padding: 0.6rem 1.1rem;
+        border-radius: var(--radius-pill);
+        background: var(--mantequilla);
+        color: var(--ink);
+        font-size: 0.92rem;
+        font-weight: 800;
+        text-decoration: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .quote *,
+    .quote *::before,
+    .quote *::after {
+        transition: none !important;
+    }
+}
