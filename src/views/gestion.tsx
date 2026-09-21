@@ -13,8 +13,10 @@ import {
     setGestionSession,
 } from "@/helpers";
 import type { CollaboratorRole, IShiftDetail } from "@/helpers";
+import { useKitchenFeed } from "@/hooks/useKitchenFeed";
 
 import { GestionCaja } from "./gestion/caja";
+import { GestionCocina, KitchenToast } from "./gestion/cocina";
 import { GestionInventario } from "./gestion/inventario";
 import { GestionTurno } from "./gestion/turno";
 
@@ -124,7 +126,7 @@ const GestionLogin = ({ onLogin }: IGestionLoginProps) => {
 
 /* ============ Armazón ============ */
 
-type Section = "caja" | "turno" | "inventario" | "cotizaciones";
+type Section = "caja" | "turno" | "cocina" | "inventario" | "cotizaciones";
 
 interface ISectionInfo {
     id: Section;
@@ -156,6 +158,18 @@ const SECTIONS: ISectionInfo[] = [
             <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="9" />
                 <path d="M12 7v5l3 2" />
+            </svg>
+        ),
+    },
+    {
+        id: "cocina",
+        label: "Cocina",
+        role: "caja",
+        sub: "Pedidos pagados en la web: acéptalos, márcalos listos y entrégalos",
+        icon: (
+            <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M6 13.9A4 4 0 0 1 7 6a5 5 0 0 1 10 0 4 4 0 0 1 1 7.9V20H6z" />
+                <path d="M6 17h12" />
             </svg>
         ),
     },
@@ -201,6 +215,9 @@ const GestionShell = ({ token, name, roles, onLogout }: IGestionShellProps) => {
 
     const current = available.find((one) => one.id === section) ?? available[0];
 
+    // Los pedidos de la web se siguen en cualquier seccion: quien cobra tambien atiende la cocina
+    const kitchen = useKitchenFeed(token, roles.includes("caja"), onLogout);
+
     if (!current) {
         return (
             <div className="ges ges-gate">
@@ -228,6 +245,9 @@ const GestionShell = ({ token, name, roles, onLogout }: IGestionShellProps) => {
                     >
                         {one.icon}
                         {one.label}
+                        {one.id === "cocina" && kitchen.newCount > 0 ? (
+                            <span className="ges-nav__badge" aria-label={`${kitchen.newCount} pedidos nuevos`}>{kitchen.newCount}</span>
+                        ) : null}
                     </button>
                 ))}
                 <div className="ges-nav__foot">
@@ -243,6 +263,18 @@ const GestionShell = ({ token, name, roles, onLogout }: IGestionShellProps) => {
                         <p className="ges-top__sub">{current.sub}</p>
                     </div>
                     <div className="ges-top__right">
+                        {current.id === "cocina" ? (
+                            <>
+                                <span className={`ges-chip${kitchen.offlineSince !== null ? " is-off" : ""}`} role="status">
+                                    <i aria-hidden="true" />
+                                    {kitchen.offlineSince !== null ? "Sin conexión" : "En línea"}
+                                </span>
+                                <span className={`ges-chip${kitchen.isSoundOn ? "" : " is-off"}`}>
+                                    <i aria-hidden="true" />
+                                    {kitchen.isSoundOn ? "Sonido" : "Sonido apagado"}
+                                </span>
+                            </>
+                        ) : null}
                         {roles.includes("caja") ? (
                             <span className={`ges-chip${shift ? "" : " is-off"}`} role="status">
                                 <i aria-hidden="true" />
@@ -258,6 +290,8 @@ const GestionShell = ({ token, name, roles, onLogout }: IGestionShellProps) => {
                         <GestionCaja token={token} onSessionExpired={onLogout} onShiftChange={setShift} />
                     ) : current.id === "turno" ? (
                         <GestionTurno token={token} onSessionExpired={onLogout} onShiftChange={setShift} />
+                    ) : current.id === "cocina" ? (
+                        <GestionCocina feed={kitchen} onSessionExpired={onLogout} />
                     ) : current.id === "cotizaciones" ? (
                         <div className="ges-quotes">
                             <QuotesPanel token={token} onSessionExpired={onLogout} />
@@ -267,6 +301,8 @@ const GestionShell = ({ token, name, roles, onLogout }: IGestionShellProps) => {
                     )}
                 </main>
             </div>
+
+            {kitchen.toast ? <KitchenToast order={kitchen.toast} /> : null}
         </div>
     );
 };

@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router";
 
 import { Cart, CartButton, CartProvider, PastaBuilder, PastaBuilderProvider, SiteFooter, SiteHeader } from "@/components";
-import { AdminView, Cotizador, GestionView, Home, Items, KitchenView, Mantenimiento, Menu, OrderStatusView, StaffView } from "@/views";
+import { AdminView, Cotizador, GestionView, Home, Items, Mantenimiento, Menu, OrderStatusView, StaffView } from "@/views";
 import { useWwwRedirect } from "@/hooks/useWwwRedirect";
 
 import './App.css'
@@ -48,8 +48,8 @@ const App = () => {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Pantalla de cocina del iPad: sin encabezado, pie ni carrito */}
-        <Route path="/cocina" element={<KitchenView />} />
+        {/* La cocina ahora es una seccion de /gestion (rol caja, PIN de cada colaborador) */}
+        <Route path="/cocina" element={<Navigate to="/gestion" replace />} />
         {/* Tablero administrativo: ventas, inventario y movimientos */}
         <Route path="/admin" element={<AdminView />} />
         {/* Se llamaba /tablero: los enlaces guardados siguen funcionando */}

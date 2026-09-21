@@ -1,269 +1,7 @@
-/* ============ Pantalla de cocina (/cocina) ============ */
+/* ============ Cocina dentro de /gestion ============ */
 .kitchen {
-  min-height: 100dvh;
-  background: var(--papel, #fffef6);
-  color: var(--ink);
-  font-family: 'Montserrat', system-ui, sans-serif;
   --kitchen-alert: #9c2f5b;
   --kitchen-ok: #3f6b2a;
-}
-
-.kitchen-sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-
-/* Acceso e inicio de turno */
-.kitchen-center {
-  min-height: 100dvh;
-  display: grid;
-  place-items: center;
-  padding: 24px 16px;
-  background: radial-gradient(circle at 50% 30%, var(--sky), #fffef6 70%);
-}
-
-.kitchen-panel {
-  width: min(440px, 100%);
-  background: #fff;
-  border: 2px solid var(--ink);
-  border-radius: 22px;
-  padding: 26px;
-  display: grid;
-  gap: 16px;
-  text-align: center;
-}
-
-.kitchen-panel p {
-  margin: 0;
-  color: var(--text-soft);
-  line-height: 1.5;
-}
-
-.kitchen-panel__title {
-  margin: 0;
-  font-size: 2.6rem;
-  line-height: 1.1;
-  color: var(--mora);
-}
-
-.kitchen-pin {
-  justify-self: center;
-  width: 12ch;
-  min-height: 56px;
-  border: 2px solid var(--mora);
-  border-radius: 14px;
-  text-align: center;
-  font-family: inherit;
-  font-size: 1.8rem;
-  font-weight: 900;
-  letter-spacing: 0.3em;
-  color: var(--ink);
-}
-
-.kitchen-pin:focus {
-  outline: 3px solid var(--orquidea);
-  outline-offset: 2px;
-}
-
-.kitchen-error {
-  color: var(--kitchen-alert) !important;
-  font-weight: 800;
-}
-
-.kitchen-keys {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-
-.kitchen-key {
-  min-height: 56px;
-  border: 0;
-  border-radius: 14px;
-  background: var(--crema);
-  color: var(--ink);
-  font-family: inherit;
-  font-weight: 800;
-  font-size: 1.3rem;
-  cursor: pointer;
-}
-
-.kitchen-key:active {
-  transform: scale(0.96);
-  background: var(--sky);
-}
-
-.kitchen-btn {
-  min-height: 56px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--mora);
-  color: var(--crema);
-  font-family: inherit;
-  font-weight: 900;
-  font-size: 1.05rem;
-  cursor: pointer;
-}
-
-.kitchen-btn:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.kitchen-link {
-  border: 0;
-  background: none;
-  color: var(--text-soft);
-  font-family: inherit;
-  font-weight: 700;
-  text-decoration: underline;
-  cursor: pointer;
-  min-height: 36px;
-}
-
-.kitchen-checks {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 8px;
-  text-align: left;
-}
-
-.kitchen-checks li {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  font-size: 0.92rem;
-  font-weight: 700;
-  padding: 9px 12px;
-  border-radius: 12px;
-  background: var(--crema);
-  line-height: 1.4;
-}
-
-.kitchen-checks b {
-  flex: none;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-size: 0.8rem;
-  background: var(--sky);
-}
-
-.kitchen-checks .is-ok b {
-  background: var(--lima);
-}
-
-.kitchen-checks .is-warn b {
-  background: var(--mantequilla);
-}
-
-/* Tablero */
-.kitchen-board-page {
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-}
-
-.kitchen-bar {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px 16px;
-  flex-wrap: wrap;
-  padding: calc(12px + env(safe-area-inset-top, 0px)) 20px 12px;
-  background: var(--mora);
-  color: var(--crema);
-}
-
-.kitchen-bar__brand {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-}
-
-.kitchen-bar__brand .script {
-  font-size: 1.9rem;
-  color: var(--orquidea);
-  line-height: 1;
-}
-
-.kitchen-bar__brand span:last-child {
-  font-weight: 900;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  font-size: 0.8rem;
-}
-
-.kitchen-bar__status {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.kitchen-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.75rem;
-  font-weight: 800;
-  padding: 5px 10px;
-  border-radius: 999px;
-  background: rgb(252 250 233 / 0.14);
-}
-
-.kitchen-pill i {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--lima);
-}
-
-.kitchen-pill--warn {
-  background: var(--mantequilla);
-  color: var(--ink);
-}
-
-.kitchen-pill--warn i {
-  background: var(--kitchen-alert);
-}
-
-.kitchen-pill--muted i {
-  background: rgb(252 250 233 / 0.45);
-}
-
-.kitchen-bar__end {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.kitchen-bar__clock {
-  font-weight: 900;
-  font-size: 1.2rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.kitchen-bar__logout {
-  border: 2px solid rgb(252 250 233 / 0.5);
-  background: none;
-  color: var(--crema);
-  border-radius: 999px;
-  padding: 6px 14px;
-  font-family: inherit;
-  font-weight: 800;
-  cursor: pointer;
-  min-height: 36px;
 }
 
 .kitchen-banner {
@@ -272,7 +10,7 @@
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  padding: 10px 20px;
+  padding: 10px var(--gutter);
   background: var(--kitchen-alert);
   color: #fff;
   font-weight: 800;
@@ -295,7 +33,7 @@
   display: grid;
   grid-template-columns: 1.15fr 1fr 0.85fr;
   gap: 16px;
-  padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  padding: 16px var(--gutter) 2.5rem;
   align-items: start;
 }
 
@@ -482,11 +220,11 @@
   box-shadow: inset 0 0 0 2px var(--kitchen-ok);
 }
 
+/* Abajo a la derecha: no tapa la cabecera ni los botones de la sección donde se esté */
 .kitchen-toast {
   position: fixed;
-  left: 50%;
-  top: calc(84px + env(safe-area-inset-top, 0px));
-  transform: translateX(-50%);
+  right: 24px;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   z-index: 5;
   display: flex;
   align-items: center;
@@ -599,4 +337,41 @@
   color: var(--ink);
   font-weight: 800;
   text-underline-offset: 3px;
+}
+
+/* Pedidos sin aceptar, en el menú de gestión: se ve desde cualquier sección */
+.ges-nav__badge {
+  margin-left: auto;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--orquidea);
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 899px) {
+  /* En el teléfono va justo encima del menú de abajo */
+  .kitchen-toast {
+    left: 16px;
+    right: 16px;
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+    border-radius: 22px;
+  }
+
+  .ges-nav__item { position: relative; }
+  .ges-nav__badge {
+    position: absolute;
+    top: 2px;
+    right: 14%;
+    margin: 0;
+    min-width: 18px;
+    height: 18px;
+    font-size: 0.65rem;
+  }
 }

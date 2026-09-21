@@ -31,7 +31,7 @@ export interface IPublicOrder {
     delivery: { address: string; details: string | null } | null;
     total: number;
     yappyConfirmation: string | null;
-    // Los marca la cocina en /cocina
+    // Los marca la cocina en /gestion
     acceptedAt: string | null;
     readyAt: string | null;
     createdAt: string;
