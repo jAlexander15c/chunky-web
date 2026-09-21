@@ -1,0 +1,36 @@
+/* ============ /staff: accesos a los paneles del equipo ============ */
+
+.staff-links {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.staff-link {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.15rem;
+    min-height: 56px;
+    padding: 0.8rem 1.2rem;
+    border: 2px solid var(--sky);
+    border-radius: var(--radius-pill);
+    color: var(--ink);
+    text-decoration: none;
+    transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+}
+
+.staff-link strong { font-size: 1rem; font-weight: 800; }
+.staff-link span { font-size: 0.78rem; font-weight: 500; color: var(--ges-text-2); }
+
+.staff-link:hover { border-color: var(--mora); background: var(--sky); }
+.staff-link:active { transform: scale(0.98); }
+.staff-link:focus-visible { outline: 3px solid var(--mora); outline-offset: 3px; }
+
+.staff-link--main { background: var(--mora); border-color: var(--mora); color: var(--ges-panel); }
+.staff-link--main span { color: var(--sky); }
+.staff-link--main:hover { background: var(--ink); border-color: var(--ink); }
+
+@media (prefers-reduced-motion: reduce) {
+    .staff-link { transition: none; }
+}

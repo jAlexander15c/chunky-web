@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router";
 
 import { Cart, CartButton, CartProvider, PastaBuilder, PastaBuilderProvider, SiteFooter, SiteHeader } from "@/components";
-import { AdminView, Cotizador, GestionView, Home, Items, KitchenView, Mantenimiento, Menu, OrderStatusView } from "@/views";
+import { AdminView, Cotizador, GestionView, Home, Items, KitchenView, Mantenimiento, Menu, OrderStatusView, StaffView } from "@/views";
 import { useWwwRedirect } from "@/hooks/useWwwRedirect";
 
 import './App.css'
@@ -56,6 +56,8 @@ const App = () => {
         <Route path="/tablero" element={<Navigate to="/admin" replace />} />
         {/* Colaboradores: solo cargan inventario, sin ver ventas */}
         <Route path="/gestion" element={<GestionView />} />
+        {/* Accesos del equipo a /admin y /gestion: no se enlaza desde el sitio publico */}
+        <Route path="/staff" element={<StaffView />} />
         <Route element={<SiteLayout />}>
           <Route index element={<Home />} />
           <Route path="/menu" element={<Menu />} />
