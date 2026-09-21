@@ -200,6 +200,31 @@ export const registerGestionProduction = (token: string, variantId: string, quan
         { headers: getGestionHeaders(token) }
     );
 
+/** Una variante del menú con su estado de venta en Loyverse. */
+export interface ISaleAvailability {
+    itemId: string;
+    variantId: string;
+    name: string;
+    /** Vacío si el producto tiene una sola variante sin opciones. */
+    variantName: string;
+    categoryId: string | null;
+    categoryName: string;
+    price: number | null;
+    isAvailable: boolean;
+    /** Solo en los productos con control de stock: se apagan solos al llegar a cero. */
+    stock: number | null;
+}
+
+export const fetchGestionAvailability = (token: string, signal?: AbortSignal) =>
+    httpGet<{ products: ISaleAvailability[] }>("/gestion/availability", { signal, headers: getGestionHeaders(token) });
+
+export const changeGestionAvailability = (token: string, itemId: string, variantId: string, isAvailable: boolean) =>
+    httpPost<{ product: Pick<ISaleAvailability, "variantId" | "isAvailable"> }>(
+        `/gestion/availability/${encodeURIComponent(variantId)}`,
+        { itemId, isAvailable },
+        { headers: getGestionHeaders(token) }
+    );
+
 /* ============ Caja: mesas y cuentas ============ */
 
 /** El mapa de mesas y, de paso, el turno en curso: la caja necesita los dos a la vez. */

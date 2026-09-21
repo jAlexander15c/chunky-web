@@ -307,6 +307,147 @@
 
 .ges-tab small { font-weight: 700; opacity: 0.75; margin-left: 0.3rem; }
 
+/* Los filtros usan aria-pressed en vez de aria-selected: no son pestañas */
+.ges-tab[aria-pressed="true"] {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--crema);
+}
+
+.ges-tabs--flush { padding: 0; }
+
+/* ============ Inventario: insumos o disponibilidad ============ */
+
+.ges-seg {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    margin: 0.9rem var(--gutter) 0;
+    padding: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--ges-panel-2);
+    max-width: 420px;
+}
+
+.ges-seg button {
+    font: inherit;
+    font-weight: 800;
+    font-size: 0.82rem;
+    border: 0;
+    background: transparent;
+    color: var(--ges-text-2);
+    border-radius: var(--radius-pill);
+    min-height: 38px;
+    cursor: pointer;
+    transition: background-color 150ms ease, color 150ms ease;
+}
+
+.ges-seg button[aria-selected="true"] { background: var(--ink); color: var(--crema); }
+.ges-seg button:focus-visible { outline: 3px solid var(--mora); outline-offset: 2px; }
+
+/* ============ Disponibilidad ============ */
+
+.ges-avail-filters { display: grid; gap: 0.6rem; padding-top: 0.8rem; }
+
+.ges-search {
+    width: 100%;
+    font: inherit;
+    font-size: 16px; /* menos de 16px hace que el iPhone acerque la página */
+    padding: 0.6rem 1rem;
+    border: 2px solid var(--sky);
+    border-radius: var(--radius-pill);
+    background: var(--ges-panel);
+    color: var(--ink);
+}
+
+.ges-search:focus-visible { outline: 3px solid var(--mora); outline-offset: 1px; }
+
+.ges-avail-states { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; max-width: 420px; }
+.ges-avail-states .ges-tab { padding-inline: 0.4rem; }
+
+.ges-avail-list { list-style: none; margin: 0.4rem 0 0; padding: 0; }
+
+.ges-avail {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.8rem 0;
+    border-bottom: 1px solid var(--ges-line);
+}
+
+.ges-avail:last-child { border-bottom: 0; }
+.ges-avail__body { flex: 1; min-width: 0; }
+.ges-avail__name { font-weight: 800; font-size: 0.95rem; line-height: 1.25; }
+.ges-avail__name em { font-style: normal; font-weight: 600; color: var(--ges-text-2); }
+.ges-avail.is-off .ges-avail__name { color: var(--ges-text-3); }
+
+.ges-avail__meta {
+    font-size: 0.75rem;
+    color: var(--ges-text-2);
+    margin-top: 0.15rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.ges-avail__stock { font-size: 0.72rem; font-weight: 700; color: var(--ges-warn); margin-top: 0.2rem; }
+
+/* Toda la zona derecha es el botón: un solo toque */
+.ges-switch {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font: inherit;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    min-height: 44px;
+    padding: 6px 0 6px 8px;
+}
+
+/* Ancho fijo para que el switch no se mueva entre "Disponible" y "Apagado" */
+.ges-switch__label { font-size: 0.7rem; font-weight: 800; min-width: 6.6em; white-space: nowrap; text-align: right; color: var(--ges-crit); }
+
+.ges-switch__track {
+    position: relative;
+    width: 50px;
+    height: 30px;
+    border-radius: var(--radius-pill);
+    background: var(--ges-crit-bg);
+    transition: background-color 160ms ease;
+}
+
+.ges-switch__thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--ges-crit);
+    transition: transform 180ms var(--ease-out), background-color 160ms ease;
+}
+
+.ges-switch[aria-checked="true"] .ges-switch__label { color: var(--ges-good); }
+.ges-switch[aria-checked="true"] .ges-switch__track { background: var(--ges-good-bg); }
+.ges-switch[aria-checked="true"] .ges-switch__thumb { transform: translateX(20px); background: var(--ges-good); }
+.ges-switch.is-busy { opacity: 0.55; cursor: progress; }
+.ges-switch:focus-visible { outline: 3px solid var(--mora); outline-offset: 2px; border-radius: 10px; }
+
+.ges-pager {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 1rem 0 1.4rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--ges-text-2);
+    font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ges-seg button, .ges-switch__track, .ges-switch__thumb { transition: none; }
+}
+
 /* ============ Lista ============ */
 
 .ges-main { flex: 1; padding: 0 var(--gutter); }

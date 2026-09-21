@@ -17,6 +17,15 @@ import {
 } from "@/helpers";
 import type { IMovement, IProductStatus, ISupplyStatus, SupplyCategory } from "@/helpers";
 
+import { GestionDisponibilidad } from "./disponibilidad";
+
+/** Insumos y producción por un lado; prender o apagar productos del menú por otro. */
+type View = "insumos" | "disponibilidad";
+
+const VIEWS: View[] = ["insumos", "disponibilidad"];
+
+const VIEW_LABEL: Record<View, string> = { insumos: "Insumos", disponibilidad: "Disponibilidad" };
+
 /** Las pestañas: las tres categorías de insumo más los productos terminados. */
 type Tab = SupplyCategory | "productos";
 
@@ -62,6 +71,7 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
     const [supplies, setSupplies] = useState<ISupplyStatus[]>([]);
     const [products, setProducts] = useState<IProductStatus[]>([]);
     const [movements, setMovements] = useState<IMovement[]>([]);
+    const [view, setView] = useState<View>("insumos");
     const [tab, setTab] = useState<Tab>("alimento");
     const [pending, setPending] = useState<PendingAction | null>(null);
     const [error, setError] = useState("");
@@ -115,8 +125,34 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
 
     const isEmpty = tab === "productos" ? products.length === 0 : visibleSupplies.length === 0;
 
+    const viewSwitch = (
+        <div className="ges-seg" role="tablist" aria-label="Qué vas a ver">
+            {VIEWS.map((option) => (
+                <button
+                    key={option}
+                    type="button"
+                    role="tab"
+                    aria-selected={view === option}
+                    onClick={() => setView(option)}
+                >
+                    {VIEW_LABEL[option]}
+                </button>
+            ))}
+        </div>
+    );
+
+    if (view === "disponibilidad") {
+        return (
+            <>
+                {viewSwitch}
+                <GestionDisponibilidad token={token} onSessionExpired={onSessionExpired} />
+            </>
+        );
+    }
+
     return (
         <>
+            {viewSwitch}
 
             <div className="ges-tabs" role="tablist" aria-label="Qué vas a registrar">
                 {TABS.map((option) => (

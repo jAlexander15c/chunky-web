@@ -177,7 +177,7 @@ const SECTIONS: ISectionInfo[] = [
         id: "inventario",
         label: "Inventario",
         role: "inventario",
-        sub: "Compras, conteos y mermas",
+        sub: "Compras, conteos, mermas y disponibilidad",
         icon: (
             <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M3 7l9-4 9 4v10l-9 4-9-4z" />
