@@ -41,6 +41,8 @@ export interface ITicket {
     id: number;
     /** Null en una cuenta para llevar. */
     tableNumber: number | null;
+    /** A nombre de quien va la cuenta para llevar (opcional). */
+    customerName: string | null;
     status: "abierta" | "cobrada" | "anulada";
     openedByName: string;
     openedAt: string;
@@ -54,12 +56,19 @@ export interface ITicket {
 export interface ITableSummary {
     tableNumber: number | null;
     label: string;
+    customerName: string | null;
     ticketId: number | null;
     total: number;
     items: number;
     pending: number;
     openedAt: string | null;
 }
+
+/** "Mesa 3", "Para llevar · Ana" o "Para llevar · #18", igual que en cocina y en el recibo. */
+export const getTicketLabel = (ticket: Pick<ITicket, "id" | "tableNumber" | "customerName">) =>
+    ticket.tableNumber !== null
+        ? `Mesa ${ticket.tableNumber}`
+        : `Para llevar · ${ticket.customerName || `#${ticket.id}`}`;
 
 export interface ICashMovement {
     id: number;
@@ -200,9 +209,9 @@ export const fetchTables = (token: string, signal?: AbortSignal) =>
         headers: getGestionHeaders(token),
     });
 
-/** Trae la cuenta abierta de la mesa, o la abre. El cero es la cuenta para llevar. */
-export const openTable = (token: string, tableNumber: number) =>
-    httpPost<{ ticket: ITicket }>("/gestion/caja/mesas", { tableNumber }, { headers: getGestionHeaders(token) });
+/** Trae la cuenta abierta de la mesa, o la abre. El cero abre una cuenta para llevar nueva. */
+export const openTable = (token: string, tableNumber: number, customerName?: string) =>
+    httpPost<{ ticket: ITicket }>("/gestion/caja/mesas", { tableNumber, customerName }, { headers: getGestionHeaders(token) });
 
 export const fetchTicket = (token: string, ticketId: number, signal?: AbortSignal) =>
     httpGet<{ ticket: ITicket }>(`/gestion/caja/cuentas/${ticketId}`, {

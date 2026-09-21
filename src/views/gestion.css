@@ -465,7 +465,36 @@
 }
 
 .ges-table__n { font-weight: 800; font-size: 1.05rem; }
+/* A nombre de quién va el pedido para llevar */
+.ges-table__who { font-weight: 700; font-size: 0.78rem; color: var(--ges-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ges-table__free { font-size: 0.78rem; color: var(--ges-text-3); font-weight: 700; }
+
+/* Para llevar va arriba y siempre se puede abrir uno más: puede haber varios a la vez */
+.ges-tables__group {
+    margin: 0;
+    padding: 1rem var(--gutter) 0;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ges-text-3);
+}
+
+.ges-tables__group + .ges-tables { padding-top: 0.6rem; }
+.ges-tables:has(+ .ges-tables__group) { padding-bottom: 0.4rem; }
+
+.ges-table--new {
+    border-style: dashed;
+    border-color: var(--mora);
+    color: var(--mora);
+    place-content: center;
+    justify-items: center;
+    text-align: center;
+    gap: 0.3rem;
+}
+
+.ges-table--new b { font-size: 1.9rem; line-height: 1; font-weight: 700; }
+.ges-table--new span { font-weight: 800; font-size: 0.9rem; }
 .ges-table__t { font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 .ges-table__m { font-size: 0.72rem; color: var(--ges-text-2); font-weight: 700; }
 
@@ -707,6 +736,8 @@
     width: 100%;
     min-width: 0;
 }
+
+.ges-field__hint { font-size: 0.75rem; font-weight: 600; color: var(--ges-text-3); }
 
 .ges-quick { display: flex; gap: 0.35rem; flex-wrap: wrap; }
 

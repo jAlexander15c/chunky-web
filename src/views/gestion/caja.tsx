@@ -7,10 +7,12 @@ import {
     addTicketLine,
     changeTicketLine,
     fetchTables,
+    fetchTicket,
     formatCash,
     formatQuantity,
     getItemModifiers,
     getItemPrice,
+    getTicketLabel,
     hasItemAvailableForSale,
     hasItemModifiers,
     openTable,
@@ -29,6 +31,9 @@ import type { IItem } from "@/interfaces";
 const TABLES_REFRESH_MS = 8000;
 
 const PAYMENT_METHODS: PaymentMethod[] = ["efectivo", "tarjeta", "yappy"];
+
+/** "Mesa 3" -> "mesa 3" y "Para llevar · Ana" -> "para llevar · Ana": el nombre se respeta. */
+const getLowerLabel = (label: string) => label.charAt(0).toLowerCase() + label.slice(1);
 
 const getMinutesSince = (value: string) => Math.floor((Date.now() - new Date(value).getTime()) / 60000);
 
@@ -100,7 +105,7 @@ const PayDialog = ({ ticket, onPay, onClose }: IPayDialogProps) => {
     return (
         <div className="ges-modal" role="dialog" aria-modal="true" aria-label="Cobrar la cuenta">
             <div className="ges-modal__panel">
-                <h3 className="script">Cobrar {ticket.tableNumber === null ? "para llevar" : `mesa ${ticket.tableNumber}`}</h3>
+                <h3 className="script">Cobrar {getLowerLabel(getTicketLabel(ticket))}</h3>
 
                 <div className="ges-total">
                     <span>Total a cobrar</span>
@@ -296,7 +301,7 @@ const VoidDialog = ({ label, onVoid, onClose }: IVoidDialogProps) => {
     return (
         <div className="ges-modal" role="dialog" aria-modal="true" aria-label="Anular la cuenta">
             <div className="ges-modal__panel">
-                <h3 className="script">Anular {label.toLowerCase()}</h3>
+                <h3 className="script">Anular {getLowerLabel(label)}</h3>
                 <p className="ges-note">
                     La cuenta se cierra sin cobrar y queda registrada con tu nombre. Si algo ya salió de
                     cocina, se pierde.
@@ -363,6 +368,60 @@ const OptionsDialog = ({ item, onAdd, onClose }: IOptionsDialogProps) => {
     );
 };
 
+/* ============ Nuevo para llevar ============ */
+
+interface ITogoDialogProps {
+    onOpen: (customerName: string) => Promise<void>;
+    onClose: () => void;
+}
+
+/** El nombre es opcional: sirve para que la cocina sepa a quién llamar cuando esté listo. */
+const TogoDialog = ({ onOpen, onClose }: ITogoDialogProps) => {
+    const [customerName, setCustomerName] = useState("");
+    const [isSending, setIsSending] = useState(false);
+
+    const submit = async () => {
+        setIsSending(true);
+        await onOpen(customerName.trim());
+        setIsSending(false);
+    };
+
+    return (
+        <div className="ges-modal" role="dialog" aria-modal="true" aria-label="Nuevo pedido para llevar">
+            <form
+                className="ges-modal__panel"
+                onSubmit={(event) => {
+                    event.preventDefault();
+                    void submit();
+                }}
+            >
+                <h3 className="script">Nuevo para llevar</h3>
+                <p className="ges-note">Así la cocina sabe a quién llamar cuando esté listo.</p>
+                <label className="ges-field">
+                    <span>A nombre de</span>
+                    <input
+                        id="caja-para-llevar-nombre"
+                        type="text"
+                        autoFocus
+                        maxLength={40}
+                        autoComplete="off"
+                        value={customerName}
+                        placeholder="Ana"
+                        onChange={(event) => setCustomerName(event.target.value)}
+                    />
+                    <small className="ges-field__hint">Opcional. Sin nombre se identifica con su número de cuenta.</small>
+                </label>
+                <div className="ges-modal__acts">
+                    <button type="button" className="ges-btn" onClick={onClose} disabled={isSending}>Cancelar</button>
+                    <button type="submit" className="ges-btn ges-btn--solid" disabled={isSending}>
+                        {isSending ? "Abriendo…" : "Abrir cuenta"}
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
+};
+
 /* ============ Caja ============ */
 
 interface IGestionCajaProps {
@@ -382,6 +441,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
     const [isVoiding, setIsVoiding] = useState(false);
     const [isReleasing, setIsReleasing] = useState(false);
     const [isConfirmingRelease, setIsConfirmingRelease] = useState(false);
+    const [isOpeningTogo, setIsOpeningTogo] = useState(false);
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(true);
 
@@ -452,6 +512,56 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
 
     /* ---- Mapa de mesas ---- */
     if (!ticket) {
+        const togoTables = tables.filter((table) => table.tableNumber === null);
+        const diningTables = tables.filter((table) => table.tableNumber !== null);
+
+        const openTogo = async (customerName: string) => {
+            const opened = await run(() => openTable(token, 0, customerName), "No pudimos abrir el pedido para llevar.");
+            if (opened) setIsOpeningTogo(false);
+        };
+
+        const renderTable = (table: ITableSummary) => {
+            const busy = table.ticketId !== null;
+            const isTogo = table.tableNumber === null;
+            const tone = busy && table.items > 0 ? (table.pending > 0 ? " is-busy" : " is-ready") : busy ? " is-busy" : "";
+
+            return (
+                <button
+                    key={table.ticketId ?? table.label}
+                    type="button"
+                    className={`ges-table${tone}${isTogo ? " ges-table--togo" : ""}`}
+                    // Sin turno no se abre una cuenta nueva; una que quedó abierta sí, para anularla
+                    disabled={!hasShift && !busy}
+                    onClick={() =>
+                        void run(
+                            // Las de para llevar se retoman por su cuenta: puede haber varias abiertas
+                            () => (isTogo && table.ticketId !== null ? fetchTicket(token, table.ticketId) : openTable(token, table.tableNumber ?? 0)),
+                            "No pudimos abrir la mesa."
+                        )
+                    }
+                >
+                    <span className="ges-table__n">{isTogo ? "Para llevar" : table.label}</span>
+                    {isTogo ? <span className="ges-table__who">{table.customerName || `#${table.ticketId}`}</span> : null}
+                    {busy ? (
+                        <>
+                            <span className="ges-table__t">{formatCash(table.total)}</span>
+                            <span className="ges-table__m">
+                                {formatQuantity(table.items)} platos
+                                {table.openedAt ? ` · ${formatWaiting(table.openedAt)}` : ""}
+                            </span>
+                            {table.pending > 0 ? (
+                                <span className="ges-table__pend">{table.pending} por enviar</span>
+                            ) : table.items > 0 ? (
+                                <span className="ges-table__ok">En cocina</span>
+                            ) : null}
+                        </>
+                    ) : (
+                        <span className="ges-table__free">Libre</span>
+                    )}
+                </button>
+            );
+        };
+
         return (
             <>
                 {error ? <p className="ges-error" role="alert">{error}</p> : null}
@@ -464,49 +574,29 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                 {isLoading ? (
                     <p className="ges-empty">Cargando las mesas…</p>
                 ) : (
-                    <div className="ges-tables">
-                        {tables.map((table) => {
-                            const busy = table.ticketId !== null;
-                            const tone = busy ? (table.pending > 0 ? " is-busy" : " is-ready") : "";
+                    <>
+                        <h2 className="ges-tables__group">
+                            Para llevar{togoTables.length > 0 ? ` · ${togoTables.length} ${togoTables.length === 1 ? "abierta" : "abiertas"}` : ""}
+                        </h2>
+                        <div className="ges-tables">
+                            <button
+                                type="button"
+                                className="ges-table ges-table--new"
+                                disabled={!hasShift}
+                                onClick={() => setIsOpeningTogo(true)}
+                            >
+                                <b aria-hidden="true">+</b>
+                                <span>Nuevo para llevar</span>
+                            </button>
+                            {togoTables.map(renderTable)}
+                        </div>
 
-                            return (
-                                <button
-                                    key={table.label}
-                                    type="button"
-                                    className={`ges-table${tone}${table.tableNumber === null ? " ges-table--togo" : ""}`}
-                                    // Sin turno no se abre una cuenta nueva; una que quedó abierta sí, para anularla
-                                    disabled={!hasShift && !busy}
-                                    onClick={() =>
-                                        void run(
-                                            () => openTable(token, table.tableNumber ?? 0),
-                                            "No pudimos abrir la mesa."
-                                        )
-                                    }
-                                >
-                                    <span className="ges-table__n">{table.label}</span>
-                                    {busy ? (
-                                        <>
-                                            <span className="ges-table__t">{formatCash(table.total)}</span>
-                                            <span className="ges-table__m">
-                                                {formatQuantity(table.items)} platos
-                                                {table.openedAt ? ` · ${formatWaiting(table.openedAt)}` : ""}
-                                            </span>
-                                            {table.pending > 0 ? (
-                                                <span className="ges-table__pend">{table.pending} por enviar</span>
-                                            ) : (
-                                                <span className="ges-table__ok">En cocina</span>
-                                            )}
-                                        </>
-                                    ) : (
-                                        <span className="ges-table__free">
-                                            {table.tableNumber === null ? "Nuevo pedido" : "Libre"}
-                                        </span>
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
+                        <h2 className="ges-tables__group">Mesas</h2>
+                        <div className="ges-tables">{diningTables.map(renderTable)}</div>
+                    </>
                 )}
+
+                {isOpeningTogo ? <TogoDialog onOpen={openTogo} onClose={() => setIsOpeningTogo(false)} /> : null}
             </>
         );
     }
@@ -514,7 +604,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
     /* ---- Cuenta abierta ---- */
     const pending = ticket.lines.filter((line) => !line.sentAt);
     const sent = ticket.lines.filter((line) => line.sentAt);
-    const label = ticket.tableNumber === null ? "Para llevar" : `Mesa ${ticket.tableNumber}`;
+    const label = getTicketLabel(ticket);
 
     // Vacía se cierra al tocar; con productos sin enviar pide un segundo toque para no perderlos
     const release = async () => {
@@ -601,7 +691,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
 
                 <aside className="ges-ticket">
                     <div className="ges-ticket__head">
-                        <h2>Cuenta de {label.toLowerCase()}</h2>
+                        <h2>Cuenta de {getLowerLabel(label)}</h2>
                         <button
                             type="button"
                             className="ges-btn ges-btn--sm"
