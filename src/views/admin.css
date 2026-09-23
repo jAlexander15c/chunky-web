@@ -18,6 +18,9 @@
     /* Series de venta: validadas sobre crema para daltonismo (protan ΔE 27.3) */
     --adm-local: #3a4b8e;
     --adm-web: #b07d1a;
+    /* Metodos de pago: el efectivo usa --adm-local; tarjeta y Yappy del local, estos */
+    --adm-card: #6f8fd6;
+    --adm-yappy: #8c5bb3;
 
     min-height: 100dvh;
     background: var(--crema);
@@ -946,3 +949,259 @@ a.adm-btn { display: inline-flex; align-items: center; text-decoration: none; }
 
 .adm-form--single { grid-template-columns: 1fr; }
 .adm-form__textarea { resize: vertical; min-height: 4.5rem; }
+
+/* ============ Menú: aviso de insumos por comprar ============ */
+
+.adm-menu__badge {
+    margin-left: auto;
+    min-width: 1.4rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: var(--radius-pill);
+    background: var(--orquidea);
+    color: var(--ink);
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Enlace con cara de texto: acciones chicas dentro de una frase o una estampilla */
+.adm-link {
+    font: inherit;
+    font-weight: 800;
+    color: var(--mora);
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+}
+
+.adm-link:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+.adm-tile__link { align-self: flex-start; margin-top: 0.3rem; font-size: 0.72rem; }
+
+.adm-loading { margin: 2.2rem 0 0; text-align: center; }
+
+/* ============ Filtros y búsqueda ============ */
+
+.adm-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    align-items: center;
+    margin-bottom: 0.8rem;
+}
+
+.adm-search,
+.adm-select {
+    font: inherit;
+    min-height: 36px;
+    border: 2px solid var(--sky);
+    border-radius: var(--radius-pill);
+    background: var(--crema);
+    color: var(--ink);
+}
+
+.adm-search { flex: 1 1 220px; min-width: 0; padding: 0.3rem 0.95rem; font-size: 0.82rem; }
+.adm-select { padding: 0.25rem 0.8rem; font-size: 0.75rem; font-weight: 700; color: var(--adm-text-2); cursor: pointer; }
+.adm-search::placeholder { color: var(--adm-text-3); }
+.adm-search:focus-visible, .adm-select:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
+
+.adm-filters { display: grid; gap: 0.5rem; margin-bottom: 0.9rem; }
+.adm-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; }
+
+.adm-filter__label {
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--adm-text-3);
+    min-width: 4.8rem;
+}
+
+.adm-chip__count {
+    margin-left: 0.35rem;
+    font-weight: 600;
+    opacity: 0.7;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ============ Paginación ============ */
+
+.adm-pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    margin-top: 0.9rem;
+    padding-top: 0.8rem;
+    border-top: 1.5px dotted var(--adm-line);
+}
+
+.adm-pager__info { font-size: 0.75rem; color: var(--adm-text-2); font-variant-numeric: tabular-nums; }
+.adm-pager__btns { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+
+.adm-pg {
+    font: inherit;
+    min-width: 34px;
+    min-height: 34px;
+    padding: 0 0.5rem;
+    border: 1.5px solid var(--sky);
+    border-radius: var(--radius-pill);
+    background: transparent;
+    color: var(--adm-text-2);
+    font-size: 0.75rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    display: inline-grid;
+    place-items: center;
+}
+
+.adm-pg[aria-current="page"] { background: var(--ink); border-color: var(--ink); color: var(--crema); }
+.adm-pg:disabled { opacity: 0.4; cursor: default; }
+.adm-pg--gap { border-color: transparent; cursor: default; }
+.adm-pg:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-pg:not(:disabled):not([aria-current="page"]):not(.adm-pg--gap):hover { background: var(--sky); }
+}
+
+/* ============ Finanzas ============ */
+
+.adm-period {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem 1rem;
+    margin-bottom: 0.9rem;
+}
+
+.adm-period__range { font-size: 0.75rem; color: var(--adm-text-2); font-variant-numeric: tabular-nums; }
+
+/* Mientras llega otro período, el anterior se atenúa en vez de desaparecer */
+.adm-fin { transition: opacity 160ms ease; }
+.adm-fin.is-stale { opacity: 0.55; }
+.adm-fin > .adm-warning { margin: 0 0 0.9rem; }
+
+/* Seis cifras con montos largos: tres por fila y sin partir el monto */
+.adm-tiles--fin { grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+.adm-tiles--fin .adm-tile__value { white-space: nowrap; font-size: clamp(1.35rem, 2.2vw, 1.7rem); }
+
+.adm-fin-grid {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+    margin-top: 0.9rem;
+    align-items: start;
+}
+
+.adm-delta {
+    align-self: flex-start;
+    margin: 0.15rem 0 0.1rem;
+    padding: 0.05rem 0.5rem;
+    border-radius: var(--radius-pill);
+    font-size: 0.68rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.adm-delta.is-up { background: var(--adm-good-bg); color: var(--adm-good); }
+.adm-delta.is-down { background: var(--adm-crit-bg); color: var(--adm-crit); }
+.adm-delta.is-flat { background: var(--adm-panel-2); color: var(--adm-text-2); }
+
+/* Cómo pagaron: una barra apilada y su desglose */
+.adm-stack {
+    display: flex;
+    gap: 2px;
+    height: 20px;
+    border-radius: var(--radius-pill);
+    overflow: hidden;
+    margin: 0.2rem 0 0.9rem;
+}
+
+.adm-stack i, .adm-pay__sw { display: block; }
+.adm-stack i { height: 100%; }
+.adm-stack .is-cash, .adm-pay__sw.is-cash { background: var(--adm-local); }
+.adm-stack .is-card, .adm-pay__sw.is-card { background: var(--adm-card); }
+.adm-stack .is-yappy, .adm-pay__sw.is-yappy { background: var(--adm-yappy); }
+.adm-stack .is-web, .adm-pay__sw.is-web { background: var(--adm-web); }
+
+.adm-pay { display: grid; gap: 0.45rem; }
+
+.adm-pay__row {
+    display: grid;
+    grid-template-columns: 10px 1fr auto 2.6rem;
+    gap: 0.7rem;
+    align-items: center;
+    font-size: 0.8rem;
+}
+
+.adm-pay__sw { width: 10px; height: 10px; border-radius: 3px; }
+.adm-pay__row b { font-weight: 800; font-variant-numeric: tabular-nums; text-align: right; }
+.adm-pay__row em { font-style: normal; font-size: 0.72rem; color: var(--adm-text-3); text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Cuándo se vende: barras por día de la semana y mapa de horas */
+.adm-week {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 0.4rem;
+    height: 140px;
+}
+
+.adm-week__day { display: grid; grid-template-rows: auto 1fr auto; gap: 0.2rem; justify-items: center; min-height: 0; }
+.adm-week__val { font-size: 0.66rem; font-weight: 700; color: var(--adm-text-2); font-variant-numeric: tabular-nums; }
+.adm-week__track { display: flex; align-items: flex-end; width: 100%; min-height: 0; }
+.adm-week__track i { display: block; width: 100%; border-radius: 8px 8px 3px 3px; background: var(--sky); }
+.adm-week__track i.is-best { background: var(--mora); }
+.adm-week__lab { font-size: 0.66rem; font-weight: 800; color: var(--adm-text-3); }
+
+.adm-hours { display: grid; gap: 3px; margin-top: 1.1rem; }
+.adm-hours__cell { display: grid; gap: 0.2rem; justify-items: center; }
+.adm-hours__cell i { display: block; width: 100%; height: 26px; border-radius: 5px; background: var(--mora); }
+.adm-hours__cell small { font-size: 0.6rem; color: var(--adm-text-3); font-variant-numeric: tabular-nums; min-height: 1em; }
+
+.adm-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1rem;
+    margin-top: 0.9rem;
+    font-size: 0.78rem;
+    color: var(--adm-text-2);
+}
+
+.adm-facts b { color: var(--ink); font-weight: 800; }
+
+/* Salidas de efectivo por motivo */
+.adm-outflows { display: grid; }
+
+.adm-outflows__row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.5rem 0;
+    border-top: 1.5px dotted var(--adm-line);
+    font-size: 0.8rem;
+}
+
+.adm-outflows__row:first-child { border-top: 0; }
+.adm-outflows__row em { font-style: normal; color: var(--adm-text-3); font-size: 0.72rem; }
+.adm-outflows__row b { font-weight: 800; color: var(--adm-crit); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Movimientos con día y hora: la primera columna necesita más ancho */
+.adm-mv { grid-template-columns: 7.8rem 6rem 1fr auto 7rem 7rem; }
+
+@media (max-width: 720px) {
+    /* Día y hora arriba; tipo, qué y cuánto en el medio; quién y de dónde abajo */
+    .adm-mv { grid-template-columns: auto minmax(0, 1fr) auto; }
+    .adm-mv__time { grid-column: 1 / -1; }
+    .adm-mv .adm-tag { grid-row: auto; grid-column: 1; justify-self: start; }
+    .adm-mv__who { grid-row: auto; grid-column: 1 / 3; text-align: left; }
+    .adm-mv__from { grid-row: auto; grid-column: 3; text-align: right; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .adm-fin { transition: none; }
+}
