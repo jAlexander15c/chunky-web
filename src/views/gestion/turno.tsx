@@ -222,7 +222,9 @@ const SHIFT_TICKETS_SHOWN = 8;
 const getPaymentsSummary = (payments: ITicketPayment[] | null) => {
     if (!payments?.length) return "Sin pago registrado";
     if (payments.length === 1) return PAYMENT_LABEL[payments[0].method];
-    return payments.map((one) => `${PAYMENT_LABEL[one.method]} ${one.amount.toFixed(2)}`).join(" + ");
+    return payments
+        .map((one) => `${PAYMENT_LABEL[one.method]} ${one.amount.toFixed(2)}${one.payerName ? ` (${one.payerName})` : ""}`)
+        .join(" + ");
 };
 
 const REFUND_CHANNEL: Record<PaymentMethod, string> = {

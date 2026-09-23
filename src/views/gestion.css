@@ -642,6 +642,7 @@
 
 .ges-table__pend { color: var(--ges-warn); background: var(--ges-warn-bg); padding: 0.05rem 0.45rem; border-radius: var(--radius-pill); }
 .ges-table__ok { color: var(--ges-good); }
+.ges-table__paid { font-size: 0.72rem; font-weight: 800; color: var(--ges-warn); font-variant-numeric: tabular-nums; }
 
 .ges-warning {
     margin: var(--gutter) var(--gutter) 0;
@@ -933,28 +934,44 @@
 .ges-change b { font-size: 1.55rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .ges-change.is-short { background: var(--ges-crit-bg); color: var(--ges-crit); }
 
-.ges-mix { display: grid; gap: 0.4rem; }
-.ges-mix__row { display: grid; grid-template-columns: 1fr 110px auto; gap: 0.35rem; align-items: center; }
+/* Cobro Mixto por partes: cada quien paga lo suyo y el último pago cierra la cuenta */
+.ges-part__lbl { font-size: 0.68rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ges-text-3); }
 
-.ges-mix__row select,
-.ges-mix__row input {
-    font: inherit;
-    font-size: 0.9rem;
-    padding: 0.45rem 0.6rem;
-    border: 2px solid var(--sky);
+.ges-ledger { display: grid; gap: 0.3rem; }
+.ges-ledger__empty { margin: 0; font-size: 0.8rem; color: var(--ges-text-2); }
+
+.ges-ledger__row {
+    display: grid;
+    grid-template-columns: 22px 1fr auto 34px;
+    gap: 0.5rem;
+    align-items: center;
+    background: var(--ges-panel-2);
     border-radius: 12px;
-    background: var(--crema);
-    color: var(--ink);
-    width: 100%;
-    min-width: 0;
+    padding: 0.4rem 0.4rem 0.4rem 0.6rem;
+    font-size: 0.84rem;
 }
 
-.ges-mix__row input { font-weight: 800; font-variant-numeric: tabular-nums; text-align: right; }
+.ges-ledger__ok {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--ges-good-bg);
+    color: var(--ges-good);
+    display: grid;
+    place-items: center;
+    font-weight: 800;
+    font-size: 0.72rem;
+}
 
-.ges-mix__drop {
+.ges-ledger__who { display: grid; line-height: 1.25; min-width: 0; }
+.ges-ledger__who b { font-weight: 800; overflow-wrap: anywhere; }
+.ges-ledger__who small { color: var(--ges-text-3); font-weight: 600; font-size: 0.7rem; }
+.ges-ledger__amt { font-weight: 800; font-variant-numeric: tabular-nums; }
+
+.ges-ledger__drop {
     font: inherit;
     border: 1.5px solid var(--sky);
-    background: transparent;
+    background: var(--ges-panel);
     border-radius: var(--radius-pill);
     width: 34px;
     height: 34px;
@@ -963,9 +980,54 @@
     cursor: pointer;
 }
 
-.ges-mix__sum { display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 800; }
-.ges-mix__sum.is-bad { color: var(--ges-crit); }
-.ges-mix__sum.is-ok { color: var(--ges-good); }
+.ges-paidsum { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+.ges-paidsum > div { border-radius: 14px; padding: 0.5rem 0.8rem; display: grid; }
+.ges-paidsum span { font-size: 0.66rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.ges-paidsum b { font-size: 1.25rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.ges-paidsum .is-paid { background: var(--ges-good-bg); color: var(--ges-good); }
+.ges-paidsum .is-missing { background: var(--ges-warn-bg); color: var(--ges-warn); }
+
+.ges-part { border-top: 1.5px dashed var(--ges-line); padding-top: 0.7rem; display: grid; gap: 0.55rem; }
+.ges-part__row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+.ges-part__row--end { align-items: end; }
+
+.ges-field--sm input,
+.ges-field--sm select {
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 0.5rem 0.7rem;
+    border: 2px solid var(--sky);
+    border-radius: 12px;
+    background: var(--crema);
+    color: var(--ink);
+    width: 100%;
+    min-width: 0;
+}
+
+.ges-field--sm input[inputmode="decimal"] { font-weight: 800; text-align: right; font-size: 1.1rem; }
+
+.ges-change--sm { padding: 0.5rem 0.85rem; }
+.ges-change--sm b { font-size: 1.3rem; }
+
+.ges-modal__acts--one { grid-template-columns: 1fr; }
+
+/* En la cuenta: lo ya pagado por partes, junto al total */
+.ges-paid-strip {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.3rem 0.6rem;
+    background: var(--ges-warn-bg);
+    color: var(--ges-warn);
+    border-radius: 14px;
+    padding: 0.55rem 0.8rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.ges-paid-strip b { font-variant-numeric: tabular-nums; }
+.ges-paid-strip__bar { grid-column: 1 / -1; height: 6px; background: rgb(141 93 12 / 0.18); border-radius: var(--radius-pill); overflow: hidden; }
+.ges-paid-strip__bar i { display: block; height: 100%; background: var(--ges-warn); border-radius: var(--radius-pill); }
 
 .ges-note { margin: 0; background: var(--sky); border-radius: 12px; padding: 0.55rem 0.8rem; font-size: 0.78rem; }
 

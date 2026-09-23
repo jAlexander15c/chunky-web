@@ -29,6 +29,11 @@ export const PAYMENT_LABEL: Record<PaymentMethod, string> = {
 export interface ITicketPayment {
     method: PaymentMethod;
     amount: number;
+    /** Quién pagó esa parte, cuando la cuenta se paga por partes. Opcional. */
+    payerName?: string | null;
+    /** Cuándo se registró el pago por partes y quién lo cargó. */
+    paidAt?: string;
+    byName?: string;
 }
 
 export interface ITicketLine {
@@ -69,7 +74,10 @@ export interface ITicket {
     openedByName: string;
     openedAt: string;
     total: number;
+    /** Mientras está abierta, los pagos por partes; al cobrarla, cómo se pagó. */
     payments: ITicketPayment[] | null;
+    /** Lo ya pagado por partes. En una cobrada, todo. */
+    paidAmount: number;
     loyverseReceiptNumber: string | null;
     receiptPending: boolean;
     lines: ITicketLine[];
@@ -83,6 +91,8 @@ export interface ITableSummary {
     customerName: string | null;
     ticketId: number | null;
     total: number;
+    /** Lo ya pagado por partes en las cuentas abiertas de la mesa. */
+    paidAmount: number;
     items: number;
     pending: number;
     /** Cuentas abiertas en la mesa. Total, platos y pendientes suman las de todas. */
@@ -340,6 +350,25 @@ export const payTicket = (token: string, ticketId: number, payments: ITicketPaym
         { payments },
         { headers: getGestionHeaders(token) }
     );
+
+/**
+ * Registra lo que paga una persona de la cuenta (cobro Mixto por partes). El pago que
+ * completa el total cierra la cuenta: la respuesta llega ya cobrada.
+ */
+export const addTicketPayment = (
+    token: string,
+    ticketId: number,
+    payment: { method: PaymentMethod; amount: number; payerName: string | null }
+) =>
+    httpPost<{ ticket: ITicket }>(`/gestion/caja/cuentas/${ticketId}/pagos`, payment, {
+        headers: getGestionHeaders(token),
+    });
+
+/** Quita un pago por partes cargado por error, mientras la cuenta sigue abierta. */
+export const removeTicketPayment = (token: string, ticketId: number, index: number) =>
+    httpPost<{ ticket: ITicket }>(`/gestion/caja/cuentas/${ticketId}/pagos/${index}/quitar`, {}, {
+        headers: getGestionHeaders(token),
+    });
 
 /** Cierra una mesa abierta por error. El API la rechaza si ya mandó algo a cocina. */
 export const releaseTicket = (token: string, ticketId: number) =>

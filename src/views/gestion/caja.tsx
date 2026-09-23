@@ -5,6 +5,7 @@ import {
     HttpError,
     PAYMENT_LABEL,
     addTicketLine,
+    addTicketPayment,
     changeTicketLine,
     fetchTables,
     fetchTicket,
@@ -21,6 +22,7 @@ import {
     openTableAccount,
     payTicket,
     releaseTicket,
+    removeTicketPayment,
     renameTicket,
     sendTicketToKitchen,
     useCategories,
@@ -73,45 +75,189 @@ const parseAmount = (value: string) => {
 
 /* ============ Cobro ============ */
 
-interface IPayDialogProps {
-    ticket: ITicket;
-    onPay: (payments: ITicketPayment[]) => Promise<void>;
-    onClose: () => void;
+/** "8:12 p. m.": a qué hora se registró un pago por partes. */
+const formatPaymentTime = (value?: string) =>
+    value ? new Date(value).toLocaleTimeString("es-PA", { hour: "numeric", minute: "2-digit" }) : "";
+
+interface IPartialPaymentFormProps {
+    missing: number;
+    onAdd: (payment: { method: PaymentMethod; amount: number; payerName: string | null }) => Promise<void>;
 }
 
-const PayDialog = ({ ticket, onPay, onClose }: IPayDialogProps) => {
-    const [isMixed, setIsMixed] = useState(false);
+/**
+ * El siguiente pago de una cuenta que se paga por partes. Solo se registra lo que va a la
+ * cuenta: si pagan en efectivo con más, el vuelto se calcula aquí y se da aparte.
+ */
+const PartialPaymentForm = ({ missing, onAdd }: IPartialPaymentFormProps) => {
     const [method, setMethod] = useState<PaymentMethod>("efectivo");
+    const [amount, setAmount] = useState("");
+    const [payerName, setPayerName] = useState("");
     const [received, setReceived] = useState("");
-    const [mix, setMix] = useState<{ method: PaymentMethod; amount: string }[]>([
-        { method: "efectivo", amount: "" },
-        { method: "tarjeta", amount: "" },
-    ]);
     const [error, setError] = useState("");
     const [isSending, setIsSending] = useState(false);
 
-    const total = ticket.total;
-    const mixTotal = roundMoney(mix.reduce((sum, row) => sum + parseAmount(row.amount), 0));
-    const missing = roundMoney(total - mixTotal);
-    const change = roundMoney(parseAmount(received) - total);
-
-    const canPay = isMixed
-        ? Math.abs(missing) < 0.005 && mix.every((row) => parseAmount(row.amount) > 0)
-        : method !== "efectivo" || parseAmount(received) >= total - 0.005;
+    const value = roundMoney(parseAmount(amount));
+    const change = roundMoney(parseAmount(received) - value);
+    const isShort = method === "efectivo" && received !== "" && change < -0.005;
+    const isOver = value > missing + 0.005;
+    const closesAccount = value > 0 && Math.abs(value - missing) < 0.005;
+    const canAdd = value > 0 && !isOver && !isShort && !isSending;
 
     const submit = async () => {
-        const payments: ITicketPayment[] = isMixed
-            ? mix.map((row) => ({ method: row.method, amount: roundMoney(parseAmount(row.amount)) }))
-            : [{ method, amount: total }];
-
         setIsSending(true);
         setError("");
 
         try {
-            await onPay(payments);
+            await onAdd({ method, amount: value, payerName: payerName.trim() || null });
+            setAmount("");
+            setPayerName("");
+            setReceived("");
+        } catch (requestError) {
+            setError(requestError instanceof HttpError ? requestError.message : "No se pudo registrar el pago.");
+        } finally {
+            setIsSending(false);
+        }
+    };
+
+    return (
+        <div className="ges-part">
+            <span className="ges-part__lbl">Siguiente pago</span>
+
+            <div className="ges-part__row">
+                <label className="ges-field ges-field--sm">
+                    <span>Medio</span>
+                    <select
+                        id="caja-parte-medio"
+                        value={method}
+                        onChange={(event) => setMethod(event.target.value as PaymentMethod)}
+                    >
+                        {PAYMENT_METHODS.map((option) => (
+                            <option key={option} value={option}>{PAYMENT_LABEL[option]}</option>
+                        ))}
+                    </select>
+                </label>
+                <label className="ges-field ges-field--sm">
+                    <span>Monto</span>
+                    <input
+                        id="caja-parte-monto"
+                        type="text"
+                        inputMode="decimal"
+                        autoFocus
+                        value={amount}
+                        placeholder="0.00"
+                        onChange={(event) => setAmount(event.target.value)}
+                    />
+                </label>
+            </div>
+
+            <div className="ges-quick">
+                <button type="button" onClick={() => setAmount(missing.toFixed(2))}>
+                    Lo que falta {formatCash(missing)}
+                </button>
+                <button type="button" onClick={() => setAmount(roundMoney(missing / 2).toFixed(2))}>
+                    La mitad {formatCash(roundMoney(missing / 2))}
+                </button>
+            </div>
+
+            <label className="ges-field ges-field--sm">
+                <span>Quién paga (opcional)</span>
+                <input
+                    id="caja-parte-nombre"
+                    type="text"
+                    maxLength={40}
+                    value={payerName}
+                    placeholder="Ej. Luis"
+                    onChange={(event) => setPayerName(event.target.value)}
+                />
+            </label>
+
+            {method === "efectivo" ? (
+                <div className="ges-part__row ges-part__row--end">
+                    <label className="ges-field ges-field--sm">
+                        <span>Con cuánto paga</span>
+                        <input
+                            id="caja-parte-recibido"
+                            type="text"
+                            inputMode="decimal"
+                            value={received}
+                            placeholder="0.00"
+                            onChange={(event) => setReceived(event.target.value)}
+                        />
+                    </label>
+                    <div className={`ges-change ges-change--sm${isShort ? " is-short" : ""}`}>
+                        <span>{isShort ? "Falta" : "Vuelto"}</span>
+                        <b>{formatCash(received ? Math.abs(change) : 0)}</b>
+                    </div>
+                </div>
+            ) : null}
+
+            {isOver ? (
+                <p className="ges-error" role="alert">
+                    Falta {formatCash(missing)}. El vuelto se da aparte: aquí va solo lo que se aplica a la cuenta.
+                </p>
+            ) : null}
+            {error ? <p className="ges-error" role="alert">{error}</p> : null}
+
+            <button type="button" className="ges-btn ges-btn--solid ges-btn--block" disabled={!canAdd} onClick={() => void submit()}>
+                {isSending
+                    ? "Registrando…"
+                    : closesAccount
+                      ? `Registrar ${formatCash(value)} y cerrar la cuenta`
+                      : value > 0
+                        ? `Registrar pago de ${formatCash(value)}`
+                        : "Registrar pago"}
+            </button>
+        </div>
+    );
+};
+
+interface IPayDialogProps {
+    ticket: ITicket;
+    onPay: (payments: ITicketPayment[]) => Promise<void>;
+    onAddPayment: (payment: { method: PaymentMethod; amount: number; payerName: string | null }) => Promise<void>;
+    onRemovePayment: (index: number) => Promise<void>;
+    onClose: () => void;
+}
+
+const PayDialog = ({ ticket, onPay, onAddPayment, onRemovePayment, onClose }: IPayDialogProps) => {
+    const partials = ticket.payments ?? [];
+    const hasPartials = partials.length > 0;
+
+    // Con pagos por partes ya registrados solo queda seguir en Mixto
+    const [isMixed, setIsMixed] = useState(hasPartials);
+    const [method, setMethod] = useState<PaymentMethod>("efectivo");
+    const [received, setReceived] = useState("");
+    const [error, setError] = useState("");
+    const [isSending, setIsSending] = useState(false);
+    const [removing, setRemoving] = useState<number | null>(null);
+
+    const total = ticket.total;
+    const missing = roundMoney(total - ticket.paidAmount);
+    const change = roundMoney(parseAmount(received) - total);
+    const canPay = method !== "efectivo" || parseAmount(received) >= total - 0.005;
+
+    const submit = async () => {
+        setIsSending(true);
+        setError("");
+
+        try {
+            await onPay([{ method, amount: total }]);
         } catch (requestError) {
             setError(requestError instanceof HttpError ? requestError.message : "No se pudo cobrar.");
             setIsSending(false);
+        }
+    };
+
+    const remove = async (index: number) => {
+        setRemoving(index);
+        setError("");
+
+        try {
+            await onRemovePayment(index);
+        } catch (requestError) {
+            setError(requestError instanceof HttpError ? requestError.message : "No se pudo quitar el pago.");
+        } finally {
+            setRemoving(null);
         }
     };
 
@@ -121,7 +267,7 @@ const PayDialog = ({ ticket, onPay, onClose }: IPayDialogProps) => {
                 <h3 className="script">Cobrar {getLowerLabel(getTicketLabel(ticket))}</h3>
 
                 <div className="ges-total">
-                    <span>Total a cobrar</span>
+                    <span>{isMixed ? "Total de la cuenta" : "Total a cobrar"}</span>
                     <b>{formatCash(total)}</b>
                 </div>
 
@@ -132,6 +278,7 @@ const PayDialog = ({ ticket, onPay, onClose }: IPayDialogProps) => {
                             type="button"
                             className="ges-pay"
                             aria-pressed={!isMixed && method === option}
+                            disabled={hasPartials}
                             onClick={() => { setIsMixed(false); setMethod(option); setError(""); }}
                         >
                             {PAYMENT_LABEL[option]}
@@ -148,133 +295,118 @@ const PayDialog = ({ ticket, onPay, onClose }: IPayDialogProps) => {
                 </div>
 
                 {isMixed ? (
-                    <div className="ges-mix">
-                        {mix.map((row, index) => (
-                            <div className="ges-mix__row" key={index}>
-                                <select
-                                    value={row.method}
-                                    aria-label={`Medio del pago ${index + 1}`}
-                                    onChange={(event) =>
-                                        setMix((current) =>
-                                            current.map((one, i) =>
-                                                i === index ? { ...one, method: event.target.value as PaymentMethod } : one
-                                            )
-                                        )
-                                    }
-                                >
-                                    {PAYMENT_METHODS.map((option) => (
-                                        <option key={option} value={option}>{PAYMENT_LABEL[option]}</option>
-                                    ))}
-                                </select>
-                                <input
-                                    type="text"
-                                    inputMode="decimal"
-                                    value={row.amount}
-                                    placeholder="0.00"
-                                    aria-label={`Monto del pago ${index + 1}`}
-                                    onChange={(event) =>
-                                        setMix((current) =>
-                                            current.map((one, i) => (i === index ? { ...one, amount: event.target.value } : one))
-                                        )
-                                    }
-                                />
-                                {mix.length > 2 ? (
-                                    <button
-                                        type="button"
-                                        className="ges-mix__drop"
-                                        aria-label="Quitar este pago"
-                                        onClick={() => setMix((current) => current.filter((_one, i) => i !== index))}
-                                    >
-                                        ×
-                                    </button>
-                                ) : (
-                                    <span />
-                                )}
-                            </div>
-                        ))}
-
-                        <div className={`ges-mix__sum${Math.abs(missing) < 0.005 ? " is-ok" : " is-bad"}`}>
-                            <span>
-                                {Math.abs(missing) < 0.005
-                                    ? "Suma exacta"
-                                    : missing > 0
-                                      ? `Falta ${formatCash(missing)}`
-                                      : `Sobra ${formatCash(-missing)}`}
-                            </span>
-                            <span>{formatCash(mixTotal)} de {formatCash(total)}</span>
+                    <>
+                        <span className="ges-part__lbl">Pagos registrados</span>
+                        <div className="ges-ledger">
+                            {partials.length === 0 ? (
+                                <p className="ges-ledger__empty">
+                                    Todavía no hay pagos. Registra lo que paga cada persona; con el último se cierra la cuenta.
+                                </p>
+                            ) : (
+                                partials.map((one, index) => (
+                                    <div className="ges-ledger__row" key={`${one.paidAt ?? ""}-${index}`}>
+                                        <span className="ges-ledger__ok" aria-hidden="true">✓</span>
+                                        <span className="ges-ledger__who">
+                                            <b>{PAYMENT_LABEL[one.method]}{one.payerName ? ` · ${one.payerName}` : ""}</b>
+                                            <small>
+                                                {formatPaymentTime(one.paidAt)}
+                                                {one.byName ? ` · cargó ${one.byName}` : ""}
+                                            </small>
+                                        </span>
+                                        <span className="ges-ledger__amt">{formatCash(one.amount)}</span>
+                                        <button
+                                            type="button"
+                                            className="ges-ledger__drop"
+                                            aria-label={`Quitar el pago de ${formatCash(one.amount)}`}
+                                            disabled={removing !== null}
+                                            onClick={() => void remove(index)}
+                                        >
+                                            {removing === index ? "…" : "×"}
+                                        </button>
+                                    </div>
+                                ))
+                            )}
                         </div>
 
-                        {mix.length < 3 ? (
-                            <button
-                                type="button"
-                                className="ges-btn ges-btn--sm"
-                                onClick={() => setMix((current) => [...current, { method: "yappy", amount: "" }])}
-                            >
-                                Agregar otro medio
-                            </button>
-                        ) : null}
+                        <div className="ges-paidsum">
+                            <div className="is-paid"><span>Pagado</span><b>{formatCash(ticket.paidAmount)}</b></div>
+                            <div className={missing < 0.005 ? "is-paid" : "is-missing"}><span>Falta</span><b>{formatCash(missing)}</b></div>
+                        </div>
+
+                        {error ? <p className="ges-error" role="alert">{error}</p> : null}
+
+                        <PartialPaymentForm missing={missing} onAdd={onAddPayment} />
 
                         <p className="ges-note">
-                            En Loyverse el recibo va con el tipo «Mixto» y el desglose en la nota. El detalle
-                            exacto queda aquí, que es lo que cuadra la caja.
+                            En Loyverse el recibo va con el tipo «Mixto» y el desglose, con los nombres, en la nota.
                         </p>
-                    </div>
-                ) : method === "efectivo" ? (
-                    <>
-                        <label className="ges-field">
-                            <span>Con cuánto paga</span>
-                            <input
-                                id="caja-recibido"
-                                type="text"
-                                inputMode="decimal"
-                                autoFocus
-                                value={received}
-                                placeholder="0.00"
-                                onChange={(event) => setReceived(event.target.value)}
-                            />
-                        </label>
-                        <div className="ges-quick">
-                            {[total, 20, 50, 100].map((value, index) => (
-                                <button
-                                    key={index}
-                                    type="button"
-                                    onClick={() => setReceived(value.toFixed(2))}
-                                >
-                                    {index === 0 ? `Justo ${formatCash(value)}` : formatCash(value)}
-                                </button>
-                            ))}
-                        </div>
-                        <div className={`ges-change${received && change < -0.005 ? " is-short" : ""}`}>
-                            <span>{received && change < -0.005 ? "Falta" : "Vuelto"}</span>
-                            <b>{formatCash(received ? Math.abs(change) : 0)}</b>
+
+                        <div className="ges-modal__acts ges-modal__acts--one">
+                            <button type="button" className="ges-btn" onClick={onClose}>
+                                {hasPartials ? "Cerrar (la cuenta sigue abierta)" : "Cancelar"}
+                            </button>
                         </div>
                     </>
-                ) : method === "yappy" ? (
-                    <p className="ges-note">
-                        El cliente paga por su app al comercio. Confirma solo cuando te llegue el aviso:
-                        desde aquí no hay forma de verificarlo.
-                    </p>
                 ) : (
-                    <p className="ges-note">Se cobra en el datáfono. Aquí solo se registra que fue con tarjeta.</p>
+                    <>
+                        {method === "efectivo" ? (
+                            <>
+                                <label className="ges-field">
+                                    <span>Con cuánto paga</span>
+                                    <input
+                                        id="caja-recibido"
+                                        type="text"
+                                        inputMode="decimal"
+                                        autoFocus
+                                        value={received}
+                                        placeholder="0.00"
+                                        onChange={(event) => setReceived(event.target.value)}
+                                    />
+                                </label>
+                                <div className="ges-quick">
+                                    {[total, 20, 50, 100].map((value, index) => (
+                                        <button
+                                            key={index}
+                                            type="button"
+                                            onClick={() => setReceived(value.toFixed(2))}
+                                        >
+                                            {index === 0 ? `Justo ${formatCash(value)}` : formatCash(value)}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className={`ges-change${received && change < -0.005 ? " is-short" : ""}`}>
+                                    <span>{received && change < -0.005 ? "Falta" : "Vuelto"}</span>
+                                    <b>{formatCash(received ? Math.abs(change) : 0)}</b>
+                                </div>
+                            </>
+                        ) : method === "yappy" ? (
+                            <p className="ges-note">
+                                El cliente paga por su app al comercio. Confirma solo cuando te llegue el aviso:
+                                desde aquí no hay forma de verificarlo.
+                            </p>
+                        ) : (
+                            <p className="ges-note">Se cobra en el datáfono. Aquí solo se registra que fue con tarjeta.</p>
+                        )}
+
+                        {error ? <p className="ges-error" role="alert">{error}</p> : null}
+
+                        <div className="ges-modal__acts">
+                            <button type="button" className="ges-btn" onClick={onClose} disabled={isSending}>Cancelar</button>
+                            <button
+                                type="button"
+                                className="ges-btn ges-btn--solid"
+                                onClick={() => void submit()}
+                                disabled={!canPay || isSending}
+                            >
+                                {isSending
+                                    ? "Cobrando…"
+                                    : method === "efectivo" && change >= 0 && received
+                                      ? `Cobrar y dar ${formatCash(change)}`
+                                      : `Cobrar ${formatCash(total)}`}
+                            </button>
+                        </div>
+                    </>
                 )}
-
-                {error ? <p className="ges-error" role="alert">{error}</p> : null}
-
-                <div className="ges-modal__acts">
-                    <button type="button" className="ges-btn" onClick={onClose} disabled={isSending}>Cancelar</button>
-                    <button
-                        type="button"
-                        className="ges-btn ges-btn--solid"
-                        onClick={() => void submit()}
-                        disabled={!canPay || isSending}
-                    >
-                        {isSending
-                            ? "Cobrando…"
-                            : !isMixed && method === "efectivo" && change >= 0 && received
-                              ? `Cobrar y dar ${formatCash(change)}`
-                              : `Cobrar ${formatCash(total)}`}
-                    </button>
-                </div>
             </div>
         </div>
     );
@@ -756,6 +888,9 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                     {busy ? (
                         <>
                             <span className="ges-table__t">{formatCash(table.total)}</span>
+                            {table.paidAmount > 0 ? (
+                                <span className="ges-table__paid">Pagado {formatCash(table.paidAmount)}</span>
+                            ) : null}
                             <span className="ges-table__m">
                                 {formatQuantity(table.items)} platos
                                 {table.openedAt ? ` · ${formatWaiting(table.openedAt)}` : ""}
@@ -821,6 +956,10 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
     const hasSiblings = ticket.tableAccounts.length > 1;
     const accountName = getAccountName(ticket);
     const otherAccounts = ticket.tableAccounts.filter((one) => one.id !== ticket.id);
+    // Cobro Mixto por partes en curso: el dinero ya recibido se ve junto al total
+    const partialsCount = ticket.payments?.length ?? 0;
+    const hasPartials = partialsCount > 0;
+    const missing = roundMoney(ticket.total - ticket.paidAmount);
 
     /** Tras cobrar o cerrar una cuenta, la siguiente de la mesa; si no queda ninguna, el mapa. */
     const showNextAccount = async (remaining: ITableAccount[]) => {
@@ -1030,6 +1169,19 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                             <b>{formatCash(ticket.total)}</b>
                         </div>
 
+                        {hasPartials ? (
+                            <div className="ges-paid-strip">
+                                <span>
+                                    Pagado {formatCash(ticket.paidAmount)} en {partialsCount}{" "}
+                                    {partialsCount === 1 ? "pago" : "pagos"}
+                                </span>
+                                <b>Falta {formatCash(missing)}</b>
+                                <span className="ges-paid-strip__bar" aria-hidden="true">
+                                    <i style={{ width: `${Math.min(100, (ticket.paidAmount / Math.max(ticket.total, 0.01)) * 100)}%` }} />
+                                </span>
+                            </div>
+                        ) : null}
+
                         <button
                             type="button"
                             className="ges-btn ges-btn--block"
@@ -1047,7 +1199,9 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                         >
                             {!hasShift
                                 ? "Abre el turno primero"
-                                : hasSiblings
+                                : hasPartials
+                                  ? `Cobrar lo que falta (${formatCash(missing)})`
+                                  : hasSiblings
                                   ? `Cobrar la cuenta de ${accountName}`
                                   : "Cobrar y cerrar la mesa"}
                         </button>
@@ -1153,6 +1307,21 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                         const data = await payTicket(token, ticket.id, payments);
                         setIsPaying(false);
                         await showNextAccount(data.ticket.tableAccounts);
+                    }}
+                    onAddPayment={async (payment) => {
+                        const data = await addTicketPayment(token, ticket.id, payment);
+                        setError("");
+                        // El pago que completa el total llega con la cuenta ya cobrada
+                        if (data.ticket.status !== "abierta") {
+                            setIsPaying(false);
+                            await showNextAccount(data.ticket.tableAccounts);
+                            return;
+                        }
+                        setTicket(data.ticket);
+                    }}
+                    onRemovePayment={async (index) => {
+                        const data = await removeTicketPayment(token, ticket.id, index);
+                        setTicket(data.ticket);
                     }}
                 />
             ) : null}
