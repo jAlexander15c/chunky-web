@@ -1,5 +1,5 @@
 import { httpGet, httpPost, httpPut } from "./getHttp";
-import type { IShiftDetail } from "./gestion";
+import type { ICreditTicket, IShiftDetail } from "./gestion";
 
 export type SupplyState = "comprar" | "pedir" | "contar" | "bien";
 export type ProductState = "agotado" | "poco" | "disponible" | "sin-control";
@@ -284,6 +284,10 @@ export const fetchAdminFund =(token: string, signal?: AbortSignal) =>
 
 export const registerAdminFundMovement = (token: string, movement: IFundMovementInput) =>
     httpPost<{ fund: IFund }>("/admin/fund/movement", movement, { headers: getAdminHeaders(token) });
+
+/** Quién debe y desde cuándo. Solo se ven: los cobra la caja. */
+export const fetchAdminCredits = (token: string, signal?: AbortSignal) =>
+    httpGet<{ credits: ICreditTicket[] }>("/admin/credits", { signal, headers: getAdminHeaders(token) });
 
 /** Además cierra las sesiones abiertas de esa persona. */
 export const resetCollaboratorPin = (token: string, id: number) =>

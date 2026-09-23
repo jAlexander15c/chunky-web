@@ -1119,3 +1119,44 @@
 .ges-warn { margin: 0; background: var(--ges-warn-bg); color: var(--ges-warn); border-radius: 12px; padding: 0.6rem 0.8rem; font-size: 0.82rem; font-weight: 700; line-height: 1.45; }
 
 .ges-btn--danger { background: var(--ges-crit); border-color: var(--ges-crit); color: var(--crema); }
+
+/* ============ Créditos ============ */
+
+/* "o" entre el cobro y dejar a crédito: son dos salidas distintas de la cuenta */
+.ges-or { display: flex; align-items: center; gap: 0.6rem; font-size: 0.66rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ges-text-3); }
+.ges-or::before, .ges-or::after { content: ""; flex: 1; height: 1px; background: var(--ges-line); }
+
+.ges-btn--credit { border-style: dashed; border-color: var(--orquidea); color: var(--mora); background: #fbf1fc; }
+
+.ges-pays--three { grid-template-columns: repeat(3, 1fr); }
+
+.ges-credits { display: grid; gap: 0.5rem; }
+
+.ges-debt {
+    font: inherit;
+    text-align: left;
+    color: inherit;
+    background: var(--ges-panel);
+    border: 2px solid transparent;
+    border-radius: 16px;
+    padding: 0.8rem 0.9rem;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.2rem 0.8rem;
+    align-items: center;
+    cursor: pointer;
+    transition: transform 160ms var(--ease-out), border-color 150ms ease;
+}
+.ges-debt:active { transform: scale(0.98); }
+.ges-debt b { font-size: 0.95rem; font-weight: 800; }
+.ges-debt small { grid-column: 1; font-size: 0.74rem; color: var(--ges-text-2); }
+.ges-debt__amt { grid-row: 1 / span 2; grid-column: 2; font-weight: 800; font-variant-numeric: tabular-nums; font-size: 1.05rem; }
+
+@media (hover: hover) and (pointer: fine) {
+    .ges-debt:hover { border-color: var(--sky); }
+}
+
+/* Hace cuánto se dio: pasada una semana se marca para ir a cobrarlo */
+.ges-age { display: inline-block; margin-left: 0.35rem; padding: 0.12rem 0.45rem; border-radius: var(--radius-pill); background: var(--sky); color: var(--mora); font-size: 0.64rem; font-weight: 800; vertical-align: 1px; }
+.ges-age.is-old { background: var(--ges-warn-bg); color: var(--ges-warn); }
+.ges-debt:disabled { cursor: default; opacity: 0.7; transform: none; }

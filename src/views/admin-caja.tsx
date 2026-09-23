@@ -5,15 +5,18 @@ import {
     FUND_MOVEMENT_LABEL,
     HttpError,
     closeAdminShift,
+    fetchAdminCredits,
     fetchAdminFund,
     fetchAdminShift,
     fetchShifts,
     formatClock,
+    formatCreditDay,
     formatMoney,
+    getCreditAge,
     registerAdminFundMovement,
     setTablesCount,
 } from "@/helpers";
-import type { IFund, IShiftDetail, IShiftRow, ManualFundMovementType } from "@/helpers";
+import type { ICreditTicket, IFund, IShiftDetail, IShiftRow, ManualFundMovementType } from "@/helpers";
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
 
@@ -156,6 +159,8 @@ const getDifferenceTone = (difference: number | null) => {
 export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessionExpired: () => void }) => {
     const [shifts, setShifts] = useState<IShiftRow[]>([]);
     const [fund, setFund] = useState<IFund | null>(null);
+    // Quién debe y desde cuándo: solo se ven, los cobra la caja
+    const [credits, setCredits] = useState<ICreditTicket[]>([]);
     const [fundMovement, setFundMovement] = useState<ManualFundMovementType | null>(null);
     // El turno en curso: el admin lo cierra si quien lo abrió ya no está
     const [openShift, setOpenShift] = useState<IShiftDetail | null>(null);
@@ -169,13 +174,15 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
     const load = useCallback(
         async (signal?: AbortSignal) => {
             try {
-                const [data, fundData, current] = await Promise.all([
+                const [data, fundData, current, creditData] = await Promise.all([
                     fetchShifts(token, signal),
                     fetchAdminFund(token, signal),
                     fetchAdminShift(token, signal),
+                    fetchAdminCredits(token, signal),
                 ]);
                 setShifts(data.shifts);
                 setFund(fundData.fund);
+                setCredits(creditData.credits);
                 setOpenShift(current.shift);
                 setTables(data.tables);
                 setDraftTables(String(data.tables));
@@ -375,6 +382,61 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
                                         </td>
                                     </tr>
                                 ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            <div className="adm-card">
+                <div className="adm-card-head">
+                    <div className="grow">
+                        <h3 className="script">Créditos pendientes</h3>
+                        <p className="adm-note">
+                            Cuentas que se llevaron para pagar después. No entraron a caja: se cobran en /gestion →
+                            Créditos y cuentan en el turno que las cobra.
+                        </p>
+                    </div>
+                    <div className="adm-fund__bal">
+                        <span>Por cobrar</span>
+                        <b>{formatMoney(roundMoney(credits.reduce((sum, one) => sum + one.total, 0)))}</b>
+                    </div>
+                </div>
+
+                {credits.length === 0 ? (
+                    <p className="adm-empty">Nadie debe nada.</p>
+                ) : (
+                    <div className="adm-scroll">
+                        <table className="adm-table">
+                            <thead>
+                                <tr>
+                                    <th>Quién</th>
+                                    <th>Cuenta</th>
+                                    <th>Desde</th>
+                                    <th className="num">Monto</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {credits.map((credit) => {
+                                    const age = credit.creditAt ? getCreditAge(credit.creditAt) : null;
+                                    return (
+                                        <tr key={credit.id}>
+                                            <td className="adm-name">{credit.customerName ?? credit.label}</td>
+                                            <td>{credit.tableNumber !== null ? `Mesa ${credit.tableNumber}` : "Para llevar"}</td>
+                                            <td className="adm-name">
+                                                {credit.creditAt ? formatCreditDay(credit.creditAt) : "—"}
+                                                {age ? (
+                                                    <>
+                                                        {" "}
+                                                        <span className={`adm-pill is-${age.isOld ? "warn" : "idle"}`}>{age.label}</span>
+                                                    </>
+                                                ) : null}
+                                                {credit.creditByName ? <em>dio {credit.creditByName}</em> : null}
+                                            </td>
+                                            <td className="num">{formatMoney(credit.total)}</td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>

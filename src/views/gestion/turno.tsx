@@ -629,6 +629,30 @@ export const GestionTurno = ({ token, onSessionExpired, onShiftChange }: IGestio
                                 <b>{formatCash(shift.refundsTotal)}</b>
                             </div>
                         ) : null}
+                        {shift.creditsCollected.count > 0 ? (
+                            <div className="ges-r">
+                                <span>
+                                    Cobros de créditos{" "}
+                                    <em>
+                                        {shift.creditsCollected.count}{" "}
+                                        {shift.creditsCollected.count === 1 ? "cuenta" : "cuentas"} · ya incluidos arriba
+                                    </em>
+                                </span>
+                                <b>{formatCash(shift.creditsCollected.total)}</b>
+                            </div>
+                        ) : null}
+                        {shift.creditsGiven.count > 0 ? (
+                            <div className="ges-r is-sub">
+                                <span>
+                                    Créditos dados{" "}
+                                    <em>
+                                        {shift.creditsGiven.count} {shift.creditsGiven.count === 1 ? "cuenta" : "cuentas"} ·
+                                        no entran a caja
+                                    </em>
+                                </span>
+                                <b>{formatCash(shift.creditsGiven.total)}</b>
+                            </div>
+                        ) : null}
                     </div>
 
                     <p className="ges-sec">Efectivo en caja</p>

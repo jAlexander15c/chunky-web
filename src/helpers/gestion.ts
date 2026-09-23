@@ -53,8 +53,11 @@ export interface ITicketLine {
 export const getTicketLineTotal = (line: Pick<ITicketLine, "unitPrice" | "modifiers" | "quantity">) =>
     (line.unitPrice + line.modifiers.reduce((sum, one) => sum + one.price, 0)) * line.quantity;
 
-/** anulada: se cerró sin cobrar. reembolsada: se cobró y luego se devolvió completa. */
-export type TicketStatus = "abierta" | "cobrada" | "anulada" | "reembolsada";
+/**
+ * anulada: se cerró sin cobrar. reembolsada: se cobró y luego se devolvió completa.
+ * credito: se la llevó alguien que paga después; no entra a caja hasta que se cobra.
+ */
+export type TicketStatus = "abierta" | "cobrada" | "anulada" | "reembolsada" | "credito";
 
 /** Una de las cuentas abiertas de la mesa, para cambiar entre ellas. */
 export interface ITableAccount {
@@ -83,6 +86,26 @@ export interface ITicket {
     lines: ITicketLine[];
     /** Las cuentas abiertas de la misma mesa, esta incluida. Vacío en las de para llevar. */
     tableAccounts: ITableAccount[];
+    /** Cuándo se dejó a crédito y quién. Siguen puestos después de cobrarla. */
+    creditAt: string | null;
+    creditByName: string | null;
+}
+
+/** Una cuenta a crédito por cobrar, a nombre de quien la debe. */
+export interface ICreditTicket {
+    id: number;
+    label: string;
+    tableNumber: number | null;
+    customerName: string | null;
+    total: number;
+    openedAt: string;
+    creditAt: string | null;
+    creditByName: string | null;
+}
+
+export interface ICreditTotals {
+    count: number;
+    total: number;
 }
 
 export interface ITableSummary {
@@ -163,6 +186,10 @@ export interface IShiftDetail extends IShift {
     cashIn: number;
     cashOut: number;
     expected: number;
+    /** Cuentas dejadas a crédito en el turno: no entró dinero, solo se muestran. */
+    creditsGiven: ICreditTotals;
+    /** Créditos cobrados en el turno: ya están en las ventas por método. */
+    creditsCollected: ICreditTotals;
 }
 
 const GESTION_TOKEN_STORAGE_KEY = "chunky-gestion-token";
@@ -389,6 +416,27 @@ export const refundTicket = (token: string, ticketId: number, reason: string) =>
         { headers: getGestionHeaders(token) }
     );
 
+/* ============ Caja: créditos ============ */
+
+/** Deja la cuenta a crédito a nombre de quien la debe: libera la mesa y no entra a caja. */
+export const giveTicketCredit = (token: string, ticketId: number, customerName: string) =>
+    httpPost<{ ticket: ITicket }>(
+        `/gestion/caja/cuentas/${ticketId}/credito`,
+        { customerName },
+        { headers: getGestionHeaders(token) }
+    );
+
+export const fetchCredits = (token: string, signal?: AbortSignal) =>
+    httpGet<{ credits: ICreditTicket[] }>("/gestion/caja/creditos", { signal, headers: getGestionHeaders(token) });
+
+/** Cobra el crédito completo con un solo método, en el turno abierto. Trae los que quedan. */
+export const payCreditTicket = (token: string, ticketId: number, method: PaymentMethod) =>
+    httpPost<{ ticket: ITicket; credits: ICreditTicket[] }>(
+        `/gestion/caja/creditos/${ticketId}/cobrar`,
+        { method },
+        { headers: getGestionHeaders(token) }
+    );
+
 /* ============ Caja: turno ============ */
 
 /** canClose: solo quien abrió el turno lo cierra en caja. */
@@ -424,3 +472,25 @@ export const registerFundMovement = (token: string, movement: IFundMovementInput
 /** Dinero con dos decimales y signo de dólar, como lo lee el cajero. */
 export const formatCash = (value: number) =>
     `$${value.toLocaleString("es-PA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/** "23/09": el día en que se dio un crédito. */
+export const formatCreditDay = (value: string) => {
+    const date = new Date(value);
+    return `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;
+};
+
+/** Pasada una semana, un crédito se marca para ir a cobrarlo. */
+const CREDIT_OLD_DAYS = 7;
+
+/** "hoy", "ayer" o "hace 9 días", contando días de calendario. */
+export const getCreditAge = (value: string) => {
+    const given = new Date(value);
+    const today = new Date();
+    const days = Math.round(
+        (new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() -
+            new Date(given.getFullYear(), given.getMonth(), given.getDate()).getTime()) /
+            86_400_000
+    );
+    const label = days <= 0 ? "hoy" : days === 1 ? "ayer" : `hace ${days} días`;
+    return { label, isOld: days >= CREDIT_OLD_DAYS };
+};

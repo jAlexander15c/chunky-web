@@ -17,6 +17,7 @@ import { useKitchenFeed } from "@/hooks/useKitchenFeed";
 
 import { GestionCaja } from "./gestion/caja";
 import { GestionCocina, KitchenToast } from "./gestion/cocina";
+import { GestionCreditos } from "./gestion/creditos";
 import { GestionInventario } from "./gestion/inventario";
 import { GestionTurno } from "./gestion/turno";
 
@@ -126,7 +127,7 @@ const GestionLogin = ({ onLogin }: IGestionLoginProps) => {
 
 /* ============ Armazón ============ */
 
-type Section = "caja" | "turno" | "cocina" | "inventario" | "cotizaciones";
+type Section = "caja" | "turno" | "creditos" | "cocina" | "inventario" | "cotizaciones";
 
 interface ISectionInfo {
     id: Section;
@@ -158,6 +159,18 @@ const SECTIONS: ISectionInfo[] = [
             <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="9" />
                 <path d="M12 7v5l3 2" />
+            </svg>
+        ),
+    },
+    {
+        id: "creditos",
+        label: "Créditos",
+        role: "caja",
+        sub: "Cuentas que se pagan después: quién debe y desde cuándo",
+        icon: (
+            <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" />
+                <path d="M9 8h6M9 12h6" />
             </svg>
         ),
     },
@@ -290,6 +303,8 @@ const GestionShell = ({ token, name, roles, onLogout }: IGestionShellProps) => {
                         <GestionCaja token={token} onSessionExpired={onLogout} onShiftChange={setShift} />
                     ) : current.id === "turno" ? (
                         <GestionTurno token={token} onSessionExpired={onLogout} onShiftChange={setShift} />
+                    ) : current.id === "creditos" ? (
+                        <GestionCreditos token={token} onSessionExpired={onLogout} onShiftChange={setShift} />
                     ) : current.id === "cocina" ? (
                         <GestionCocina feed={kitchen} onSessionExpired={onLogout} />
                     ) : current.id === "cotizaciones" ? (

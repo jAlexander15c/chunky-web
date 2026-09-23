@@ -15,6 +15,7 @@ import {
     getItemPrice,
     getTicketLabel,
     getTicketLineTotal,
+    giveTicketCredit,
     hasItemAvailableForSale,
     hasItemModifiers,
     moveTicketLine,
@@ -211,18 +212,105 @@ const PartialPaymentForm = ({ missing, onAdd }: IPartialPaymentFormProps) => {
     );
 };
 
+interface ICreditDialogProps {
+    ticket: ITicket;
+    onCredit: (customerName: string) => Promise<void>;
+    onBack: () => void;
+}
+
+/**
+ * Deja la cuenta a crédito: se la lleva alguien que paga después. No entra dinero, la mesa
+ * queda libre y la cuenta pasa a Créditos, donde se cobra completa en el turno que sea.
+ */
+const CreditDialog = ({ ticket, onCredit, onBack }: ICreditDialogProps) => {
+    const [name, setName] = useState(ticket.customerName ?? "");
+    const [error, setError] = useState("");
+    const [isSending, setIsSending] = useState(false);
+
+    const submit = async () => {
+        if (!name.trim()) {
+            setError("Escribe a nombre de quién queda el crédito.");
+            return;
+        }
+
+        setIsSending(true);
+        setError("");
+        try {
+            await onCredit(name.trim());
+        } catch (requestError) {
+            setError(requestError instanceof HttpError ? requestError.message : "No se pudo dejar a crédito.");
+            setIsSending(false);
+        }
+    };
+
+    return (
+        <div className="ges-modal" role="dialog" aria-modal="true" aria-label="Dejar a crédito">
+            <div className="ges-modal__panel">
+                <h3 className="script">Dejar a crédito</h3>
+
+                <div className="ges-total">
+                    <span>Queda debiendo</span>
+                    <b>{formatCash(ticket.total)}</b>
+                </div>
+
+                <div className="ges-rows">
+                    {ticket.lines.map((line) => (
+                        <div className="ges-r" key={line.id}>
+                            <span>{formatQuantity(line.quantity)} × {line.name}</span>
+                            <b>{formatCash(getTicketLineTotal(line))}</b>
+                        </div>
+                    ))}
+                </div>
+
+                <label className="ges-field">
+                    <span>¿Quién la debe?</span>
+                    <input
+                        id="caja-credito-nombre"
+                        type="text"
+                        autoFocus
+                        maxLength={40}
+                        value={name}
+                        placeholder="Nombre y apellido"
+                        onChange={(event) => { setName(event.target.value); setError(""); }}
+                    />
+                </label>
+
+                <p className="ges-note">
+                    No entra dinero ahora. La mesa queda libre y la cuenta pasa a <b>Créditos</b> hasta que se cobre.
+                </p>
+
+                {error ? <p className="ges-error" role="alert">{error}</p> : null}
+
+                <div className="ges-modal__acts">
+                    <button type="button" className="ges-btn" onClick={onBack} disabled={isSending}>Volver</button>
+                    <button
+                        type="button"
+                        className="ges-btn ges-btn--solid"
+                        onClick={() => void submit()}
+                        disabled={isSending}
+                    >
+                        {isSending ? "Guardando…" : "Dejar a crédito"}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 interface IPayDialogProps {
     ticket: ITicket;
     onPay: (payments: ITicketPayment[]) => Promise<void>;
     onAddPayment: (payment: { method: PaymentMethod; amount: number; payerName: string | null }) => Promise<void>;
     onRemovePayment: (index: number) => Promise<void>;
+    onCredit: (customerName: string) => Promise<void>;
     onClose: () => void;
 }
 
-const PayDialog = ({ ticket, onPay, onAddPayment, onRemovePayment, onClose }: IPayDialogProps) => {
+const PayDialog = ({ ticket, onPay, onAddPayment, onRemovePayment, onCredit, onClose }: IPayDialogProps) => {
     const partials = ticket.payments ?? [];
     const hasPartials = partials.length > 0;
 
+    const [isCrediting, setIsCrediting] = useState(false);
     // Con pagos por partes ya registrados solo queda seguir en Mixto
     const [isMixed, setIsMixed] = useState(hasPartials);
     const [method, setMethod] = useState<PaymentMethod>("efectivo");
@@ -260,6 +348,26 @@ const PayDialog = ({ ticket, onPay, onAddPayment, onRemovePayment, onClose }: IP
             setRemoving(null);
         }
     };
+
+    if (isCrediting) return <CreditDialog ticket={ticket} onCredit={onCredit} onBack={() => setIsCrediting(false)} />;
+
+    // Con pagos por partes ese dinero ya está en el cajón: no hay abonos a un crédito
+    const creditOption = (
+        <>
+            <div className="ges-or">o</div>
+            <button
+                type="button"
+                className="ges-btn ges-btn--block ges-btn--credit"
+                disabled={hasPartials || isSending}
+                onClick={() => setIsCrediting(true)}
+            >
+                Dejar a crédito
+            </button>
+            {hasPartials ? (
+                <p className="ges-field__hint">Quita los pagos registrados antes de dejarla a crédito.</p>
+            ) : null}
+        </>
+    );
 
     return (
         <div className="ges-modal" role="dialog" aria-modal="true" aria-label="Cobrar la cuenta">
@@ -354,6 +462,7 @@ const PayDialog = ({ ticket, onPay, onAddPayment, onRemovePayment, onClose }: IP
                                 {hasPartials ? "Cerrar (la cuenta sigue abierta)" : "Cancelar"}
                             </button>
                         </div>
+                        {creditOption}
                     </>
                 ) : (
                     <>
@@ -413,6 +522,7 @@ const PayDialog = ({ ticket, onPay, onAddPayment, onRemovePayment, onClose }: IP
                                       : `Cobrar ${formatCash(total)}`}
                             </button>
                         </div>
+                        {creditOption}
                     </>
                 )}
             </div>
@@ -1330,6 +1440,12 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                     onRemovePayment={async (index) => {
                         const data = await removeTicketPayment(token, ticket.id, index);
                         setTicket(data.ticket);
+                    }}
+                    onCredit={async (customerName) => {
+                        // Igual que al cobrar: sale de la mesa y se salta a la siguiente cuenta
+                        const data = await giveTicketCredit(token, ticket.id, customerName);
+                        setIsPaying(false);
+                        await showNextAccount(data.ticket.tableAccounts);
                     }}
                 />
             ) : null}
