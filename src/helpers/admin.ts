@@ -521,7 +521,7 @@ export const formatShortDate = (date: string, withYear = false) => {
 };
 
 export const formatClock = (value: string) =>
-    new Date(value).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", hour12: false });
+    new Date(value).toLocaleTimeString("es-PA", { hour: "numeric", minute: "2-digit", hour12: true });
 
 /** Día y hora, para movimientos que cruzan varios turnos como los del fondo aparte. */
 export const formatDayClock = (value: string) =>
@@ -529,9 +529,9 @@ export const formatDayClock = (value: string) =>
         weekday: "short",
         day: "numeric",
         month: "short",
-        hour: "2-digit",
+        hour: "numeric",
         minute: "2-digit",
-        hour12: false,
+        hour12: true,
     });
 
 /** "hoy", "ayer" o "hace N d": lo que importa es si el conteo ya envejecio. */

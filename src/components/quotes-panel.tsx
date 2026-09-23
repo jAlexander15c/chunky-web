@@ -34,7 +34,7 @@ const NEXT_STEP: Partial<Record<QuoteStatus, { to: QuoteStatus; label: string }>
 };
 
 const formatReceivedAt = (value: string) =>
-    new Date(value).toLocaleString("es-PA", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+    new Date(value).toLocaleString("es-PA", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true });
 
 const getClientWhatsAppUrl = (quote: IQuote) => {
     const firstName = quote.customerName.split(" ")[0];

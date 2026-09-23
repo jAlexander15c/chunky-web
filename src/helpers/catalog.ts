@@ -396,7 +396,7 @@ export const isWithinOperatingHours = (date = new Date()) => {
     }
 
     if (isSaturday) {
-        return hour >= 8 && hour < 18;
+        return hour >= 8 && hour < 17;
     }
 
     return false;

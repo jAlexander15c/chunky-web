@@ -17,9 +17,13 @@ export interface ICartLine {
     modifiers?: ICartModifier[];
 }
 
+/** "8:00 a. m.", "5:00 p. m.": las horas siempre se muestran en formato de 12 horas. */
+export const formatHour = (hour: number) =>
+    new Date(2000, 0, 1, hour).toLocaleTimeString("es-PA", { hour: "numeric", minute: "2-digit", hour12: true });
+
 export const OPENING_HOURS = [
-    { days: "Lunes a viernes", hours: "8:00 a 20:00" },
-    { days: "Sábado", hours: "8:00 a 18:00" },
+    { days: "Lunes a viernes", hours: `${formatHour(8)} a ${formatHour(20)}` },
+    { days: "Sábado", hours: `${formatHour(8)} a ${formatHour(17)}` },
     { days: "Domingo", hours: "Cerrado" },
 ];
 
@@ -76,13 +80,13 @@ export const getWhatsAppUrl = (message?: string) => {
 export const getClosingHour = (date = new Date()) => {
     const day = date.getDay();
     if (day === 0) return null;
-    return day === 6 ? 18 : 20;
+    return day === 6 ? 17 : 20;
 };
 
-/** Estado de la barra en una frase: "Abierto hasta las 20:00" o cuando vuelve a abrir. */
+/** Estado de la barra en una frase: "Abierto hasta las 8:00 p. m." o cuando vuelve a abrir. */
 export const getOpeningStatusLabel = (isOpen: boolean, date = new Date()) => {
     const closingHour = getClosingHour(date);
-    return isOpen && closingHour ? `Abierto hasta las ${closingHour}:00` : getNextOpeningLabel(date);
+    return isOpen && closingHour ? `Abierto hasta las ${formatHour(closingHour)}` : getNextOpeningLabel(date);
 };
 
 /** Texto corto para cuando la barra esta cerrada: indica cuando vuelve a abrir. */
@@ -90,7 +94,7 @@ export const getNextOpeningLabel = (date = new Date()) => {
     const day = date.getDay();
     const hour = date.getHours();
 
-    if (day !== 0 && hour < 8) return "Abrimos hoy a las 8:00";
-    if (day === 6 || day === 0) return "Abrimos el lunes a las 8:00";
-    return "Abrimos mañana a las 8:00";
+    if (day !== 0 && hour < 8) return `Abrimos hoy a las ${formatHour(8)}`;
+    if (day === 6 || day === 0) return `Abrimos el lunes a las ${formatHour(8)}`;
+    return `Abrimos mañana a las ${formatHour(8)}`;
 };

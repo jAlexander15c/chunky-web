@@ -5,6 +5,7 @@ import {
     HttpError,
     fetchFinance,
     formatDayLabel,
+    formatHour,
     formatMoney,
     formatShortDate,
     getPanamaToday,
@@ -15,6 +16,9 @@ import type { FinancePeriod, IFinancePoint, IFinanceReport } from "@/helpers";
 const REFRESH_MS = 60000;
 const PERIOD_STORAGE_KEY = "chunky-admin-finance-period";
 const DEFAULT_PERIOD: FinancePeriod = "30d";
+
+/** Etiqueta corta del eje de horas en 12 h: "8a", "12p", "2p". */
+const formatHourTick = (hour: number) => `${hour % 12 || 12}${hour < 12 ? "a" : "p"}`;
 
 /** El 0 de getUTCDay es domingo; la semana del negocio arranca el lunes. */
 const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
@@ -486,10 +490,10 @@ const PatternsCard = ({ report }: { report: IFinanceReport }) => {
                 {hours.map((entry) => (
                     <span key={entry.hour} className="adm-hours__cell">
                         <i
-                            title={`${entry.hour}:00 · ${entry.tickets} tickets · B/. ${formatMoney(entry.total)}`}
+                            title={`${formatHour(entry.hour)} · ${entry.tickets} tickets · B/. ${formatMoney(entry.total)}`}
                             style={{ opacity: entry.tickets > 0 ? 0.15 + (entry.tickets / busiest) * 0.85 : 0.06 }}
                         />
-                        <small>{entry.hour % 2 === 0 ? entry.hour : ""}</small>
+                        <small>{entry.hour % 2 === 0 ? formatHourTick(entry.hour) : ""}</small>
                     </span>
                 ))}
             </div>
@@ -502,7 +506,7 @@ const PatternsCard = ({ report }: { report: IFinanceReport }) => {
                 ) : null}
                 {peak && peak.tickets > 0 ? (
                     <span>
-                        Hora pico: <b>{peak.hour}–{peak.hour + 1} h</b>
+                        Hora pico: <b>{formatHour(peak.hour)} – {formatHour((peak.hour + 1) % 24)}</b>
                     </span>
                 ) : null}
                 {slowestWeekday ? (

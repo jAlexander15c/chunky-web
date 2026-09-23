@@ -7,7 +7,7 @@ import type { IKitchenFeed } from "@/hooks/useKitchenFeed";
 import "./cocina.css";
 
 const formatClock = (date: Date | string | number) =>
-    new Date(date).toLocaleTimeString("es-PA", { hour: "numeric", minute: "2-digit" });
+    new Date(date).toLocaleTimeString("es-PA", { hour: "numeric", minute: "2-digit", hour12: true });
 
 /** "2× Café (leche especial)" para el aviso de pedido nuevo. */
 const formatKitchenLine = (line: IKitchenOrder["lines"][number]) => {

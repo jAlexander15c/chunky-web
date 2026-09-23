@@ -24,7 +24,7 @@ const formatLastLogin = (value: string | null) => {
 
     const date = new Date(value);
     const days = Math.floor((Date.now() - date.getTime()) / (24 * 60 * 60 * 1000));
-    const clock = date.toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", hour12: false });
+    const clock = date.toLocaleTimeString("es-PA", { hour: "numeric", minute: "2-digit", hour12: true });
 
     if (days <= 0) return `hoy ${clock}`;
     if (days === 1) return `ayer ${clock}`;

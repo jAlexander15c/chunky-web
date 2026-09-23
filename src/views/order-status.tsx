@@ -32,7 +32,7 @@ const getPollDelay = (status?: OrderStatus) => {
 };
 
 const formatTime = (value: string | null) =>
-    value ? new Date(value).toLocaleTimeString("es-PA", { hour: "numeric", minute: "2-digit" }) : "";
+    value ? new Date(value).toLocaleTimeString("es-PA", { hour: "numeric", minute: "2-digit", hour12: true }) : "";
 
 /** Aviso que aparece en la pagina cuando el pedido cambia de paso estando abierta. */
 type StepAlert = "accepted" | "ready";

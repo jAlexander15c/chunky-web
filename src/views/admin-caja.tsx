@@ -140,9 +140,9 @@ const formatMoment = (value: string) =>
     new Date(value).toLocaleString("es-PA", {
         day: "numeric",
         month: "short",
-        hour: "2-digit",
+        hour: "numeric",
         minute: "2-digit",
-        hour12: false,
+        hour12: true,
     });
 
 /** Una diferencia de centavos es ruido; lo que importa es si sobró o faltó. */

@@ -21,9 +21,9 @@ const formatMoment = (value: string) =>
     new Date(value).toLocaleString("es-PA", {
         day: "numeric",
         month: "short",
-        hour: "2-digit",
+        hour: "numeric",
         minute: "2-digit",
-        hour12: false,
+        hour12: true,
     });
 
 const getNextRetryLabel = (nextRetryAt: string) => {

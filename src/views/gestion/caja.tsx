@@ -78,7 +78,7 @@ const parseAmount = (value: string) => {
 
 /** "8:12 p. m.": a qué hora se registró un pago por partes. */
 const formatPaymentTime = (value?: string) =>
-    value ? new Date(value).toLocaleTimeString("es-PA", { hour: "numeric", minute: "2-digit" }) : "";
+    value ? new Date(value).toLocaleTimeString("es-PA", { hour: "numeric", minute: "2-digit", hour12: true }) : "";
 
 interface IPartialPaymentFormProps {
     missing: number;
