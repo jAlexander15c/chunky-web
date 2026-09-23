@@ -335,10 +335,18 @@ const PayDialog = ({ ticket, onPay, onAddPayment, onRemovePayment, onClose }: IP
 
                         {error ? <p className="ges-error" role="alert">{error}</p> : null}
 
-                        <PartialPaymentForm missing={missing} onAdd={onAddPayment} />
+                        {missing < 0.005 && hasPartials ? (
+                            // Pagada entera pero sin cerrar: pasó cuando Loyverse no pudo facturar el último pago
+                            <p className="ges-note">
+                                Ya está todo pagado pero la cuenta no se cerró. Quita el último pago y vuelve a
+                                registrarlo para cerrarla.
+                            </p>
+                        ) : (
+                            <PartialPaymentForm missing={missing} onAdd={onAddPayment} />
+                        )}
 
                         <p className="ges-note">
-                            En Loyverse el recibo va con el tipo «Mixto» y el desglose, con los nombres, en la nota.
+                            En Loyverse cada pago queda como su propio recibo, con su tipo de pago y su monto.
                         </p>
 
                         <div className="ges-modal__acts ges-modal__acts--one">
