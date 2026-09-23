@@ -21,12 +21,6 @@ export interface ICartLine {
 export const formatHour = (hour: number) =>
     new Date(2000, 0, 1, hour).toLocaleTimeString("es-PA", { hour: "numeric", minute: "2-digit", hour12: true });
 
-export const OPENING_HOURS = [
-    { days: "Lunes a viernes", hours: `${formatHour(8)} a ${formatHour(20)}` },
-    { days: "Sábado", hours: `${formatHour(8)} a ${formatHour(17)}` },
-    { days: "Domingo", hours: "Cerrado" },
-];
-
 const priceFormatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 
 export const formatPrice = (value: number) => priceFormatter.format(value);
@@ -74,27 +68,4 @@ export const buildOrderMessage = (lines: ICartLine[], delivery?: string) => {
 export const getWhatsAppUrl = (message?: string) => {
     const query = message ? `?text=${encodeURIComponent(message)}` : "";
     return `https://wa.me/${WHATSAPP_PHONE}${query}`;
-};
-
-/** Hora de cierre del dia, o null si hoy no abre. */
-export const getClosingHour = (date = new Date()) => {
-    const day = date.getDay();
-    if (day === 0) return null;
-    return day === 6 ? 17 : 20;
-};
-
-/** Estado de la barra en una frase: "Abierto hasta las 8:00 p. m." o cuando vuelve a abrir. */
-export const getOpeningStatusLabel = (isOpen: boolean, date = new Date()) => {
-    const closingHour = getClosingHour(date);
-    return isOpen && closingHour ? `Abierto hasta las ${formatHour(closingHour)}` : getNextOpeningLabel(date);
-};
-
-/** Texto corto para cuando la barra esta cerrada: indica cuando vuelve a abrir. */
-export const getNextOpeningLabel = (date = new Date()) => {
-    const day = date.getDay();
-    const hour = date.getHours();
-
-    if (day !== 0 && hour < 8) return `Abrimos hoy a las ${formatHour(8)}`;
-    if (day === 6 || day === 0) return `Abrimos el lunes a las ${formatHour(8)}`;
-    return `Abrimos mañana a las ${formatHour(8)}`;
 };

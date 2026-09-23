@@ -15,7 +15,7 @@ import {
     getCheckoutErrors,
     getDeliveryText,
     getMapsUrl,
-    getOpeningStatusLabel,
+    getOrderingStatusLabel,
     getWhatsAppUrl,
     isAcceptingOrders,
     setLastOrderId,
@@ -66,7 +66,7 @@ export const CartCheckout = () => {
     const { settings } = useSettings();
     // El dia de pasta todo pedido es con entrega a domicilio y no rige el horario semanal
     const requiresDelivery = settings.pastaMode;
-    const isBarOpen = isAcceptingOrders(settings.pastaMode);
+    const isBarOpen = isAcceptingOrders(settings);
 
     const [form, setForm] = useState<ICheckoutForm>(readStoredForm);
     const [errors, setErrors] = useState<CheckoutErrors>({});
@@ -159,7 +159,7 @@ export const CartCheckout = () => {
         return (
             <div className="checkout">
                 <div className="checkout__notice">
-                    <strong>{getOpeningStatusLabel(false)}.</strong>
+                    <strong>{getOrderingStatusLabel(settings, false)}</strong>
                     <span>Los pagos en línea funcionan dentro del horario. Puedes dejar tu pedido por WhatsApp.</span>
                 </div>
                 <button type="button" className="button button--whatsapp button--block" onClick={() => openWhatsApp(buildOrderMessage(lines, requiresDelivery ? getDeliveryText(form) : undefined))}>

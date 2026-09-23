@@ -1,11 +1,13 @@
 import { Link } from "react-router";
 import { PiWhatsappLogoBold } from "react-icons/pi";
 
-import { OPENING_HOURS, getWhatsAppUrl } from "@/helpers";
+import { getOpeningHoursRows, getWhatsAppUrl, useSettings } from "@/helpers";
 
 import logo from "@/assets/logos/Rosa.png";
 
 export const SiteFooter = () => {
+    const { settings } = useSettings();
+
     return (
         <footer className="site-footer">
             <div className="site-footer__inner">
@@ -17,7 +19,7 @@ export const SiteFooter = () => {
                 <div className="site-footer__col">
                     <h2 className="site-footer__title">Horario</h2>
                     <dl className="site-footer__hours">
-                        {OPENING_HOURS.map((row) => (
+                        {getOpeningHoursRows(settings.openingHours).map((row) => (
                             <div key={row.days}>
                                 <dt>{row.days}</dt>
                                 <dd>{row.hours}</dd>

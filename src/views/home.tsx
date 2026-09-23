@@ -3,7 +3,7 @@ import { PiArrowRightBold, PiStarFourFill } from "react-icons/pi";
 
 import { Mascot, MenuBoard, Stamp, usePastaBuilder } from "@/components";
 import {
-    OPENING_HOURS,
+    getOpeningHoursRows,
     getCategoryByName,
     getCategoryImageUrl,
     getOrderingStatusLabel,
@@ -57,7 +57,7 @@ export const Home = () => {
     const getCategoryLink = useCategoryLink();
     const { settings } = useSettings();
     const { open: openPastaBuilder } = usePastaBuilder();
-    const isOpen = isAcceptingOrders(settings.pastaMode);
+    const isOpen = isAcceptingOrders(settings);
     // Los dias de pasta el resto del menu no se vende: no se ofrecen sus accesos
     const isPastaDay = settings.pastaMode;
     const cookies = getCategoryLink("galletas");
@@ -91,7 +91,7 @@ export const Home = () => {
                                 Ver el menú <PiArrowRightBold aria-hidden />
                             </Link>
                         )}
-                        <span className="hero__status">{getOrderingStatusLabel(isPastaDay, isOpen)}</span>
+                        <span className="hero__status">{getOrderingStatusLabel(settings, isOpen)}</span>
                     </div>
                 </div>
 
@@ -191,16 +191,20 @@ export const Home = () => {
                             </span>
                             <h3 className="hours__title">Horario de barra</h3>
                             <dl className="hours__list">
-                                {OPENING_HOURS.map((row) => (
+                                {getOpeningHoursRows(settings.openingHours).map((row) => (
                                     <div key={row.days} className="hours__row">
                                         <dt>{row.days}</dt>
                                         <dd>{row.hours}</dd>
                                     </div>
                                 ))}
                             </dl>
-                            {isPastaDay && (
+                            {settings.storeOverride === "closed" ? (
+                                <p className="hours__note">Hoy no abrimos: no recibimos pedidos en línea aunque este horario diga otra cosa.</p>
+                            ) : settings.storeOverride === "open" ? (
+                                <p className="hours__note">Hoy abrimos en un horario especial: recibimos pedidos en línea todo el día.</p>
+                            ) : isPastaDay ? (
                                 <p className="hours__note">Hoy es día de pasta: recibimos pedidos en línea aunque este horario diga otra cosa.</p>
-                            )}
+                            ) : null}
                         </div>
                     </div>
                 </div>

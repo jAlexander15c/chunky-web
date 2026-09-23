@@ -879,6 +879,116 @@ select.adm-form__input { cursor: pointer; }
     font-size: 0.85rem;
 }
 
+/* ============ Horario del local ============ */
+
+.adm-pasta__state--good { background: var(--adm-good-bg); color: var(--adm-good); }
+.adm-pasta__state--warn { background: var(--adm-warn-bg); color: var(--adm-warn); }
+.adm-pasta__state--crit { background: var(--adm-crit-bg); color: var(--adm-crit); }
+
+.adm-hours__title { margin: 0 0 0.6rem; font-size: 1.05rem; font-weight: 800; }
+.adm-hours__title--week { margin-top: 1.8rem; }
+
+.adm-seg {
+    display: inline-flex;
+    padding: 4px;
+    border-radius: 999px;
+    background: var(--adm-panel-2);
+    border: 1.5px solid var(--adm-line);
+}
+
+.adm-seg__btn {
+    font: inherit;
+    font-weight: 800;
+    font-size: 0.82rem;
+    color: var(--adm-text-2);
+    background: transparent;
+    border: 0;
+    border-radius: 999px;
+    padding: 0.5rem 1rem;
+    min-height: 38px;
+    cursor: pointer;
+    transition: background-color 150ms ease, color 150ms ease;
+}
+
+.adm-seg__btn[aria-pressed="true"] { background: var(--mora); color: var(--crema); }
+.adm-seg__btn--closed[aria-pressed="true"] { background: var(--adm-crit); }
+.adm-seg__btn:disabled { cursor: default; }
+.adm-seg__btn:focus-visible { outline: 3px solid var(--orquidea); outline-offset: 2px; }
+
+.adm-hours__reset {
+    width: fit-content;
+    margin: 0.7rem 0 0;
+    padding: 0.45rem 0.7rem;
+    border-radius: 10px;
+    background: var(--adm-warn-bg);
+    color: var(--adm-warn);
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.adm-hours__days { border-top: 1.5px solid var(--adm-line); }
+
+.adm-hours__day {
+    display: grid;
+    grid-template-columns: 7.5rem auto 1fr;
+    align-items: center;
+    gap: 0.6rem 1rem;
+    padding: 0.7rem 0;
+    border-bottom: 1.5px solid var(--adm-line);
+}
+
+.adm-hours__name { font-weight: 800; }
+
+.adm-hours__today {
+    margin-left: 0.45rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 6px;
+    background: var(--mantequilla);
+    font-size: 0.65rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.adm-hours__times { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+.adm-hours__times > span { color: var(--adm-text-3); font-size: 0.8rem; }
+
+.adm-hours__time {
+    font: inherit;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    background: var(--adm-panel);
+    border: 2px solid var(--sky);
+    border-radius: 10px;
+    padding: 0.35rem 0.5rem;
+    min-height: 38px;
+}
+
+.adm-hours__time:focus-visible { outline: 3px solid var(--orquidea); outline-offset: 1px; }
+
+.adm-hours__times > .adm-hours__invalid { color: var(--adm-crit); font-weight: 700; font-size: 0.78rem; }
+.adm-hours__closed { color: var(--adm-text-3); font-size: 0.85rem; font-weight: 600; }
+
+.adm-hours__actions { display: flex; align-items: center; flex-wrap: wrap; gap: 0.6rem; margin-top: 1rem; }
+.adm-hours__saved { color: var(--adm-good); font-size: 0.8rem; font-weight: 700; }
+
+.adm-switch--sm .adm-switch__track { width: 44px; height: 26px; }
+.adm-switch--sm .adm-switch__track::after { width: 18px; height: 18px; }
+.adm-switch--sm input:checked + .adm-switch__track::after { transform: translateX(18px); }
+
+.adm-btn--danger { background: var(--adm-crit); border-color: var(--adm-crit); color: #fff; }
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-btn--danger:hover:not(:disabled) { background: #8a2f22; }
+}
+
+@media (max-width: 560px) {
+    .adm-seg { width: 100%; }
+    .adm-seg__btn { flex: 1; padding-inline: 0.4rem; }
+    .adm-hours__day { grid-template-columns: 1fr auto; }
+    .adm-hours__times, .adm-hours__closed { grid-column: 1 / -1; }
+}
+
 /* ============ Descuadres de pago ============ */
 
 /* El acceso del encabezado es un ancla al tablero, no un botón: mismo aspecto */

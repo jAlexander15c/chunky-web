@@ -1,5 +1,6 @@
 import { httpGet, httpPost, httpPut } from "./getHttp";
 import type { ICreditTicket, IShiftDetail } from "./gestion";
+import type { IWeekHours, StoreOverride } from "./hours";
 
 export type SupplyState = "comprar" | "pedir" | "contar" | "bien";
 export type ProductState = "agotado" | "poco" | "disponible" | "sin-control";
@@ -419,6 +420,14 @@ export const setCollaboratorActive = (token: string, id: number, isActive: boole
 /** Enciende o apaga el modo pasta: el menu de todos los clientes cambia al instante. */
 export const setPastaMode = (token: string, enabled: boolean) =>
     httpPost<{ pastaMode: boolean }>("/admin/pasta-mode", { enabled }, { headers: getAdminHeaders(token) });
+
+/** Abre o cierra el local a mano por hoy ("auto" vuelve al horario). A medianoche vuelve solo al horario. */
+export const setStoreStatus = (token: string, status: StoreOverride | "auto") =>
+    httpPost<{ status: StoreOverride | "auto" }>("/admin/store-status", { status }, { headers: getAdminHeaders(token) });
+
+/** Guarda el horario de la semana, del domingo al sabado. */
+export const saveOpeningHours = (token: string, days: IWeekHours) =>
+    httpPut<{ days: IWeekHours }>("/admin/opening-hours", { days }, { headers: getAdminHeaders(token) });
 
 export const syncReceiptsNow = (token: string) =>
     httpPost<{ applied: number; skipped: number; synced: number }>("/admin/sync", {}, { headers: getAdminHeaders(token) });

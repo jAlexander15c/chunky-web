@@ -11,7 +11,7 @@ import {
     getCategoryPresentation,
     getItemModifiers,
     getItemPrice,
-    getNextOpeningLabel,
+    getClosedLabel,
     getWhatsAppUrl,
     hasItemAvailableForSale,
     hasItemModifiers,
@@ -48,12 +48,13 @@ const ProductSkeletons = () => (
 interface IProductCardProps {
     item: IItem;
     index: number;
-    isOpen: boolean;
+    /** Cuando vuelve a abrir, o null si hoy se puede pedir. */
+    closedLabel: string | null;
     modifiers: IModifier[];
     onChooseOptions: (item: IItem) => void;
 }
 
-const ProductCard = ({ item, index, isOpen, modifiers, onChooseOptions }: IProductCardProps) => {
+const ProductCard = ({ item, index, closedLabel, modifiers, onChooseOptions }: IProductCardProps) => {
     const { addItem, setQuantity, getQuantity } = useCart();
     const quantity = getQuantity(item.id);
     const description = getPlainText(item.description);
@@ -77,8 +78,8 @@ const ProductCard = ({ item, index, isOpen, modifiers, onChooseOptions }: IProdu
                 )}
                 <div className="product__foot">
                     <span className="product__price">{formatPrice(getItemPrice(item))}</span>
-                    {!isOpen ? (
-                        <span className="product__closed">{getNextOpeningLabel()}</span>
+                    {closedLabel ? (
+                        <span className="product__closed">{closedLabel}</span>
                     ) : isCustomizable ? (
                         <button type="button" className="button button--primary button--sm" onClick={() => onChooseOptions(item)}>
                             Elegir
@@ -114,7 +115,7 @@ export const Items = () => {
         getCatalogScope(settings.pastaMode)
     );
     const loading = isLoadingItems || !isSettingsReady;
-    const isOpen = isAcceptingOrders(settings.pastaMode);
+    const isOpen = isAcceptingOrders(settings);
 
     const availableItems = useMemo(
         () => items.filter((item) => item.category_id === selectedCategoryId && item.id !== settings.pasta?.itemId && hasItemAvailableForSale(item)),
@@ -170,7 +171,7 @@ export const Items = () => {
                                 key={item.id}
                                 item={item}
                                 index={index}
-                                isOpen={isOpen}
+                                closedLabel={isOpen ? null : getClosedLabel(settings)}
                                 modifiers={modifiers}
                                 onChooseOptions={setOptionsItem}
                             />

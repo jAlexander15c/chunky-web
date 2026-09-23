@@ -420,7 +420,7 @@ interface IGestionTurnoProps {
 export const GestionTurno = ({ token, onSessionExpired, onShiftChange }: IGestionTurnoProps) => {
     const [shift, setShift] = useState<IShiftDetail | null>(null);
     const [fund, setFund] = useState<IFund | null>(null);
-    const [starting, setStarting] = useState("50.00");
+    const [starting, setStarting] = useState("40.00");
     const [counted, setCounted] = useState("");
     const [movement, setMovement] = useState<"entrada" | "salida" | null>(null);
     const [fundMovement, setFundMovement] = useState<ManualFundMovementType | null>(null);

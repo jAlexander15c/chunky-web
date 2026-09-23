@@ -32,7 +32,7 @@ export const MenuBoard = () => {
     const { categories, loading: isLoadingCategories, error } = useCategories();
     const { settings, isReady: isSettingsReady } = useSettings();
     const { open: openPastaBuilder } = usePastaBuilder();
-    const isOpen = isAcceptingOrders(settings.pastaMode);
+    const isOpen = isAcceptingOrders(settings);
 
     // Hasta saber si hoy es dia de pasta no se pinta el tablero: mostraria un menu que cambia
     const loading = isLoadingCategories || !isSettingsReady;
@@ -43,7 +43,7 @@ export const MenuBoard = () => {
         <div className="board">
             <div className="board__head">
                 <span className="board__title">Menu</span>
-                <span className="board__status">{getOrderingStatusLabel(settings.pastaMode, isOpen)}</span>
+                <span className="board__status">{getOrderingStatusLabel(settings, isOpen)}</span>
             </div>
 
             {settings.pastaMode && (

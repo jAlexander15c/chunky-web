@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 
 import { getCategories } from "./getCategories";
 import { getItems } from "./getItems";
-import { getItemPrice, getOpeningStatusLabel } from "./order";
+import { getNextOpeningLabel, getOpeningStatusLabel, isWithinOperatingHours } from "./hours";
+import type { IWeekHours, StoreOverride } from "./hours";
+import { getItemPrice } from "./order";
 
 import type { ICategory, IItem } from "@/interfaces";
 
@@ -371,33 +373,32 @@ export function hasItemAvailableForSale(item: IItem) {
     });
 }
 
-/**
- * El dia de pasta manda el interruptor del tablero, no el horario semanal: se enciende al abrir y se
- * apaga al cerrar (y el domingo, que el horario semanal marca cerrado, tambien se puede pedir).
- */
-export const isAcceptingOrders = (isPastaMode: boolean, date = new Date()) => isPastaMode || isWithinOperatingHours(date);
-
-/** Estado de la barra en una frase; el dia de pasta no hay hora de cierre que anunciar. */
-export const getOrderingStatusLabel = (isPastaMode: boolean, isOpen: boolean, date = new Date()) =>
-    isPastaMode ? "Pedidos abiertos hoy" : getOpeningStatusLabel(isOpen, date);
-
-export const isWithinOperatingHours = (date = new Date()) => {
-    const dayOfWeek = date.getDay();
-    const hour = date.getHours();
-
-    const isSunday = dayOfWeek === 0;
-    const isSaturday = dayOfWeek === 6;
-    const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
-
-    if (isSunday) return false;
-
-    if (isWeekday) {
-        return hour >= 8 && hour < 20;
-    }
-
-    if (isSaturday) {
-        return hour >= 8 && hour < 17;
-    }
-
-    return false;
+/** Lo que decide si hoy se reciben pedidos: sale de GET /settings/public (ver useSettings). */
+export interface IOrderingContext {
+    pastaMode: boolean;
+    openingHours: IWeekHours;
+    storeOverride: StoreOverride | null;
 }
+
+/**
+ * Cerrado a mano desde el tablero gana a todo, incluso al modo pasta; abierto a mano abre todo el dia.
+ * Si no, el dia de pasta manda el interruptor (se puede pedir aunque el horario diga cerrado) y el
+ * resto de los dias, el horario de la semana.
+ */
+export const isAcceptingOrders = (context: IOrderingContext, date = new Date()) => {
+    if (context.storeOverride === "closed") return false;
+    if (context.storeOverride === "open" || context.pastaMode) return true;
+    return isWithinOperatingHours(context.openingHours, date);
+};
+
+/** Estado de la barra en una frase; abierto a mano o el dia de pasta no hay hora de cierre que anunciar. */
+export const getOrderingStatusLabel = (context: IOrderingContext, isOpen: boolean, date = new Date()) => {
+    if (context.storeOverride === "closed") return `Cerrado hoy · ${getNextOpeningLabel(context.openingHours, date, true)}`;
+    if (context.storeOverride === "open") return "Abierto hoy";
+    if (context.pastaMode) return "Pedidos abiertos hoy";
+    return getOpeningStatusLabel(context.openingHours, isOpen, date);
+};
+
+/** Cuando vuelve a abrir, para las tarjetas y avisos de cerrado. */
+export const getClosedLabel = (context: IOrderingContext, date = new Date()) =>
+    getNextOpeningLabel(context.openingHours, date, context.storeOverride === "closed");

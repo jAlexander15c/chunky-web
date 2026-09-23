@@ -19,6 +19,7 @@ import type { IDashboard, ISupplyStatus } from "@/helpers";
 import { AdminCaja } from "./admin-caja";
 import { AdminCollaborators } from "./admin-collaborators";
 import { AdminFinance, StatTile } from "./admin-finance";
+import { AdminHours } from "./admin-hours";
 import { AdminIncidents } from "./admin-incidents";
 import { AdminInventory } from "./admin-inventory";
 
@@ -377,6 +378,8 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
                 ) : null}
 
                 <PastaModePanel token={token} onSessionExpired={onLogout} />
+
+                <AdminHours token={token} onSessionExpired={onLogout} />
 
                 <AdminIncidents token={token} onSessionExpired={onLogout} onOpenCountChange={setOpenIncidents} />
 
