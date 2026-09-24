@@ -15,6 +15,7 @@ export * from "./menu-board";
 export * from "./quantity-stepper";
 export * from "./site-footer";
 export * from "./site-header";
+export * from "./special-spotlight";
 export * from "./stamp";
 export * from "./cart-checkout";
 export * from "./yappy-button";

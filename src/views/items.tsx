@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router";
-import { PiArrowLeftBold, PiPlusBold, PiSlidersHorizontalBold, PiWhatsappLogoBold } from "react-icons/pi";
+import { PiArrowLeftBold, PiPlusBold, PiSlidersHorizontalBold, PiStarFourFill, PiWhatsappLogoBold } from "react-icons/pi";
 
-import { ProductOptions, QuantityStepper, Stamp, useCart } from "@/components";
+import { Mascot, ProductOptions, QuantityStepper, Stamp, useCart } from "@/components";
 import {
     formatPrice,
     getCategoryById,
+    getCategoryImageUrl,
+    isSpecialCategory,
     getCategoryName,
     getCatalogScope,
     getCategoryPresentation,
@@ -105,6 +107,7 @@ export const Items = () => {
     const category = getCategoryById(selectedCategoryId);
     const categoryName = (location.state as { categoryName?: string } | null)?.categoryName ?? getCategoryName(selectedCategoryId);
     const presentation = getCategoryPresentation(category);
+    const isSpecial = isSpecialCategory(category);
     const { settings, isReady: isSettingsReady } = useSettings();
     const modifiers = useModifiers();
     const [optionsItem, setOptionsItem] = useState<IItem | null>(null);
@@ -125,17 +128,42 @@ export const Items = () => {
     return (
         <main className="section page-items">
             <div className="section__inner">
-                <header className={`category-band category-band--${presentation.tone}`}>
-                    <div>
-                        <Link to="/menu" className="category-band__back">
-                            <PiArrowLeftBold aria-hidden /> Volver al tablero
-                        </Link>
-                        <h1 className="category-band__title">{categoryName}</h1>
-                        {category && <p className="category-band__desc">{presentation.description}</p>}
-                    </div>
-                    {presentation.origin && <span className="category-band__origin">{presentation.origin}</span>}
-                    {presentation.schedule && <span className="category-band__origin">{presentation.schedule}</span>}
-                </header>
+                {isSpecial ? (
+                    // Especial: portada mora con su foto en estampilla, para venderla
+                    <header className="category-band category-band--special">
+                        <div className="category-band__copy">
+                            <Link to="/menu" className="category-band__back">
+                                <PiArrowLeftBold aria-hidden /> Volver al tablero
+                            </Link>
+                            <span className="category-band__pill">
+                                <PiStarFourFill aria-hidden /> Especial · por tiempo limitado
+                            </span>
+                            <h1 className="category-band__title">{categoryName}</h1>
+                            <p className="category-band__desc">{presentation.description}</p>
+                        </div>
+                        <Stamp
+                            src={getCategoryImageUrl(category)}
+                            alt={`Foto de ${categoryName}`}
+                            caption="Especial"
+                            code="★"
+                            rotate={5}
+                            loading="eager"
+                            className="category-band__stamp"
+                        />
+                    </header>
+                ) : (
+                    <header className={`category-band category-band--${presentation.tone}`}>
+                        <div>
+                            <Link to="/menu" className="category-band__back">
+                                <PiArrowLeftBold aria-hidden /> Volver al tablero
+                            </Link>
+                            <h1 className="category-band__title">{categoryName}</h1>
+                            {category && <p className="category-band__desc">{presentation.description}</p>}
+                        </div>
+                        {presentation.origin && <span className="category-band__origin">{presentation.origin}</span>}
+                        {presentation.schedule && <span className="category-band__origin">{presentation.schedule}</span>}
+                    </header>
+                )}
 
                 {!selectedCategoryId && (
                     <p className="empty-note">Elige una categoría en el <Link to="/menu" className="text-link">tablero</Link>.</p>
@@ -158,7 +186,17 @@ export const Items = () => {
                     </div>
                 )}
 
-                {selectedCategoryId && !isBlockedToday && !loading && !error && availableItems.length === 0 && (
+                {selectedCategoryId && !isBlockedToday && !loading && !error && availableItems.length === 0 && isSpecial && (
+                    <div className="soon-note">
+                        <Mascot className="soon-note__mascot" />
+                        <p>
+                            <b>Muy pronto en la barra.</b> Estamos preparando {categoryName}. Vuelve en unos días.{" "}
+                            <Link to="/menu" className="text-link">Mira el resto del tablero</Link>.
+                        </p>
+                    </div>
+                )}
+
+                {selectedCategoryId && !isBlockedToday && !loading && !error && availableItems.length === 0 && !isSpecial && (
                     <p className="empty-note">
                         Por ahora no hay productos disponibles en esta categoría. <Link to="/menu" className="text-link">Mira el resto del tablero</Link>.
                     </p>

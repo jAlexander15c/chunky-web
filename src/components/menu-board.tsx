@@ -2,6 +2,7 @@ import { useNavigate } from "react-router";
 import { motion, useReducedMotion } from "motion/react";
 import { PiArrowRightBold, PiWhatsappLogoBold } from "react-icons/pi";
 
+import { Stamp } from "./stamp";
 import { usePastaBuilder } from "./use-pasta-builder";
 
 import {
@@ -10,9 +11,11 @@ import {
     getOrderingStatusLabel,
     getWhatsAppUrl,
     isAcceptingOrders,
+    isSpecialCategory,
     shouldDisplayCategory,
     useCategories,
     useSettings,
+    useSpecialCategories,
 } from "@/helpers";
 
 const MenuBoardSkeleton = () => (
@@ -37,7 +40,13 @@ export const MenuBoard = () => {
     // Hasta saber si hoy es dia de pasta no se pinta el tablero: mostraria un menu que cambia
     const loading = isLoadingCategories || !isSettingsReady;
     const pasta = settings.pastaMode ? settings.pasta : null;
-    const visibleCategories = categories.filter((category) => shouldDisplayCategory(category, new Date(), settings));
+    // Las especiales van primero y resaltadas; el menu fijo sigue debajo, como siempre
+    const specials = useSpecialCategories();
+    const visibleCategories = [
+        ...specials.map((special) => special.category),
+        ...categories.filter((category) => !isSpecialCategory(category) && shouldDisplayCategory(category, new Date(), settings)),
+    ];
+    const getSpecial = (categoryId: string) => specials.find((special) => special.category.id === categoryId);
 
     return (
         <div className="board">
@@ -87,38 +96,71 @@ export const MenuBoard = () => {
                     )}
                     {visibleCategories.map((category, index) => {
                         const presentation = getCategoryPresentation(category);
+                        const special = getSpecial(category.id);
+                        const isComingSoon = Boolean(special?.isComingSoon);
+                        // Linea punteada entre la ultima especial y el menu fijo
+                        const isLastSpecial = Boolean(special) && index === specials.length - 1 && visibleCategories.length > specials.length;
+                        const rowVariants = {
+                            hidden: { opacity: 0, transform: "translateY(70%)" },
+                            visible: { opacity: 1, transform: "translateY(0%)" },
+                        };
+                        const rowTransition = { duration: 0.3, delay: index * 0.05, ease: [0.34, 1.56, 0.64, 1] as const };
+                        const rowContent = (
+                            <>
+                                {special && (
+                                    <Stamp src={special.photo} alt="" size="sm" rotate={-5} className="board__thumb" />
+                                )}
+                                <span className="board__text">
+                                    <span className="board__name">
+                                        {category.name}
+                                        {special && (
+                                            <span className={`board__badge${isComingSoon ? " board__badge--soon" : ""}`}>
+                                                {isComingSoon ? "Muy pronto" : "★ Especial"}
+                                            </span>
+                                        )}
+                                        {presentation.schedule && <span className="board__tag">{presentation.schedule}</span>}
+                                    </span>
+                                    <span className="board__desc">
+                                        {isComingSoon
+                                            ? "Llega pronto a la barra"
+                                            : special?.fromPrice != null
+                                                ? `${presentation.description} · desde ${formatPrice(special.fromPrice)}`
+                                                : presentation.description}
+                                    </span>
+                                </span>
+                                <span className="board__go" aria-hidden>
+                                    {isComingSoon ? null : <PiArrowRightBold />}
+                                </span>
+                            </>
+                        );
+                        const rowClassName = `board__row${special ? " board__row--special" : ""}${isComingSoon ? " board__row--soon" : ""}`;
 
                         return (
                             // El disparo lo observa el <li> (siempre completo): la fila desplazada queda
                             // recortada por el overflow del slot y nunca alcanzaria el umbral por si sola.
                             <motion.li
                                 key={category.id}
-                                className="board__slot"
+                                className={`board__slot${isLastSpecial ? " board__slot--last-special" : ""}`}
                                 initial={reduceMotion ? false : "hidden"}
                                 whileInView="visible"
                                 viewport={{ once: true, amount: 0.5 }}
                             >
-                                <motion.button
-                                    type="button"
-                                    className="board__row"
-                                    onClick={() => navigate(`/items?categoryId=${category.id}`, { state: { categoryName: category.name } })}
-                                    variants={{
-                                        hidden: { opacity: 0, transform: "translateY(70%)" },
-                                        visible: { opacity: 1, transform: "translateY(0%)" },
-                                    }}
-                                    transition={{ duration: 0.3, delay: index * 0.05, ease: [0.34, 1.56, 0.64, 1] }}
-                                >
-                                    <span className="board__text">
-                                        <span className="board__name">
-                                            {category.name}
-                                            {presentation.schedule && <span className="board__tag">{presentation.schedule}</span>}
-                                        </span>
-                                        {presentation.description && <span className="board__desc">{presentation.description}</span>}
-                                    </span>
-                                    <span className="board__go" aria-hidden>
-                                        <PiArrowRightBold />
-                                    </span>
-                                </motion.button>
+                                {isComingSoon ? (
+                                    // Sin productos a la venta: se anuncia, pero no lleva a ningun lado
+                                    <motion.div className={rowClassName} aria-disabled="true" variants={rowVariants} transition={rowTransition}>
+                                        {rowContent}
+                                    </motion.div>
+                                ) : (
+                                    <motion.button
+                                        type="button"
+                                        className={rowClassName}
+                                        onClick={() => navigate(`/items?categoryId=${category.id}`, { state: { categoryName: category.name } })}
+                                        variants={rowVariants}
+                                        transition={rowTransition}
+                                    >
+                                        {rowContent}
+                                    </motion.button>
+                                )}
                             </motion.li>
                         );
                     })}

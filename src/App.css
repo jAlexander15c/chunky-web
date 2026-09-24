@@ -2860,3 +2860,446 @@ main {
     font-size: 1.75rem;
   }
 }
+
+/* ============ Categorias especiales ============ */
+/* Todo lo que no es del menu fijo (galletas, salados, bebidas, desayunos, postres) se destaca para vender */
+
+/* Inicio: pase de abordar con la foto como estampilla en el talon */
+.spotlight__head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 0.75rem 2rem;
+  margin-bottom: 2.5rem;
+}
+
+.spotlight__head .section__title {
+  margin: 0;
+}
+
+.spotlight__sub {
+  margin: 0;
+  color: var(--text-soft);
+  max-width: 40ch;
+}
+
+.spotlight__tickets {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.pass {
+  --stub: 170px;
+  --notch: 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--stub);
+  background: var(--mora);
+  color: var(--crema);
+  border-radius: 22px;
+  box-shadow: 0 30px 50px -32px rgb(var(--shadow-tint) / 0.8);
+  /* Muescas del talon arriba y abajo */
+  -webkit-mask:
+    radial-gradient(circle var(--notch) at calc(100% - var(--stub)) 0, #0000 98%, #000) top / 100% 51% no-repeat,
+    radial-gradient(circle var(--notch) at calc(100% - var(--stub)) 100%, #0000 98%, #000) bottom / 100% 51% no-repeat;
+  mask:
+    radial-gradient(circle var(--notch) at calc(100% - var(--stub)) 0, #0000 98%, #000) top / 100% 51% no-repeat,
+    radial-gradient(circle var(--notch) at calc(100% - var(--stub)) 100%, #0000 98%, #000) bottom / 100% 51% no-repeat;
+}
+
+.pass--soon {
+  background: #4b5a97;
+}
+
+.pass__main {
+  padding: clamp(1.25rem, 3vw, 2.1rem);
+  display: grid;
+  gap: 0.85rem;
+  align-content: center;
+  min-width: 0;
+}
+
+.pass__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--lima);
+}
+
+.pass__star {
+  flex: none;
+  color: var(--orquidea);
+  font-size: 1rem;
+}
+
+.pass__name {
+  margin: 0;
+  font-size: clamp(1.8rem, 1.3rem + 2.4vw, 3.2rem);
+  font-weight: 800;
+  text-transform: uppercase;
+  line-height: 0.98;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.pass--soon .pass__name {
+  color: var(--sky);
+}
+
+.pass__pitch {
+  margin: 0;
+  color: var(--sky);
+  max-width: 38ch;
+}
+
+.pass__meta {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.4rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sky);
+  font-variant-numeric: tabular-nums;
+}
+
+.pass__meta b {
+  color: var(--crema);
+  font-weight: 800;
+}
+
+.pass__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.1rem;
+  margin-top: 0.25rem;
+}
+
+.pass__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 48px;
+  padding: 0.85rem 1.5rem;
+  border-radius: var(--radius-pill);
+  background: var(--orquidea);
+  color: var(--ink);
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: 0 4px 0 rgb(0 0 0 / 0.22);
+  transition: transform 160ms var(--ease-out), box-shadow 160ms var(--ease-out);
+}
+
+.pass__cta:active {
+  transform: translateY(2px) scale(0.98);
+  box-shadow: 0 2px 0 rgb(0 0 0 / 0.22);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pass__cta:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 0 rgb(0 0 0 / 0.22);
+  }
+}
+
+.pass__soon {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.6rem 1.1rem;
+  border-radius: var(--radius-pill);
+  background: var(--lima);
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.pass__stub {
+  border-left: 2px dashed rgb(215 224 249 / 0.45);
+  padding: 1.4rem 1rem;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 0.75rem;
+}
+
+.pass__stamp {
+  width: 140px;
+}
+
+/* El pase y la portada son mora con letra crema: el pie de la estampilla vuelve a tinta sobre el papel */
+.pass__stamp .stamp__caption,
+.category-band__stamp .stamp__caption {
+  color: var(--ink);
+}
+
+.pass__stamp .stamp__image,
+.pass__stamp .stamp__fallback {
+  height: 140px;
+}
+
+.pass__stubline {
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--sky);
+  text-align: center;
+}
+
+.pass__stubline b {
+  display: block;
+  font-size: 0.95rem;
+  letter-spacing: 0.1em;
+  color: var(--lima);
+}
+
+/* Una sola especial: pase grande, la estampilla crece */
+.spotlight__tickets--one .pass {
+  --stub: 290px;
+}
+
+.spotlight__tickets--one .pass__stamp {
+  width: 240px;
+}
+
+.spotlight__tickets--one .pass__stamp .stamp__image,
+.spotlight__tickets--one .pass__stamp .stamp__fallback {
+  height: 230px;
+}
+
+@media (min-width: 900px) {
+  .spotlight__tickets:not(.spotlight__tickets--one) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Telefono: la estampilla arriba y, si hay varias, los pases se deslizan de lado */
+@media (max-width: 640px) {
+  .spotlight__tickets:not(.spotlight__tickets--one) {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: var(--gutter);
+    gap: 0.75rem;
+    margin-inline: calc(var(--gutter) * -1);
+    padding: 0 var(--gutter) 0.5rem;
+    scrollbar-width: none;
+  }
+
+  .spotlight__tickets:not(.spotlight__tickets--one) .pass {
+    flex: 0 0 86%;
+    scroll-snap-align: start;
+  }
+
+  .pass,
+  .spotlight__tickets--one .pass {
+    grid-template-columns: minmax(0, 1fr);
+    -webkit-mask: none;
+    mask: none;
+  }
+
+  .pass__stub {
+    order: -1;
+    border-left: 0;
+    border-bottom: 2px dashed rgb(215 224 249 / 0.45);
+    grid-template-columns: auto 1fr;
+    justify-items: start;
+    align-items: center;
+    padding: 1.1rem 1.1rem 1rem;
+  }
+
+  .pass__stamp,
+  .spotlight__tickets--one .pass__stamp {
+    width: 116px;
+  }
+
+  .pass__stamp .stamp__image,
+  .pass__stamp .stamp__fallback,
+  .spotlight__tickets--one .pass__stamp .stamp__image,
+  .spotlight__tickets--one .pass__stamp .stamp__fallback {
+    height: 116px;
+  }
+
+  .pass__stubline {
+    text-align: left;
+  }
+
+  .pass__name {
+    font-size: 1.6rem;
+  }
+}
+
+/* Tablero: las especiales primero, en orquidea y con su estampilla chica */
+.board__row--special {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  padding: 0.9rem 0.6rem;
+  background: rgb(225 168 229 / 0.14);
+  box-shadow: inset 0 0 0 2px rgb(225 168 229 / 0.5);
+}
+
+.board__row--special .board__name {
+  color: var(--orquidea);
+}
+
+.board__slot--last-special {
+  border-bottom: 2px dotted rgb(215 224 249 / 0.35);
+  padding-bottom: 0.6rem;
+  margin-bottom: 0.3rem;
+}
+
+.board__slot + .board__slot .board__row--special {
+  margin-top: 0.4rem;
+}
+
+.board__thumb {
+  flex: none;
+}
+
+.board__badge {
+  display: inline-block;
+  margin-left: 0.6rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-pill);
+  background: var(--orquidea);
+  color: var(--ink);
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  vertical-align: middle;
+  text-shadow: none;
+}
+
+.board__badge--soon {
+  background: var(--lima);
+}
+
+.board__row--soon {
+  cursor: default;
+  background: rgb(227 232 167 / 0.08);
+  box-shadow: inset 0 0 0 2px rgb(227 232 167 / 0.35);
+}
+
+.board__row--soon .board__name {
+  color: var(--sky);
+}
+
+.board__row--soon .board__go {
+  visibility: hidden;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .board__row--soon:hover .board__name {
+    color: var(--sky);
+  }
+}
+
+@media (max-width: 640px) {
+  .board__row--special {
+    gap: 0.7rem;
+  }
+
+  .board__row--special .board__name {
+    font-size: 1rem;
+    letter-spacing: 0.08em;
+  }
+}
+
+/* Pagina de una especial: portada mora con la foto */
+.category-band--special {
+  background: var(--mora);
+  color: var(--crema);
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.category-band--special .category-band__back,
+.category-band--special .category-band__desc {
+  color: var(--sky);
+}
+
+.category-band__copy {
+  display: grid;
+  justify-items: start;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.category-band__copy .category-band__back {
+  margin-bottom: 0;
+}
+
+.category-band__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: var(--radius-pill);
+  background: var(--orquidea);
+  color: var(--ink);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.category-band__stamp {
+  flex: none;
+  width: 190px;
+}
+
+.category-band__stamp .stamp__image,
+.category-band__stamp .stamp__fallback {
+  height: 180px;
+}
+
+@media (max-width: 640px) {
+  .category-band--special {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .category-band__stamp {
+    width: 140px;
+    align-self: flex-end;
+  }
+
+  .category-band__stamp .stamp__image,
+  .category-band__stamp .stamp__fallback {
+    height: 130px;
+  }
+}
+
+.soon-note {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  max-width: 60ch;
+  padding: 1.25rem;
+  border-radius: var(--radius-panel);
+  background: #fffef6;
+  color: var(--text-soft);
+}
+
+.soon-note p {
+  margin: 0;
+}
+
+.soon-note b {
+  display: block;
+  color: var(--ink);
+  font-size: 1.05rem;
+}
+
+.soon-note__mascot {
+  flex: none;
+  width: 72px;
+}

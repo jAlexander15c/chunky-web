@@ -316,13 +316,23 @@ export function useItems(categoryId?: string, scope: CatalogScope = "normal") {
     return { items, loading, error };
 }
 
+/**
+ * Las categorias del menu fijo son las de CATEGORY_PRESENTATION. Cualquier otra que se cree en el
+ * tablero es especial (temporada, fecha, campaña) y la web la destaca para venderla.
+ */
+export const isSpecialCategory = (category?: Pick<ICategory, "name">) =>
+    Boolean(category) && !CATEGORY_PRESENTATION[normalizeCategoryName(category?.name)];
+
+/** Loyverse no guarda descripcion de categoria: todas las especiales usan este texto. */
+export const SPECIAL_CATEGORY_DESCRIPTION = "Edición especial, por tiempo limitado";
+
 /** Presentacion por nombre de categoria; las desconocidas solo toman el tono de su color. */
 export const getCategoryPresentation = (category?: Pick<ICategory, "name" | "color">): ICategoryPresentation => {
     const known = CATEGORY_PRESENTATION[normalizeCategoryName(category?.name)];
     if (known) return known;
 
     return {
-        description: "",
+        description: category ? SPECIAL_CATEGORY_DESCRIPTION : "",
         tone: COLOR_TONE[normalizeCategoryColor(category?.color)] ?? "mantequilla",
     };
 };

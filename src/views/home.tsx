@@ -1,7 +1,7 @@
 import { Link } from "react-router";
 import { PiArrowRightBold, PiArrowUpRightBold, PiStarFourFill } from "react-icons/pi";
 
-import { Mascot, MenuBoard, Stamp, usePastaBuilder } from "@/components";
+import { Mascot, MenuBoard, SpecialSpotlight, Stamp, usePastaBuilder } from "@/components";
 import {
     PEDIDOS_YA_URL,
     getOpeningHoursRows,
@@ -117,6 +117,8 @@ export const Home = () => {
             </section>
 
             <Marquee />
+
+            <SpecialSpotlight />
 
             {!isPastaDay && (
             <section id="pasaporte" className="section passport">

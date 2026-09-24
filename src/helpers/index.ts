@@ -2,6 +2,7 @@ export * from "./getCategories";
 export * from "./getHttp";
 export * from "./getItems";
 export * from "./catalog";
+export * from "./specials";
 export * from "./order";
 export * from "./hours";
 export * from "./modifiers";
