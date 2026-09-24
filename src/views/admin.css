@@ -1443,3 +1443,211 @@ a.adm-btn { display: inline-flex; align-items: center; text-decoration: none; }
 @media (prefers-reduced-motion: reduce) {
     .adm-fin { transition: none; }
 }
+
+/* ============ Menú: crear categorías y productos ============ */
+
+.adm-menu-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.adm-menu-action {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.2rem 1.3rem;
+    border: 0;
+    border-radius: var(--radius-panel);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    box-shadow: 0 14px 26px -22px rgb(var(--shadow-tint) / 0.6);
+    transition: transform 160ms var(--ease-out);
+}
+
+.adm-menu-action:active:not(:disabled) { transform: scale(0.98); }
+.adm-menu-action:disabled { opacity: 0.55; cursor: default; }
+.adm-menu-action:focus-visible { outline: 3px solid var(--orquidea); outline-offset: 2px; }
+
+.adm-menu-action--category { background: var(--mantequilla); color: var(--ink); }
+.adm-menu-action--item { background: var(--mora); color: var(--crema); }
+
+.adm-menu-action__plus {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    font-size: 1.8rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.adm-menu-action--category .adm-menu-action__plus { background: var(--crema); color: var(--mora); }
+.adm-menu-action--item .adm-menu-action__plus { background: var(--orquidea); color: var(--ink); }
+
+.adm-menu-action b { display: block; font-size: 1.1rem; font-weight: 800; }
+.adm-menu-action em { font-style: normal; font-size: 0.8rem; opacity: 0.85; }
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-menu-action:hover:not(:disabled) { transform: translateY(-2px); }
+}
+
+@media (max-width: 620px) {
+    .adm-menu-actions { grid-template-columns: minmax(0, 1fr); }
+}
+
+.adm-menu-notice {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem 1rem;
+    border-radius: 16px;
+    padding: 0.8rem 1rem;
+    margin-bottom: 1rem;
+}
+
+.adm-menu-notice p { margin: 0; flex: 1 1 240px; font-weight: 700; font-size: 0.86rem; }
+.adm-menu-notice.is-ok { background: var(--adm-good-bg); color: var(--adm-good); }
+.adm-menu-notice.is-warn { background: var(--adm-warn-bg); color: var(--adm-warn); }
+
+.adm-pill.is-new { background: var(--orquidea); color: var(--ink); }
+
+/* Lista de categorías, cada una se abre para ver sus productos */
+.adm-menu-cats { list-style: none; margin: 0; padding: 0; }
+.adm-menu-cat + .adm-menu-cat { border-top: 1.5px solid var(--adm-line); }
+
+.adm-menu-cat__head {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    width: 100%;
+    min-height: 48px;
+    padding: 0.6rem 0.2rem;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+}
+
+.adm-menu-cat__dot { flex: none; width: 14px; height: 14px; border-radius: 50%; }
+.adm-menu-cat__info { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem 0.6rem; }
+.adm-menu-cat__name { font-weight: 800; font-size: 0.98rem; overflow-wrap: break-word; min-width: 0; }
+.adm-menu-cat__count { font-size: 0.78rem; color: var(--adm-text-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.adm-menu-cat__chev {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: var(--adm-text-3);
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform 200ms var(--ease-out);
+}
+
+.adm-menu-cat__head[aria-expanded="true"] .adm-menu-cat__chev { transform: rotate(90deg); }
+.adm-menu-cat__empty { padding: 0 0 0.8rem 1.6rem; }
+
+.adm-menu-items { list-style: none; margin: 0; padding: 0 0 0.8rem 1.6rem; display: grid; gap: 0.4rem; }
+
+.adm-menu-items li { display: flex; align-items: center; gap: 0.7rem; font-size: 0.88rem; }
+.adm-menu-items__thumb { flex: none; width: 36px; height: 36px; border-radius: 10px; object-fit: cover; background: var(--adm-panel-2); }
+.adm-menu-items__info { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem 0.6rem; }
+.adm-menu-items__name { min-width: 0; overflow-wrap: break-word; }
+.adm-menu-items__price { font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 520px) {
+    .adm-menu-items { padding-left: 0; }
+}
+
+/* Formularios del menú */
+.adm-menu-input { font-size: 1rem; min-height: 44px; }
+
+.adm-swatches { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.adm-swatch {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    box-shadow: inset 0 0 0 3px var(--adm-panel);
+    cursor: pointer;
+}
+
+.adm-swatch[aria-checked="true"] { border-color: var(--ink); }
+.adm-swatch:focus-visible { outline: 3px solid var(--orquidea); outline-offset: 2px; }
+
+.adm-photo {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.7rem;
+    border: 2px dashed var(--sky);
+    border-radius: 16px;
+    background: var(--crema);
+    cursor: pointer;
+}
+
+.adm-photo:focus-within { border-color: var(--mora); }
+.adm-photo b { display: block; font-size: 0.9rem; }
+.adm-photo em { font-style: normal; font-size: 0.76rem; color: var(--adm-text-2); }
+
+.adm-photo__img { flex: none; width: 76px; height: 76px; border-radius: 14px; object-fit: cover; }
+
+.adm-photo__img--empty { display: grid; place-items: center; background: var(--sky); }
+
+.adm-photo__img--empty svg {
+    width: 30px;
+    height: 30px;
+    fill: none;
+    stroke: var(--mora);
+    stroke-width: 1.8;
+    stroke-linejoin: round;
+}
+
+/* El input de archivo esta oculto: el foco se ve en el recuadro de la foto */
+.adm-photo:has(+ #menu-item-photo:focus-visible) { outline: 3px solid var(--orquidea); outline-offset: 2px; }
+
+.adm-money { position: relative; display: block; }
+
+.adm-money b {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    translate: 0 -50%;
+    font-weight: 800;
+    color: var(--adm-text-2);
+    pointer-events: none;
+}
+
+.adm-money .adm-form__input { padding-left: 2.5rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+.adm-menu-switch {
+    display: flex;
+    padding: 0.7rem 0.9rem;
+    border-radius: 14px;
+    background: var(--adm-panel-2);
+    margin-bottom: 1rem;
+}
+
+.adm-menu-switch b { display: block; font-size: 0.88rem; }
+.adm-menu-switch em { font-style: normal; font-weight: 600; font-size: 0.75rem; color: var(--adm-text-2); }
+
+/* En el celular el formulario sube desde abajo y ocupa el ancho */
+@media (max-width: 620px) {
+    .adm-menu-modal { place-items: end center; padding: 0; }
+    .adm-menu-modal .adm-modal__panel { width: 100%; border-radius: 22px 22px 0 0; padding-bottom: calc(1.4rem + env(safe-area-inset-bottom, 0px)); }
+    .adm-menu-modal .adm-modal__actions .adm-btn { flex: 1; min-height: 46px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .adm-menu-action, .adm-menu-cat__chev { transition: none; }
+}

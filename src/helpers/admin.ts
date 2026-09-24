@@ -1,4 +1,4 @@
-import { httpGet, httpPost, httpPut } from "./getHttp";
+import { httpGet, httpPost, httpPostBinary, httpPut } from "./getHttp";
 import type { ICreditTicket, IShiftDetail } from "./gestion";
 import type { IWeekHours, StoreOverride } from "./hours";
 
@@ -435,6 +435,90 @@ export const saveOpeningHours = (token: string, days: IWeekHours) =>
 
 export const syncReceiptsNow = (token: string) =>
     httpPost<{ applied: number; skipped: number; synced: number }>("/admin/sync", {}, { headers: getAdminHeaders(token) });
+
+/* ============ Menú (categorías y productos en Loyverse) ============ */
+
+/** Los unicos colores de categoria que acepta Loyverse, con el nombre que ve el admin. */
+export const CATEGORY_COLORS = [
+    { id: "GREY", label: "Gris", hex: "#9aa0a6" },
+    { id: "RED", label: "Rojo", hex: "#e2504c" },
+    { id: "PINK", label: "Rosado", hex: "#e5679a" },
+    { id: "ORANGE", label: "Naranja", hex: "#f09a37" },
+    { id: "GREEN", label: "Verde", hex: "#6bb35a" },
+    { id: "BLUE", label: "Azul", hex: "#3f8ce0" },
+    { id: "PURPLE", label: "Morado", hex: "#9a5cc6" },
+] as const;
+
+export type CategoryColor = (typeof CATEGORY_COLORS)[number]["id"];
+
+export const getCategoryColorHex = (color: string) =>
+    CATEGORY_COLORS.find((one) => one.id === color)?.hex ?? CATEGORY_COLORS[0].hex;
+
+export interface IMenuCategory {
+    id: string;
+    name: string;
+    color: CategoryColor;
+}
+
+export interface IMenuItem {
+    id: string;
+    name: string;
+    categoryId: string | null;
+    price: number | null;
+    isAvailable: boolean;
+    imageUrl: string | null;
+    createdAt: string | null;
+}
+
+export interface IMenuItemInput {
+    name: string;
+    categoryId: string;
+    price: number;
+    description: string;
+    isAvailable: boolean;
+}
+
+/** Categorias y productos, incluidos los que no estan a la venta en la web. */
+export const fetchMenu = (token: string, signal?: AbortSignal) =>
+    httpGet<{ categories: IMenuCategory[]; items: IMenuItem[] }>("/admin/menu", { signal, headers: getAdminHeaders(token) });
+
+export const createMenuCategory = (token: string, name: string, color: CategoryColor) =>
+    httpPost<{ category: IMenuCategory }>("/admin/categories", { name, color }, { headers: getAdminHeaders(token) });
+
+export const createMenuItem = (token: string, item: IMenuItemInput) =>
+    httpPost<{ item: { id: string; name: string } }>("/admin/items", item, { headers: getAdminHeaders(token) });
+
+export const uploadMenuItemImage = (token: string, itemId: string, image: Blob) =>
+    httpPostBinary<{ imageUrl: string | null }>(`/admin/items/${encodeURIComponent(itemId)}/image`, image, {
+        headers: getAdminHeaders(token),
+    });
+
+/** Lado mas largo de la foto que se sube: sobra para la web y pesa poco desde el celular. */
+const MENU_IMAGE_MAX_SIDE = 1200;
+
+/**
+ * Achica la foto en el navegador y la pasa a JPEG antes de subirla.
+ * Una foto del celular pesa varios MB; asi queda en unos cientos de KB.
+ */
+export const shrinkMenuImage = async (file: File): Promise<Blob> => {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, MENU_IMAGE_MAX_SIDE / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("No se pudo preparar la foto.");
+    // Fondo blanco: un PNG transparente pasado a JPEG quedaria negro
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+
+    return new Promise((resolve, reject) =>
+        canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("No se pudo preparar la foto."))), "image/jpeg", 0.85)
+    );
+};
 
 /* ============ Descuadres de pago ============ */
 

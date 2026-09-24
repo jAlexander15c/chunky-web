@@ -63,6 +63,10 @@ const COLOR_TONE: Record<string, CategoryTone> = {
     BLUE: "sky",
     PURPLE: "orquidea",
     LIME: "lima",
+    // Los que se pueden elegir al crear una categoria desde el tablero
+    GREEN: "lima",
+    PINK: "orquidea",
+    GREY: "sky",
 };
 
 const normalizeCategoryName = (name?: string) =>
@@ -401,4 +405,4 @@ export const getOrderingStatusLabel = (context: IOrderingContext, isOpen: boolea
 
 /** Cuando vuelve a abrir, para las tarjetas y avisos de cerrado. */
 export const getClosedLabel = (context: IOrderingContext, date = new Date()) =>
-    getNextOpeningLabel(context.openingHours, date, context.storeOverride === "closed");
+    getNextOpeningLabel(context.openingHours, date, context.storeOverride === "closed");

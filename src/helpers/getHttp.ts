@@ -60,6 +60,26 @@ export const httpPost = <T>(path: string, body: unknown, options?: { headers?: R
 export const httpPut = <T>(path: string, body: unknown, options?: { headers?: Record<string, string> }) =>
     sendJson<T>("PUT", path, body, options);
 
+/** POST de un archivo tal cual (ej. la foto de un producto), con su propio Content-Type. */
+export const httpPostBinary = async <T>(path: string, file: Blob, options?: { headers?: Record<string, string> }): Promise<T> => {
+    const res = await fetch(`${API_BASE}${path}`, {
+        method: "POST",
+        headers: {
+            "Content-Type": file.type,
+            ...(API_KEY ? { "x-api-key": API_KEY } : {}),
+            ...options?.headers,
+        },
+        body: file,
+    });
+
+    if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new HttpError(res.status, data?.message || res.statusText);
+    }
+
+    return res.json() as Promise<T>;
+};
+
 export async function httpGet<T>(
     path: string,
     options?: {

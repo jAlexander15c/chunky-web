@@ -23,6 +23,7 @@ import { AdminFinance, StatTile } from "./admin-finance";
 import { AdminHours } from "./admin-hours";
 import { AdminIncidents } from "./admin-incidents";
 import { AdminInventory } from "./admin-inventory";
+import { AdminMenu } from "./admin-menu";
 
 import "./admin.css";
 
@@ -241,7 +242,7 @@ const PastaModePanel = ({ token, onSessionExpired }: { token: string; onSessionE
 
 /* ============ Menú ============ */
 
-type AdminSection = "tablero" | "inventario" | "caja" | "local" | "colaboradores";
+type AdminSection = "tablero" | "inventario" | "menu" | "caja" | "local" | "colaboradores";
 
 const ADMIN_SECTIONS: { id: AdminSection; label: string; icon: ReactNode }[] = [
     {
@@ -256,6 +257,16 @@ const ADMIN_SECTIONS: { id: AdminSection; label: string; icon: ReactNode }[] = [
             <>
                 <path d="M3 7l9-4 9 4v10l-9 4-9-4z" />
                 <path d="M3 7l9 4 9-4M12 11v10" />
+            </>
+        ),
+    },
+    {
+        id: "menu",
+        label: "Menú",
+        icon: (
+            <>
+                <path d="M5 3h11l3 3v15H5z" />
+                <path d="M9 9h6M9 13h6M9 17h4" />
             </>
         ),
     },
@@ -425,6 +436,10 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
             {section === "caja" ? (
                 <main className="adm-wrap">
                     <AdminCaja token={token} onSessionExpired={onLogout} />
+                </main>
+            ) : section === "menu" ? (
+                <main className="adm-wrap">
+                    <AdminMenu token={token} onSessionExpired={onLogout} />
                 </main>
             ) : section === "local" ? (
                 <main className="adm-wrap">
