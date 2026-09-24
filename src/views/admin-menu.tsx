@@ -9,7 +9,7 @@ import {
     fetchMenu,
     formatMoney,
     getCategoryColorHex,
-    shrinkMenuImage,
+    cropMenuImage,
     uploadMenuItemImage,
 } from "@/helpers";
 import type { CategoryColor, IMenuCategory, IMenuItem } from "@/helpers";
@@ -197,7 +197,7 @@ const ItemDialog = ({ categories, initialCategoryId, onSave, onClose }: IItemDia
                             )}
                             <span>
                                 <b>{photo ? "Cambiar foto" : "Agregar foto"}</b>
-                                <em>Tómala o elígela. La achicamos antes de subirla.</em>
+                                <em>Tómala o elígela. Se recorta cuadrada (1320×1320): queda lo que ves en el cuadro.</em>
                             </span>
                         </label>
                         <input
@@ -380,7 +380,7 @@ export const AdminMenu = ({ token, onSessionExpired }: { token: string; onSessio
         let isPhotoMissing = false;
         if (draft.photo) {
             try {
-                await uploadMenuItemImage(token, item.id, await shrinkMenuImage(draft.photo));
+                await uploadMenuItemImage(token, item.id, await cropMenuImage(draft.photo));
             } catch (photoError) {
                 console.error("[menu] no se pudo subir la foto:", photoError);
                 isPhotoMissing = true;

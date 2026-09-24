@@ -493,26 +493,31 @@ export const uploadMenuItemImage = (token: string, itemId: string, image: Blob) 
         headers: getAdminHeaders(token),
     });
 
-/** Lado mas largo de la foto que se sube: sobra para la web y pesa poco desde el celular. */
-const MENU_IMAGE_MAX_SIDE = 1200;
+/** Todas las fotos del menu salen cuadradas y de este tamaño exacto. */
+export const MENU_IMAGE_SIDE = 1320;
 
 /**
- * Achica la foto en el navegador y la pasa a JPEG antes de subirla.
+ * Recorta la foto cuadrada al centro, la deja en 1320x1320 y la pasa a JPEG antes de subirla.
  * Una foto del celular pesa varios MB; asi queda en unos cientos de KB.
  */
-export const shrinkMenuImage = async (file: File): Promise<Blob> => {
+export const cropMenuImage = async (file: File): Promise<Blob> => {
     const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, MENU_IMAGE_MAX_SIDE / Math.max(bitmap.width, bitmap.height));
+    // El cuadrado mas grande que cabe, centrado: se pierde lo que sobra de los lados o de arriba y abajo
+    const side = Math.min(bitmap.width, bitmap.height);
+    const sourceX = (bitmap.width - side) / 2;
+    const sourceY = (bitmap.height - side) / 2;
+
     const canvas = document.createElement("canvas");
-    canvas.width = Math.round(bitmap.width * scale);
-    canvas.height = Math.round(bitmap.height * scale);
+    canvas.width = MENU_IMAGE_SIDE;
+    canvas.height = MENU_IMAGE_SIDE;
 
     const context = canvas.getContext("2d");
     if (!context) throw new Error("No se pudo preparar la foto.");
     // Fondo blanco: un PNG transparente pasado a JPEG quedaria negro
     context.fillStyle = "#ffffff";
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    context.fillRect(0, 0, MENU_IMAGE_SIDE, MENU_IMAGE_SIDE);
+    context.imageSmoothingQuality = "high";
+    context.drawImage(bitmap, sourceX, sourceY, side, side, 0, 0, MENU_IMAGE_SIDE, MENU_IMAGE_SIDE);
     bitmap.close();
 
     return new Promise((resolve, reject) =>
