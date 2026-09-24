@@ -21,7 +21,7 @@ import {
     setLastOrderId,
     useSettings,
 } from "@/helpers";
-import type { CheckoutErrors, ICheckoutForm } from "@/helpers";
+import type { CheckoutErrors, Fulfillment, ICheckoutForm } from "@/helpers";
 
 const FORM_STORAGE_KEY = "chunky-checkout";
 
@@ -31,6 +31,7 @@ const EMPTY_FORM: ICheckoutForm = {
     hasOtherWhatsapp: false,
     whatsappPhone: "",
     note: "",
+    fulfillment: "pickup",
     deliveryAddress: "",
     deliveryDetails: "",
     deliveryLat: null,
@@ -55,6 +56,11 @@ const readStoredForm = (): ICheckoutForm => {
     }
 };
 
+const FULFILLMENT_OPTIONS: { value: Fulfillment; label: string; detail: string }[] = [
+    { value: "pickup", label: "Retiro en el local", detail: "Pasas a buscarlo" },
+    { value: "delivery", label: "Delivery", detail: "Envío gratis" },
+];
+
 const openWhatsApp = (message: string) => {
     window.open(getWhatsAppUrl(message), "_blank", "noopener");
 };
@@ -64,11 +70,13 @@ export const CartCheckout = () => {
     const { lines, setIsOpen } = useCart();
     const navigate = useNavigate();
     const { settings } = useSettings();
-    // El dia de pasta todo pedido es con entrega a domicilio y no rige el horario semanal
-    const requiresDelivery = settings.pastaMode;
+    const [form, setForm] = useState<ICheckoutForm>(readStoredForm);
+    // El dia de pasta todo pedido es con entrega a domicilio y no rige el horario semanal.
+    // Los demas dias el cliente elige solo si el delivery esta activo; si no, es para retirar.
+    const canChooseDelivery = settings.deliveryMode && !settings.pastaMode;
+    const requiresDelivery = settings.pastaMode || (canChooseDelivery && form.fulfillment === "delivery");
     const isBarOpen = isAcceptingOrders(settings);
 
-    const [form, setForm] = useState<ICheckoutForm>(readStoredForm);
     const [errors, setErrors] = useState<CheckoutErrors>({});
     const [paymentError, setPaymentError] = useState<string | null>(null);
     const [isYappyOnline, setIsYappyOnline] = useState(true);
@@ -92,7 +100,12 @@ export const CartCheckout = () => {
         setErrors((current) => ({ ...current, [field]: undefined }));
     };
 
-    const toggleOtherWhatsapp = (event: ChangeEvent<HTMLInputElement>) => {
+    const chooseFulfillment = (fulfillment: Fulfillment) => {
+        setForm((current) => ({ ...current, fulfillment }));
+        setErrors((current) => ({ ...current, deliveryAddress: undefined }));
+    };
+
+    const toggleOtherWhatsapp =(event: ChangeEvent<HTMLInputElement>) => {
         setForm((current) => ({ ...current, hasOtherWhatsapp: event.target.checked }));
         setErrors((current) => ({ ...current, whatsappPhone: undefined }));
     };
@@ -172,6 +185,30 @@ export const CartCheckout = () => {
     return (
         <div className="checkout">
             <div className="checkout__fields">
+                {canChooseDelivery ? (
+                    <div className="checkout__fulfillment" role="radiogroup" aria-label="Cómo recibes tu pedido">
+                        {FULFILLMENT_OPTIONS.map((option) => (
+                            <label key={option.value} className="checkout__fulfillment-option">
+                                <input
+                                    type="radio"
+                                    name="checkout-fulfillment"
+                                    value={option.value}
+                                    checked={form.fulfillment === option.value}
+                                    onChange={() => chooseFulfillment(option.value)}
+                                />
+                                <span className="checkout__fulfillment-label">{option.label}</span>
+                                <span className={`checkout__fulfillment-detail ${option.value === "delivery" ? "checkout__fulfillment-detail--free" : ""}`}>
+                                    {option.detail}
+                                </span>
+                            </label>
+                        ))}
+                    </div>
+                ) : !settings.pastaMode ? (
+                    <p className="checkout__pickup">
+                        <strong>Pedido para retirar en el local.</strong> Te avisamos cuando esté listo.
+                    </p>
+                ) : null}
+
                 {requiresDelivery && (
                     <>
                         <p className="checkout__section">Entrega a domicilio</p>

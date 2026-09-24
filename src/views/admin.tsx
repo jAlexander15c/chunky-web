@@ -10,6 +10,7 @@ import {
     loadSettings,
     loginAdmin,
     setAdminToken,
+    setDeliveryMode,
     setPastaMode,
     syncReceiptsNow,
     useSettings,
@@ -99,6 +100,61 @@ const AdminLogin = ({ onLogin }: IAdminLoginProps) => {
     );
 };
 
+/* ============ Delivery ============ */
+
+/** Interruptor del delivery de la web. No pide confirmacion: no cambia el menu ni los pedidos ya hechos. */
+const DeliveryModePanel = ({ token, onSessionExpired }: { token: string; onSessionExpired: () => void }) => {
+    const { settings, isReady } = useSettings();
+    const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState("");
+
+    const isOn = settings.deliveryMode;
+
+    const toggle = async () => {
+        setIsSaving(true);
+        setError("");
+
+        try {
+            await setDeliveryMode(token, !isOn);
+            await loadSettings();
+        } catch (requestError) {
+            if (requestError instanceof HttpError && requestError.status === 401) return onSessionExpired();
+            setError(requestError instanceof HttpError ? requestError.message : "No pudimos cambiar el delivery.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+        <section className="adm-band adm-pasta">
+            <div className="adm-band__head">
+                <h2 className="script">Delivery</h2>
+                <span className="adm-band__sub">Entrega a domicilio en los pedidos de la web</span>
+            </div>
+
+            <div className="adm-pasta__row">
+                <label className="adm-switch">
+                    <input type="checkbox" checked={isOn} onChange={() => void toggle()} disabled={!isReady || isSaving} />
+                    <span className="adm-switch__track" aria-hidden />
+                    <span className="adm-switch__label">Delivery</span>
+                </label>
+                <span className={`adm-pasta__state ${isOn ? "adm-pasta__state--on" : ""}`} role="status">
+                    {isReady ? (isOn ? "Activo" : "Apagado") : "Leyendo…"}
+                </span>
+            </div>
+
+            <p className="adm-pasta__desc">
+                {isOn
+                    ? "El cliente elige en el carrito entre retirar en el local o delivery con envío gratis."
+                    : "Los pedidos de la web son solo para retirar en el local."}
+            </p>
+
+            {settings.pastaMode ? <p className="adm-warning">Hoy es día de pasta: todo pedido es delivery igual.</p> : null}
+            {error ? <p className="adm-error">{error}</p> : null}
+        </section>
+    );
+};
+
 /* ============ Modo pasta ============ */
 
 /** Interruptor del dia de pasta. Cambiarlo pide confirmacion: afecta el menu de todos los clientes. */
@@ -151,7 +207,7 @@ const PastaModePanel = ({ token, onSessionExpired }: { token: string; onSessionE
             <p className="adm-pasta__desc">
                 {isOn
                     ? "Ahora el menú muestra solo la pasta armable y las bebidas, y los pedidos son con entrega a domicilio."
-                    : "Ahora el menú se ve completo y los pedidos son para retirar."}
+                    : "Ahora el menú se ve completo y la entrega sigue lo que diga el panel de Delivery."}
             </p>
 
             {isOn && !settings.pasta ? (
@@ -373,6 +429,7 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
             ) : section === "local" ? (
                 <main className="adm-wrap">
                     <AdminHours token={token} onSessionExpired={onLogout} />
+                    <DeliveryModePanel token={token} onSessionExpired={onLogout} />
                     <PastaModePanel token={token} onSessionExpired={onLogout} />
                 </main>
             ) : section === "colaboradores" ? (

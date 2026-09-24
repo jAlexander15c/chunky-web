@@ -1035,6 +1035,32 @@ main {
   font-size: 0.95rem;
 }
 
+/* Otra forma de pedir, debajo de los pasos */
+.ticket__alt {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 2px solid var(--mora);
+}
+
+.ticket__alt p {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.875rem;
+}
+
+.button--pedidosya {
+  background: #d61450;
+  color: #fff;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .button--pedidosya:hover {
+    background: #b70f43;
+  }
+}
+
 .hours {
   background: var(--orquidea);
   border-radius: var(--radius-panel);
@@ -2466,6 +2492,73 @@ main {
 }
 
 /* ============ Entrega a domicilio (pie del carrito) ============ */
+.checkout__fulfillment {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+  padding: 0.3rem;
+  border-radius: 16px;
+  background: var(--sky);
+}
+
+.checkout__fulfillment-option {
+  position: relative;
+  display: grid;
+  gap: 0.05rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out);
+}
+
+.checkout__fulfillment-option input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.checkout__fulfillment-option:has(input:checked) {
+  background: #fff;
+  box-shadow: 0 6px 14px -10px rgb(var(--shadow-tint) / 0.7);
+}
+
+.checkout__fulfillment-option:has(input:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.checkout__fulfillment-label {
+  font-size: 0.875rem;
+  font-weight: 800;
+}
+
+.checkout__fulfillment-detail {
+  font-size: 0.72rem;
+  color: var(--text-soft);
+}
+
+.checkout__fulfillment-detail--free {
+  color: #2f6f4c;
+  font-weight: 800;
+}
+
+.checkout__pickup {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 14px;
+  background: var(--mantequilla);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .checkout__fulfillment-option {
+    transition: none;
+  }
+}
+
 .checkout__section {
   display: flex;
   align-items: center;

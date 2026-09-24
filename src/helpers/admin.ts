@@ -421,6 +421,10 @@ export const setCollaboratorActive = (token: string, id: number, isActive: boole
 export const setPastaMode = (token: string, enabled: boolean) =>
     httpPost<{ pastaMode: boolean }>("/admin/pasta-mode", { enabled }, { headers: getAdminHeaders(token) });
 
+/** Enciende o apaga el delivery de la web: con el, el cliente elige entre retirar o recibir en su casa. */
+export const setDeliveryMode = (token: string, enabled: boolean) =>
+    httpPost<{ deliveryMode: boolean }>("/admin/delivery-mode", { enabled }, { headers: getAdminHeaders(token) });
+
 /** Abre o cierra el local a mano por hoy ("auto" vuelve al horario). A medianoche vuelve solo al horario. */
 export const setStoreStatus = (token: string, status: StoreOverride | "auto") =>
     httpPost<{ status: StoreOverride | "auto" }>("/admin/store-status", { status }, { headers: getAdminHeaders(token) });

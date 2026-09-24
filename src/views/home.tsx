@@ -1,8 +1,9 @@
 import { Link } from "react-router";
-import { PiArrowRightBold, PiStarFourFill } from "react-icons/pi";
+import { PiArrowRightBold, PiArrowUpRightBold, PiStarFourFill } from "react-icons/pi";
 
 import { Mascot, MenuBoard, Stamp, usePastaBuilder } from "@/components";
 import {
+    PEDIDOS_YA_URL,
     getOpeningHoursRows,
     getCategoryByName,
     getCategoryImageUrl,
@@ -19,10 +20,19 @@ const drinksPhoto = getCategoryImageUrl("bebidas");
 
 const MARQUEE_WORDS = ["Galletas estilo New York", "Focaccias", "Pasta", "Tostadas", "Matcha", "Desayunos"];
 
-const ORDER_STEPS = [
+/** Los pasos del pedido en la web. El segundo cambia segun como se entrega hoy. */
+const getOrderSteps = (settings: { pastaMode: boolean; deliveryMode: boolean }) => [
     { title: "Elige en el tablero", text: "Agrega lo que se te antoje." },
-    { title: "Revisa tu carrito", text: "Suma, resta y mira el total." },
-    { title: "Envíalo por WhatsApp", text: "Sale escrito. Te respondemos para confirmar." },
+    {
+        title: "Revisa tu carrito",
+        text: settings.pastaMode
+            ? "Suma, resta y dinos a dónde te lo llevamos."
+            : settings.deliveryMode
+                ? "Suma, resta y elige si lo retiras o te lo llevamos."
+                : "Suma, resta y mira el total. Lo retiras en el local.",
+    },
+    { title: "Paga con Yappy", text: "Te llega la solicitud a tu app. Apruébala en 5 minutos." },
+    { title: "Sigue tu pedido", text: "Te avisamos en la página cuando esté listo." },
 ];
 
 /** Enlace a una categoria por nombre, o al menu completo si aun no cargan las categorias. */
@@ -76,7 +86,7 @@ export const Home = () => {
                     <p className="hero__sub">
                         {isPastaDay
                             ? "Hoy armas tu pasta: eliges la pasta, la salsa y la proteína. También hay bebidas, y todo llega a tu puerta."
-                            : "Galletas estilo New York, focaccias con pesto y matcha, nuestra bebida estrella. Arma tu pedido y envíalo por WhatsApp."}
+                            : "Galletas estilo New York, focaccias con pesto y matcha, nuestra bebida estrella. Arma tu pedido y paga con Yappy."}
                     </p>
                     <div className="hero__actions">
                         {isPastaDay && settings.pasta ? (
@@ -173,7 +183,7 @@ export const Home = () => {
                                 <span>Chunky Bites</span>
                             </div>
                             <ol className="ticket__lines">
-                                {ORDER_STEPS.map((step, index) => (
+                                {getOrderSteps(settings).map((step, index) => (
                                     <li key={step.title} className="ticket__line">
                                         <span className="script ticket__number">{index + 1}</span>
                                         <div>
@@ -183,6 +193,12 @@ export const Home = () => {
                                     </li>
                                 ))}
                             </ol>
+                            <div className="ticket__alt">
+                                <p>¿Prefieres otra app? También estamos en PedidosYa.</p>
+                                <a className="button button--pedidosya" href={PEDIDOS_YA_URL} target="_blank" rel="noopener noreferrer">
+                                    Pídenos por PedidosYa <PiArrowUpRightBold aria-hidden />
+                                </a>
+                            </div>
                         </div>
 
                         <div className="hours">

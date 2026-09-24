@@ -45,13 +45,17 @@ export interface IYappyPaymentSession {
     documentName: string;
 }
 
+export type Fulfillment = "pickup" | "delivery";
+
 export interface ICheckoutForm {
     customerName: string;
     customerPhone: string;
     hasOtherWhatsapp: boolean;
     whatsappPhone: string;
     note: string;
-    // Entrega a domicilio (solo el dia de pasta); lat y lng vienen juntos o ninguno
+    /** Retiro o delivery; solo se elige con el modo delivery (el dia de pasta siempre es delivery). */
+    fulfillment: Fulfillment;
+    // Entrega a domicilio; lat y lng vienen juntos o ninguno
     deliveryAddress: string;
     deliveryDetails: string;
     deliveryLat: number | null;
