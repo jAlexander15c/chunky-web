@@ -532,6 +532,14 @@ export const updateMenuModifier = (token: string, id: string, name: string, opti
 export const deleteMenuModifier = (token: string, id: string) =>
     httpDelete<{ deleted: boolean }>(`/admin/modifiers/${encodeURIComponent(id)}`, { headers: getAdminHeaders(token) });
 
+/** Agotar o volver a ofrecer una opcion de modificador. Vive en nuestra base: Loyverse no lo soporta. */
+export const setMenuModifierOptionAvailability = (token: string, optionId: string, isAvailable: boolean) =>
+    httpPost<{ optionId: string; isAvailable: boolean }>(
+        `/admin/modifier-options/${encodeURIComponent(optionId)}/availability`,
+        { isAvailable },
+        { headers: getAdminHeaders(token) }
+    );
+
 export const uploadMenuItemImage = (token: string, itemId: string, image: Blob) =>
     httpPostBinary<{ imageUrl: string | null }>(`/admin/items/${encodeURIComponent(itemId)}/image`, image, {
         headers: getAdminHeaders(token),

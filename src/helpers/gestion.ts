@@ -8,6 +8,7 @@ import type {
     ISupplyStatus,
 } from "./admin";
 import { httpGet, httpPost } from "./getHttp";
+import type { IModifier } from "./modifiers";
 
 /** Quién entró: su nombre para el saludo y qué secciones puede ver. */
 export interface IGestionSession {
@@ -309,6 +310,17 @@ export const changeGestionAvailability = (token: string, itemId: string, variant
     httpPost<{ product: Pick<ISaleAvailability, "variantId" | "isAvailable"> }>(
         `/gestion/availability/${encodeURIComponent(variantId)}`,
         { itemId, isAvailable },
+        { headers: getGestionHeaders(token) }
+    );
+
+/** Modificadores con cada opcion marcada disponible o agotada (se guarda en nuestra base). */
+export const fetchGestionModifierAvailability = (token: string, signal?: AbortSignal) =>
+    httpGet<{ modifiers: IModifier[] }>("/gestion/modifier-availability", { signal, headers: getGestionHeaders(token) });
+
+export const changeGestionModifierAvailability = (token: string, optionId: string, isAvailable: boolean) =>
+    httpPost<{ optionId: string; isAvailable: boolean }>(
+        `/gestion/modifier-options/${encodeURIComponent(optionId)}/availability`,
+        { isAvailable },
         { headers: getGestionHeaders(token) }
     );
 

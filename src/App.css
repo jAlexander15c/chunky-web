@@ -2817,6 +2817,29 @@ main {
   font-variant-numeric: tabular-nums;
 }
 
+/* Opcion agotada: se ve, pero no se puede elegir */
+.opt-chip--sold {
+  background: #f3f1e4;
+  border-color: #e8e4d0;
+  color: var(--text-soft);
+  cursor: not-allowed;
+}
+
+.opt-chip--sold:active {
+  transform: none;
+}
+
+.opt-chip__sold {
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.12rem 0.45rem;
+  border-radius: var(--radius-pill);
+  background: #f6ddd7;
+  color: #a33a2a;
+}
+
 /* Precio extra dentro de un chip de opcion */
 .opt-chip small {
   font-weight: 600;

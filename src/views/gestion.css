@@ -364,6 +364,21 @@
 .ges-avail-states { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; max-width: 420px; }
 .ges-avail-states .ges-tab { padding-inline: 0.4rem; }
 
+/* Disponibilidad: productos u opciones de modificador */
+.ges-avail-kind { padding-top: 0.6rem; }
+.ges-avail-kind__count { color: var(--ges-crit); opacity: 1; }
+.ges-tab[aria-selected="true"] .ges-avail-kind__count { color: var(--mantequilla); }
+.ges-avail-hint { margin: 0.8rem 0 0.2rem; font-size: 0.8rem; color: var(--ges-text-2); max-width: 60ch; }
+.ges-avail-group { margin-top: 1rem; }
+.ges-avail-group__title {
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ges-text-3);
+}
+
 .ges-avail-list { list-style: none; margin: 0.4rem 0 0; padding: 0; }
 
 .ges-avail {

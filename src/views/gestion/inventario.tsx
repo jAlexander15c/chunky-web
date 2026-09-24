@@ -18,6 +18,7 @@ import {
 import type { IMovement, IProductStatus, ISupplyStatus, SupplyCategory } from "@/helpers";
 
 import { GestionDisponibilidad } from "./disponibilidad";
+import { GestionOpciones } from "./disponibilidad-opciones";
 import { GestionPager } from "./pager";
 
 /** Insumos y producción por un lado; prender o apagar productos del menú por otro. */
@@ -26,6 +27,9 @@ type View = "insumos" | "disponibilidad";
 const VIEWS: View[] = ["insumos", "disponibilidad"];
 
 const VIEW_LABEL: Record<View, string> = { insumos: "Insumos", disponibilidad: "Disponibilidad" };
+
+/** Dentro de Disponibilidad: productos (en Loyverse) u opciones de modificador (en nuestra base). */
+type AvailabilityView = "productos" | "opciones";
 
 /** Las pestañas: las tres categorías de insumo más los productos terminados. */
 type Tab = SupplyCategory | "productos";
@@ -79,6 +83,9 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
     const [products, setProducts] = useState<IProductStatus[]>([]);
     const [movements, setMovements] = useState<IMovement[]>([]);
     const [view, setView] = useState<View>("insumos");
+    const [availabilityView, setAvailabilityView] = useState<AvailabilityView>("productos");
+    // Se muestra en la pestaña Opciones; se conoce recien al abrirla
+    const [soldOutOptions, setSoldOutOptions] = useState<number | null>(null);
     const [tab, setTab] = useState<Tab>("alimento");
     const [pending, setPending] = useState<PendingAction | null>(null);
     const [error, setError] = useState("");
@@ -170,7 +177,32 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
         return (
             <>
                 {viewSwitch}
-                <GestionDisponibilidad token={token} onSessionExpired={onSessionExpired} />
+                <div className="ges-tabs ges-avail-kind" role="tablist" aria-label="Qué vas a prender o apagar">
+                    <button
+                        type="button"
+                        role="tab"
+                        className="ges-tab"
+                        aria-selected={availabilityView === "productos"}
+                        onClick={() => setAvailabilityView("productos")}
+                    >
+                        Productos
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        className="ges-tab"
+                        aria-selected={availabilityView === "opciones"}
+                        onClick={() => setAvailabilityView("opciones")}
+                    >
+                        Opciones
+                        {soldOutOptions ? <small className="ges-avail-kind__count">{soldOutOptions} agotada{soldOutOptions === 1 ? "" : "s"}</small> : null}
+                    </button>
+                </div>
+                {availabilityView === "opciones" ? (
+                    <GestionOpciones token={token} onSessionExpired={onSessionExpired} onSoldOutCountChange={setSoldOutOptions} />
+                ) : (
+                    <GestionDisponibilidad token={token} onSessionExpired={onSessionExpired} />
+                )}
             </>
         );
     }

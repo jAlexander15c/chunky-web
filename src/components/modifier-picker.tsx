@@ -1,6 +1,6 @@
 import { PiCheckBold } from "react-icons/pi";
 
-import { formatPrice, isSingleOptionModifier, toCartModifier } from "@/helpers";
+import { formatPrice, isOptionAvailable, isSingleOptionModifier, toCartModifier } from "@/helpers";
 import type { ICartModifier, IModifier, IModifierOption } from "@/helpers";
 
 interface IModifierPickerProps {
@@ -14,6 +14,7 @@ const getExtraLabel = (option: IModifierOption) => (option.price > 0 ? `+${forma
 /**
  * Modificadores de Loyverse: todos opcionales. Uno con una sola opcion se muestra como casilla;
  * con varias, se elige una (tocar la elegida la quita). Loyverse no distingue obligatorios.
+ * Las opciones agotadas se ven, tachadas y con "Agotado", pero no se pueden elegir.
  */
 export const ModifierPicker = ({ modifiers, chosen, onChange }: IModifierPickerProps) => {
     const getChosenOptionId = (modifierId: string) =>
@@ -59,18 +60,25 @@ export const ModifierPicker = ({ modifiers, chosen, onChange }: IModifierPickerP
                         <div className="opts__chips">
                             {modifier.options.map((option) => {
                                 const isChecked = chosenOptionId === option.id;
+                                const isSoldOut = !isOptionAvailable(option);
                                 return (
                                     <button
                                         key={option.id}
                                         type="button"
                                         role="radio"
                                         aria-checked={isChecked}
-                                        className={`opt-chip ${isChecked ? "opt-chip--on" : ""}`}
+                                        aria-disabled={isSoldOut || undefined}
+                                        disabled={isSoldOut}
+                                        className={`opt-chip ${isChecked ? "opt-chip--on" : ""} ${isSoldOut ? "opt-chip--sold" : ""}`}
                                         onClick={() => toggleOption(modifier, option)}
                                     >
                                         {isChecked && <PiCheckBold aria-hidden />}
-                                        {option.name}
-                                        {option.price > 0 && <small>{getExtraLabel(option)}</small>}
+                                        {isSoldOut ? <s>{option.name}</s> : option.name}
+                                        {isSoldOut ? (
+                                            <span className="opt-chip__sold">Agotado</span>
+                                        ) : (
+                                            option.price > 0 && <small>{getExtraLabel(option)}</small>
+                                        )}
                                     </button>
                                 );
                             })}

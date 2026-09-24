@@ -1687,6 +1687,27 @@ a.adm-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .adm-mods__main { flex: 1 1 auto; min-width: 0; display: grid; }
 .adm-mods__main b { font-size: 0.95rem; }
 .adm-mods__main em { font-style: normal; font-size: 0.8rem; color: var(--adm-text-2); overflow-wrap: break-word; }
+.adm-mods__chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.35rem; }
+
+.adm-optchip {
+    min-height: 32px;
+    padding: 0.2rem 0.7rem;
+    border: 1.5px solid var(--sky);
+    border-radius: var(--radius-pill);
+    background: var(--crema);
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--ink);
+    cursor: pointer;
+    transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.adm-optchip.is-off { background: var(--adm-crit-bg); border-color: var(--adm-crit-bg); color: var(--adm-crit); }
+.adm-optchip small { margin-left: 0.35rem; font-size: 0.66rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
+.adm-optchip:disabled { opacity: 0.6; cursor: default; }
+.adm-optchip:focus-visible { outline: 3px solid var(--orquidea); outline-offset: 2px; }
+
 .adm-mods__used { font-size: 0.74rem; color: var(--adm-text-2); white-space: nowrap; }
 .adm-mods__used.is-idle { color: var(--adm-text-3); }
 
