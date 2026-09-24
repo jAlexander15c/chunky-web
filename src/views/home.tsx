@@ -13,11 +13,6 @@ import {
     useSettings,
 } from "@/helpers";
 
-// Fotos de categoria del bucket de R2
-const cookiesPhoto = getCategoryImageUrl("galletas");
-const savoryPhoto = getCategoryImageUrl("salados");
-const drinksPhoto = getCategoryImageUrl("bebidas");
-
 const MARQUEE_WORDS = ["Galletas estilo New York", "Focaccias", "Pasta", "Tostadas", "Matcha", "Desayunos"];
 
 /** Los pasos del pedido en la web. El segundo cambia segun como se entrega hoy. */
@@ -35,15 +30,21 @@ const getOrderSteps = (settings: { pastaMode: boolean; deliveryMode: boolean }) 
     { title: "Sigue tu pedido", text: "Te avisamos en la página cuando esté listo." },
 ];
 
-/** Enlace a una categoria por nombre, o al menu completo si aun no cargan las categorias. */
-const useCategoryLink = () => {
+/**
+ * Enlace y foto de una categoria por nombre. Mientras cargan las categorias el enlace va al menu
+ * completo y la estampilla queda sin foto.
+ */
+const useHomeCategory = () => {
     const { categories } = useCategories();
 
     return (name: string) => {
         const category = getCategoryByName(categories, name);
-        return category
-            ? { to: `/items?categoryId=${category.id}`, state: { categoryName: category.name } }
-            : { to: "/menu", state: undefined };
+        return {
+            link: category
+                ? { to: `/items?categoryId=${category.id}`, state: { categoryName: category.name } }
+                : { to: "/menu", state: undefined },
+            photo: getCategoryImageUrl(category),
+        };
     };
 };
 
@@ -64,15 +65,15 @@ const Marquee = () => (
 );
 
 export const Home = () => {
-    const getCategoryLink = useCategoryLink();
+    const getHomeCategory = useHomeCategory();
     const { settings } = useSettings();
     const { open: openPastaBuilder } = usePastaBuilder();
     const isOpen = isAcceptingOrders(settings);
     // Los dias de pasta el resto del menu no se vende: no se ofrecen sus accesos
     const isPastaDay = settings.pastaMode;
-    const cookies = getCategoryLink("galletas");
-    const savory = getCategoryLink("salados");
-    const drinks = getCategoryLink("bebidas");
+    const { link: cookies, photo: cookiesPhoto } = getHomeCategory("galletas");
+    const { link: savory, photo: savoryPhoto } = getHomeCategory("salados");
+    const { link: drinks, photo: drinksPhoto } = getHomeCategory("bebidas");
 
     return (
         <main className="home">

@@ -15,11 +15,13 @@ import {
     fetchMenu,
     formatMoney,
     getCategoryColorHex,
+    getCategoryImageUrl,
     isOptionAvailable,
     setMenuModifierOptionAvailability,
     updateMenuCategory,
     updateMenuItem,
     updateMenuModifier,
+    uploadMenuCategoryImage,
     uploadMenuItemImage,
 } from "@/helpers";
 import type { CategoryColor, IMenuCategory, IMenuItem, IMenuModifierOptionInput, IModifier } from "@/helpers";
@@ -45,6 +47,69 @@ const getProductCountLabel = (count: number) => (count === 1 ? "1 producto" : `$
 /** "Entera · Avena +0.50": lo que el cliente ve al elegir. */
 const getOptionsSummary = (modifier: IModifier) =>
     modifier.options.map((option) => (option.price > 0 ? `${option.name} +${formatMoney(option.price)}` : option.name)).join(" · ");
+
+/* ============ Foto (producto y categoría) ============ */
+
+/**
+ * La foto elegida en el formulario y su vista previa. La vista previa vive lo que viva la foto;
+ * sin foto nueva se muestra la que ya tenía.
+ */
+const usePhotoDraft = (currentUrl: string, onError: (message: string) => void) => {
+    const [photo, setPhoto] = useState<File | null>(null);
+
+    const newPhotoUrl = useMemo(() => (photo ? URL.createObjectURL(photo) : ""), [photo]);
+    useEffect(() => () => {
+        if (newPhotoUrl) URL.revokeObjectURL(newPhotoUrl);
+    }, [newPhotoUrl]);
+
+    const pickPhoto = (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        event.target.value = "";
+        if (!file) return;
+        if (!file.type.startsWith("image/")) {
+            onError("Elige una foto (JPG o PNG).");
+            return;
+        }
+        onError("");
+        setPhoto(file);
+    };
+
+    return { photo, previewUrl: newPhotoUrl || currentUrl, pickPhoto };
+};
+
+interface IPhotoFieldProps {
+    inputId: string;
+    previewUrl: string;
+    onPick: (event: ChangeEvent<HTMLInputElement>) => void;
+}
+
+const PhotoField = ({ inputId, previewUrl, onPick }: IPhotoFieldProps) => (
+    <div className="adm-form__row adm-form__row--full">
+        <span>Foto <em>(opcional)</em></span>
+        <label className="adm-photo" htmlFor={inputId}>
+            {previewUrl ? (
+                <img className="adm-photo__img" src={previewUrl} alt="" />
+            ) : (
+                <span className="adm-photo__img adm-photo__img--empty" aria-hidden>
+                    <svg viewBox="0 0 24 24"><path d="M4 7h3l2-3h6l2 3h3v13H4z" /><circle cx="12" cy="13" r="4" /></svg>
+                </span>
+            )}
+            <span>
+                <b>{previewUrl ? "Cambiar foto" : "Agregar foto"}</b>
+                <em>
+                    Tómala o elígela. Se recorta cuadrada ({MENU_IMAGE_SIDE}×{MENU_IMAGE_SIDE}): queda lo que ves en el cuadro.
+                </em>
+            </span>
+        </label>
+        <input
+            id={inputId}
+            className="adm-sr-only"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/heic,image/*"
+            onChange={onPick}
+        />
+    </div>
+);
 
 /* ============ Eliminar (se confirma en el mismo formulario) ============ */
 
@@ -117,10 +182,14 @@ interface ICategoryDialogProps {
     /** Null es una categoría nueva. */
     editing: IMenuCategory | null;
     itemCount: number;
-    onSave: (name: string, color: CategoryColor) => Promise<void>;
+    onSave: (name: string, color: CategoryColor, photo: File | null) => Promise<void>;
     onDelete: () => Promise<void>;
     onClose: () => void;
 }
+
+/** La foto que ya tiene la categoría en nuestra API, o "" si no tiene. */
+const getMenuCategoryImageUrl = (category: IMenuCategory) =>
+    getCategoryImageUrl({ id: category.id, image_version: category.imageVersion }) ?? "";
 
 const CategoryDialog = ({ editing, itemCount, onSave, onDelete, onClose }: ICategoryDialogProps) => {
     const [name, setName] = useState(editing?.name ?? "");
@@ -128,6 +197,7 @@ const CategoryDialog = ({ editing, itemCount, onSave, onDelete, onClose }: ICate
     const [error, setError] = useState("");
     const [isSending, setIsSending] = useState(false);
     const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+    const { photo, previewUrl, pickPhoto } = usePhotoDraft(editing ? getMenuCategoryImageUrl(editing) : "", setError);
 
     const deleteBlockedReason = itemCount > 0
         ? itemCount === 1
@@ -146,7 +216,7 @@ const CategoryDialog = ({ editing, itemCount, onSave, onDelete, onClose }: ICate
         setError("");
 
         try {
-            await onSave(name.trim(), color);
+            await onSave(name.trim(), color, photo);
         } catch (requestError) {
             setError(getErrorMessage(requestError, "No se pudo guardar la categoría."));
             setIsSending(false);
@@ -171,17 +241,21 @@ const CategoryDialog = ({ editing, itemCount, onSave, onDelete, onClose }: ICate
             <form className="adm-modal__panel adm-modal__panel--wide" onSubmit={submit}>
                 <h3 className="script">{editing ? editing.name : "Nueva categoría"}</h3>
                 <p className="adm-modal__hint">
-                    {editing ? "Cambia el nombre o el color." : "Queda vacía hasta que le agregues productos."}
+                    {editing
+                        ? "Cambia el nombre, el color o la foto. La foto sale en la página de inicio."
+                        : "Queda vacía hasta que le agregues productos."}
                 </p>
 
                 <div className="adm-form adm-form--single">
+                    <PhotoField inputId="menu-category-photo" previewUrl={previewUrl} onPick={pickPhoto} />
+
                     <label className="adm-form__row">
                         <span>Nombre</span>
                         <input
                             id="menu-category-name"
                             className="adm-form__input adm-menu-input"
                             type="text"
-                            autoFocus
+                            autoFocus={!editing}
                             maxLength={64}
                             value={name}
                             onChange={(event) => setName(event.target.value)}
@@ -225,7 +299,7 @@ const CategoryDialog = ({ editing, itemCount, onSave, onDelete, onClose }: ICate
                         isEditing={Boolean(editing)}
                         isSending={isSending}
                         saveLabel={editing ? "Guardar cambios" : "Crear categoría"}
-                        sendingLabel={editing ? "Guardando…" : "Creando…"}
+                        sendingLabel={photo ? (editing ? "Guardando y subiendo foto…" : "Creando y subiendo foto…") : editing ? "Guardando…" : "Creando…"}
                         deleteBlockedReason={deleteBlockedReason}
                         onAskDelete={() => setIsConfirmingDelete(true)}
                         onClose={onClose}
@@ -273,34 +347,15 @@ const ItemDialog = ({ editing, categories, modifiers, initialCategoryId, onSave,
     const [isAvailable, setIsAvailable] = useState(editing?.isAvailable ?? true);
     // En el orden en que se marcan: asi los ve el cliente
     const [modifierIds, setModifierIds] = useState<string[]>(editing?.modifierIds ?? []);
-    const [photo, setPhoto] = useState<File | null>(null);
     const [error, setError] = useState("");
     const [isSending, setIsSending] = useState(false);
     const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
-
-    // La vista previa vive lo que viva la foto elegida
-    const newPhotoUrl = useMemo(() => (photo ? URL.createObjectURL(photo) : ""), [photo]);
-    useEffect(() => () => {
-        if (newPhotoUrl) URL.revokeObjectURL(newPhotoUrl);
-    }, [newPhotoUrl]);
-    const previewUrl = newPhotoUrl || editing?.imageUrl || "";
+    const { photo, previewUrl, pickPhoto } = usePhotoDraft(editing?.imageUrl ?? "", setError);
 
     const toggleModifier = (modifierId: string) =>
         setModifierIds((current) =>
             current.includes(modifierId) ? current.filter((id) => id !== modifierId) : [...current, modifierId]
         );
-
-    const pickPhoto = (event: ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        event.target.value = "";
-        if (!file) return;
-        if (!file.type.startsWith("image/")) {
-            setError("Elige una foto (JPG o PNG).");
-            return;
-        }
-        setError("");
-        setPhoto(file);
-    };
 
     const submit = async (event: FormEvent) => {
         event.preventDefault();
@@ -358,31 +413,7 @@ const ItemDialog = ({ editing, categories, modifiers, initialCategoryId, onSave,
                 </p>
 
                 <div className="adm-form">
-                    <div className="adm-form__row adm-form__row--full">
-                        <span>Foto <em>(opcional)</em></span>
-                        <label className="adm-photo" htmlFor="menu-item-photo">
-                            {previewUrl ? (
-                                <img className="adm-photo__img" src={previewUrl} alt="" />
-                            ) : (
-                                <span className="adm-photo__img adm-photo__img--empty" aria-hidden>
-                                    <svg viewBox="0 0 24 24"><path d="M4 7h3l2-3h6l2 3h3v13H4z" /><circle cx="12" cy="13" r="4" /></svg>
-                                </span>
-                            )}
-                            <span>
-                                <b>{previewUrl ? "Cambiar foto" : "Agregar foto"}</b>
-                                <em>
-                                    Tómala o elígela. Se recorta cuadrada ({MENU_IMAGE_SIDE}×{MENU_IMAGE_SIDE}): queda lo que ves en el cuadro.
-                                </em>
-                            </span>
-                        </label>
-                        <input
-                            id="menu-item-photo"
-                            className="adm-sr-only"
-                            type="file"
-                            accept="image/jpeg,image/png,image/webp,image/heic,image/*"
-                            onChange={pickPhoto}
-                        />
-                    </div>
+                    <PhotoField inputId="menu-item-photo" previewUrl={previewUrl} onPick={pickPhoto} />
 
                     <label className="adm-form__row adm-form__row--full">
                         <span>Nombre</span>
@@ -784,14 +815,23 @@ export const AdminMenu = ({ token, onSessionExpired }: { token: string; onSessio
         await load();
     };
 
-    const saveCategory = async (editing: IMenuCategory | null, name: string, color: CategoryColor) => {
-        if (editing) {
-            const { category } = await updateMenuCategory(token, editing.id, name, color).catch(guardSession);
-            return finish(`Listo: guardamos los cambios de ${category.name}.`);
+    const saveCategory = async (editing: IMenuCategory | null, name: string, color: CategoryColor, photo: File | null) => {
+        const { category } = editing
+            ? await updateMenuCategory(token, editing.id, name, color).catch(guardSession)
+            : await createMenuCategory(token, name, color).catch(guardSession);
+        if (!editing) setRecentIds((current) => [...current, category.id]);
+
+        // La categoría ya se guardó en Loyverse: si la foto falla no se deshace, solo se avisa
+        if (photo) {
+            try {
+                await uploadMenuCategoryImage(token, category.id, await cropMenuImage(photo));
+            } catch (photoError) {
+                console.error("[menu] no se pudo subir la foto de la categoría:", photoError);
+                return finish(`${category.name} se guardó, pero la foto no subió. Vuelve a intentarlo desde Editar categoría.`, "warn");
+            }
         }
 
-        const { category } = await createMenuCategory(token, name, color).catch(guardSession);
-        setRecentIds((current) => [...current, category.id]);
+        if (editing) return finish(`Listo: guardamos los cambios de ${category.name}.`);
         return finish(`Listo: la categoría ${category.name} ya existe. Ahora agrégale productos.`);
     };
 
@@ -958,7 +998,17 @@ export const AdminMenu = ({ token, onSessionExpired }: { token: string; onSessio
                                         aria-expanded={isOpen}
                                         onClick={() => setOpenCategoryId(isOpen ? null : category.id)}
                                     >
-                                        <span className="adm-menu-cat__dot" style={{ background: getCategoryColorHex(category.color) }} />
+                                        {isRealCategory && getMenuCategoryImageUrl(category) ? (
+                                            <img
+                                                className="adm-menu-cat__thumb"
+                                                src={getMenuCategoryImageUrl(category)}
+                                                alt=""
+                                                loading="lazy"
+                                                style={{ borderColor: getCategoryColorHex(category.color) }}
+                                            />
+                                        ) : (
+                                            <span className="adm-menu-cat__dot" style={{ background: getCategoryColorHex(category.color) }} />
+                                        )}
                                         <span className="adm-menu-cat__info">
                                             <span className="adm-menu-cat__name">{category.name}</span>
                                             {recentIds.includes(category.id) ? <span className="adm-pill is-new">Recién creada</span> : null}
@@ -1093,7 +1143,7 @@ export const AdminMenu = ({ token, onSessionExpired }: { token: string; onSessio
                 <CategoryDialog
                     editing={dialog.editing}
                     itemCount={dialog.editing ? (itemsByCategory.get(dialog.editing.id)?.length ?? 0) : 0}
-                    onSave={(name, color) => saveCategory(dialog.editing, name, color)}
+                    onSave={(name, color, photo) => saveCategory(dialog.editing, name, color, photo)}
                     onDelete={() => (dialog.editing ? removeCategory(dialog.editing) : Promise.resolve())}
                     onClose={() => setDialog(null)}
                 />

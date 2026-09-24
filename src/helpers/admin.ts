@@ -459,6 +459,8 @@ export interface IMenuCategory {
     id: string;
     name: string;
     color: CategoryColor;
+    /** Cuando cambio su foto; null (o sin dato) si no tiene. La foto vive en nuestra base. */
+    imageVersion?: number | null;
 }
 
 export interface IMenuItem {
@@ -542,6 +544,12 @@ export const setMenuModifierOptionAvailability = (token: string, optionId: strin
 
 export const uploadMenuItemImage = (token: string, itemId: string, image: Blob) =>
     httpPostBinary<{ imageUrl: string | null }>(`/admin/items/${encodeURIComponent(itemId)}/image`, image, {
+        headers: getAdminHeaders(token),
+    });
+
+/** La foto de la categoria se guarda en nuestra base (Loyverse no tiene fotos de categoria). */
+export const uploadMenuCategoryImage = (token: string, categoryId: string, image: Blob) =>
+    httpPostBinary<{ imageVersion: number }>(`/admin/categories/${encodeURIComponent(categoryId)}/image`, image, {
         headers: getAdminHeaders(token),
     });
 

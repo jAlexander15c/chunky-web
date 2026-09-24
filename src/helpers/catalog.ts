@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { getCategories } from "./getCategories";
+import { getApiUrl } from "./getHttp";
 import { getItems } from "./getItems";
 import { getNextOpeningLabel, getOpeningStatusLabel, isWithinOperatingHours } from "./hours";
 import type { IWeekHours, StoreOverride } from "./hours";
@@ -11,12 +12,9 @@ import type { ICategory, IItem } from "@/interfaces";
 const CATEGORY_CACHE_KEY = "chunky-categories-cache";
 const ITEMS_CACHE_PREFIX = "chunky-items-cache:";
 
-export const CATEGORY_IMAGE_ROUTE = "https://pub-159df1e57b1a433fa45a449347b9a4ac.r2.dev/categorias/";
-
 export type CategoryTone = "mantequilla" | "orquidea" | "sky" | "lima";
 
 interface ICategoryPresentation {
-    image: string;
     description: string;
     tone: CategoryTone;
     origin?: string;
@@ -26,31 +24,26 @@ interface ICategoryPresentation {
 /** Textos de las categorias conocidas, por nombre normalizado (sin tildes, minusculas). */
 const CATEGORY_PRESENTATION: Record<string, ICategoryPresentation> = {
     galletas: {
-        image: "cGalleta.jpeg",
         description: "Estilo New York, gruesas y suaves por dentro",
         tone: "mantequilla",
         origin: "New York",
     },
     salados: {
-        image: "cSalado.jpeg",
         description: "Focaccias, tostadas y pasta",
         tone: "lima",
         origin: "Italia",
     },
     bebidas: {
-        image: "cBebida.jpeg",
         description: "Matcha y más, frías o calientes",
         tone: "sky",
         origin: "Japón",
     },
     desayunos: {
-        image: "cDesayuno.jpeg",
         description: "Sabores especiales para comenzar la mañana",
         tone: "orquidea",
         schedule: "8 a 11 am",
     },
     postres: {
-        image: "cPostre.jpeg",
         description: "Sabor, textura y dulzura en su mejor forma",
         tone: "mantequilla",
     },
@@ -329,15 +322,19 @@ export const getCategoryPresentation = (category?: Pick<ICategory, "name" | "col
     if (known) return known;
 
     return {
-        image: CATEGORY_PRESENTATION.postres.image,
         description: "",
         tone: COLOR_TONE[normalizeCategoryColor(category?.color)] ?? "mantequilla",
     };
 };
 
-/** Foto de la categoria en el bucket de R2 (galletas, salados, bebidas, desayunos, postres). */
-export const getCategoryImageUrl = (name: string) =>
-    `${CATEGORY_IMAGE_ROUTE}${(CATEGORY_PRESENTATION[name] ?? CATEGORY_PRESENTATION.postres).image}`;
+/**
+ * Foto de la categoria, guardada en nuestra API (se sube desde el tablero). La version va en la URL:
+ * si la foto cambia, cambia la URL y el navegador no se queda con la vieja. Null si no tiene foto.
+ */
+export const getCategoryImageUrl = (category?: Pick<ICategory, "id" | "image_version">) =>
+    category?.image_version
+        ? getApiUrl(`/categories/${encodeURIComponent(category.id)}/image?v=${category.image_version}`)
+        : null;
 
 export const getCategoryByName =(categories: ICategory[], name: string) =>
     categories.find((category) => normalizeCategoryName(category.name) === name);
@@ -405,4 +402,4 @@ export const getOrderingStatusLabel = (context: IOrderingContext, isOpen: boolea
 
 /** Cuando vuelve a abrir, para las tarjetas y avisos de cerrado. */
 export const getClosedLabel = (context: IOrderingContext, date = new Date()) =>
-    getNextOpeningLabel(context.openingHours, date, context.storeOverride === "closed");
+    getNextOpeningLabel(context.openingHours, date, context.storeOverride === "closed");

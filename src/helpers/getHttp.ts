@@ -29,6 +29,9 @@ if (!API_BASE) {
     throw new Error("VITE_API_BASE_URL is not defined");
 }
 
+/** URL completa de una ruta del API, para lo que pide el navegador por su cuenta (ej. un <img>). */
+export const getApiUrl = (path: string) => `${API_BASE}${path}`;
+
 const sendJson = async <T>(
     method: "POST" | "PUT" | "DELETE",
     path: string,

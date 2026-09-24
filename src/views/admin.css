@@ -1536,6 +1536,7 @@ a.adm-btn { display: inline-flex; align-items: center; text-decoration: none; }
 }
 
 .adm-menu-cat__dot { flex: none; width: 14px; height: 14px; border-radius: 50%; }
+.adm-menu-cat__thumb { flex: none; width: 32px; height: 32px; border: 2px solid; border-radius: 10px; object-fit: cover; background: var(--adm-panel-2); }
 .adm-menu-cat__info { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem 0.6rem; }
 .adm-menu-cat__name { font-weight: 800; font-size: 0.98rem; overflow-wrap: break-word; min-width: 0; }
 .adm-menu-cat__count { font-size: 0.78rem; color: var(--adm-text-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
