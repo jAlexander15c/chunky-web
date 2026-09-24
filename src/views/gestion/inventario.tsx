@@ -18,6 +18,7 @@ import {
 import type { IMovement, IProductStatus, ISupplyStatus, SupplyCategory } from "@/helpers";
 
 import { GestionDisponibilidad } from "./disponibilidad";
+import { GestionPager } from "./pager";
 
 /** Insumos y producción por un lado; prender o apagar productos del menú por otro. */
 type View = "insumos" | "disponibilidad";
@@ -57,6 +58,12 @@ const MOVEMENT_LABEL: Record<string, string> = {
 /** Pasado este plazo el conteo dejó de ser confiable. Mismo umbral que usa el API. */
 const STALE_COUNT_DAYS = 7;
 
+/** Listas cortas: en el teléfono se ve la página entera sin mucho scroll. */
+const PAGE_SIZE = 10;
+
+const getPageCount = (total: number) => Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+const getPageSlice = <T,>(items: T[], page: number) => items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
 type PendingAction =
     | { kind: "purchase" | "count" | "waste"; supply: ISupplyStatus }
@@ -76,6 +83,8 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
     const [pending, setPending] = useState<PendingAction | null>(null);
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(true);
+    const [page, setPage] = useState(1);
+    const [minePage, setMinePage] = useState(1);
 
     const loadAll = useCallback(
         async (signal?: AbortSignal) => {
@@ -125,6 +134,22 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
 
     const isEmpty = tab === "productos" ? products.length === 0 : visibleSupplies.length === 0;
 
+    // Tras recargar la lista puede achicarse: la página actual no puede quedar fuera
+    const pageCount = getPageCount(tab === "productos" ? products.length : visibleSupplies.length);
+    const currentPage = Math.min(page, pageCount);
+    const minePageCount = getPageCount(movements.length);
+    const currentMinePage = Math.min(minePage, minePageCount);
+
+    const openTab = (next: Tab) => {
+        setTab(next);
+        setPage(1);
+    };
+
+    const openView = (next: View) => {
+        setView(next);
+        setPage(1);
+    };
+
     const viewSwitch = (
         <div className="ges-seg" role="tablist" aria-label="Qué vas a ver">
             {VIEWS.map((option) => (
@@ -133,7 +158,7 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                     type="button"
                     role="tab"
                     aria-selected={view === option}
-                    onClick={() => setView(option)}
+                    onClick={() => openView(option)}
                 >
                     {VIEW_LABEL[option]}
                 </button>
@@ -162,7 +187,7 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                         role="tab"
                         className="ges-tab"
                         aria-selected={tab === option}
-                        onClick={() => setTab(option)}
+                        onClick={() => openTab(option)}
                     >
                         {TAB_LABEL[option]}
                         <small>{counts[option]}</small>
@@ -182,7 +207,7 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                             : `Todavía no hay insumos de ${TAB_LABEL[tab].toLowerCase()}. El administrador los da de alta desde el tablero.`}
                     </p>
                 ) : tab === "productos" ? (
-                    products.map((product) => (
+                    getPageSlice(products, currentPage).map((product) => (
                         <article className="ges-row" key={product.variantId}>
                             <div className="ges-row__top">
                                 <div>
@@ -211,7 +236,7 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                         </article>
                     ))
                 ) : (
-                    visibleSupplies.map((supply) => {
+                    getPageSlice(visibleSupplies, currentPage).map((supply) => {
                         const isStale = supply.countAge !== null && supply.countAge > STALE_COUNT_DAYS;
 
                         return (
@@ -252,6 +277,8 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                         );
                     })
                 )}
+
+                {!isLoading && !isEmpty ? <GestionPager page={currentPage} pageCount={pageCount} onChange={setPage} /> : null}
             </main>
 
             <section className="ges-mine">
@@ -260,7 +287,7 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                     <p className="ges-empty">Nada todavía. Lo que cargues aparece aquí.</p>
                 ) : (
                     <ul>
-                        {movements.map((movement) => (
+                        {getPageSlice(movements, currentMinePage).map((movement) => (
                             <li key={movement.id}>
                                 <span>
                                     <b>{MOVEMENT_LABEL[movement.type] ?? movement.type}</b> · {movement.name}{" "}
@@ -276,6 +303,7 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                         ))}
                     </ul>
                 )}
+                <GestionPager page={currentMinePage} pageCount={minePageCount} onChange={setMinePage} />
             </section>
 
             {pending?.kind === "purchase" ? (

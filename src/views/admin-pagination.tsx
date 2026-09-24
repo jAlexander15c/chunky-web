@@ -6,6 +6,13 @@ interface IAdminPaginationProps {
     onChange: (page: number) => void;
 }
 
+export const getPageSlice = <T,>(items: T[], page: number, pageSize: number) =>
+    items.slice((page - 1) * pageSize, page * pageSize);
+
+/** Si un filtro o una carga deja menos páginas, la actual no puede quedar fuera. */
+export const getSafePage = (page: number, total: number, pageSize: number) =>
+    Math.min(page, Math.max(1, Math.ceil(total / pageSize)));
+
 /** Hasta 7 botones: la primera, la última y las vecinas de la actual; el resto se resume con "…". */
 const getPageButtons = (page: number, pageCount: number): (number | "…")[] => {
     if (pageCount <= 7) return Array.from({ length: pageCount }, (_, index) => index + 1);

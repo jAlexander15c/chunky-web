@@ -30,12 +30,12 @@ import type {
     SupplyState,
 } from "@/helpers";
 
-import { AdminPagination } from "./admin-pagination";
+import { AdminPagination, getPageSlice, getSafePage } from "./admin-pagination";
 
 /** La cocina carga producción mientras alguien mira: se refresca solo. */
 const REFRESH_MS = 60000;
-const TABLE_PAGE_SIZE = 15;
-const MOVEMENTS_PAGE_SIZE = 25;
+const TABLE_PAGE_SIZE = 8;
+const MOVEMENTS_PAGE_SIZE = 10;
 const SEARCH_DEBOUNCE_MS = 300;
 
 const SUPPLY_STATE_LABEL: Record<SupplyState, string> = {
@@ -119,11 +119,6 @@ const getSearchKey = (value: string) =>
         .replace(/[̀-ͯ]/g, "")
         .toLowerCase()
         .trim();
-
-const getPageSlice = <T,>(items: T[], page: number) => items.slice((page - 1) * TABLE_PAGE_SIZE, page * TABLE_PAGE_SIZE);
-
-/** Si un filtro o una carga deja menos páginas, la actual no puede quedar fuera. */
-const getSafePage = (page: number, total: number, pageSize: number) => Math.min(page, Math.max(1, Math.ceil(total / pageSize)));
 
 const useDebouncedValue = (value: string, delay: number) => {
     const [debounced, setDebounced] = useState(value);
@@ -683,7 +678,7 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
                     ) : (
                         <>
                             <div className="adm-scroll">
-                                <table className="adm-table">
+                                <table className="adm-table adm-table--compact">
                                     <thead>
                                         <tr>
                                             <th>Insumo</th>
@@ -698,7 +693,7 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {getPageSlice(filteredSupplies, currentSupplyPage).map((supply) => (
+                                        {getPageSlice(filteredSupplies, currentSupplyPage, TABLE_PAGE_SIZE).map((supply) => (
                                             <tr key={supply.id} className={supply.state === "comprar" ? "is-crit" : undefined}>
                                                 <td className="adm-name">
                                                     {supply.name}
@@ -800,7 +795,7 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
                             ) : (
                                 <>
                                     <div className="adm-scroll">
-                                        <table className="adm-table">
+                                        <table className="adm-table adm-table--compact">
                                             <thead>
                                                 <tr>
                                                     <th>Producto</th>
@@ -812,7 +807,7 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {getPageSlice(filteredProducts, currentProductPage).map((product) => (
+                                                {getPageSlice(filteredProducts, currentProductPage, TABLE_PAGE_SIZE).map((product) => (
                                                     <tr key={product.variantId} className={product.state === "agotado" ? "is-crit" : undefined}>
                                                         <td className="adm-name">
                                                             {product.name}

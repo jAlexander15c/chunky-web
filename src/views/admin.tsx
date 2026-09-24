@@ -185,7 +185,7 @@ const PastaModePanel = ({ token, onSessionExpired }: { token: string; onSessionE
 
 /* ============ Menú ============ */
 
-type AdminSection = "tablero" | "inventario" | "caja" | "colaboradores";
+type AdminSection = "tablero" | "inventario" | "caja" | "local" | "colaboradores";
 
 const ADMIN_SECTIONS: { id: AdminSection; label: string; icon: ReactNode }[] = [
     {
@@ -210,6 +210,16 @@ const ADMIN_SECTIONS: { id: AdminSection; label: string; icon: ReactNode }[] = [
             <>
                 <rect x="2" y="7" width="20" height="13" rx="2" />
                 <path d="M6 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2M2 12h20" />
+            </>
+        ),
+    },
+    {
+        id: "local",
+        label: "Local",
+        icon: (
+            <>
+                <path d="M3 9l1.5-5h15L21 9M3 9h18M3 9v11h18V9" />
+                <path d="M9 20v-6h6v6" />
             </>
         ),
     },
@@ -360,6 +370,11 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
                 <main className="adm-wrap">
                     <AdminCaja token={token} onSessionExpired={onLogout} />
                 </main>
+            ) : section === "local" ? (
+                <main className="adm-wrap">
+                    <AdminHours token={token} onSessionExpired={onLogout} />
+                    <PastaModePanel token={token} onSessionExpired={onLogout} />
+                </main>
             ) : section === "colaboradores" ? (
                 <main className="adm-wrap">
                     <AdminCollaborators token={token} onSessionExpired={onLogout} />
@@ -376,10 +391,6 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
                         {dashboard.salesError} Las finanzas y el inventario siguen al día: salen de nuestra base.
                     </p>
                 ) : null}
-
-                <PastaModePanel token={token} onSessionExpired={onLogout} />
-
-                <AdminHours token={token} onSessionExpired={onLogout} />
 
                 <AdminIncidents token={token} onSessionExpired={onLogout} onOpenCountChange={setOpenIncidents} />
 

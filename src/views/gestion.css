@@ -549,10 +549,11 @@
 .ges-mine time { color: var(--ges-text-3); font-variant-numeric: tabular-nums; }
 .ges-mine b { font-weight: 800; }
 .ges-mine em { font-style: normal; color: var(--ges-text-3); font-variant-numeric: tabular-nums; }
+.ges-mine .ges-pager { padding-bottom: 0; }
 
 /* En pantalla ancha la lista no se estira de lado a lado */
 @media (min-width: 720px) {
-    .ges-main, .ges-mine ul { max-width: 640px; margin-inline: auto; }
+    .ges-main, .ges-mine ul, .ges-mine .ges-pager { max-width: 640px; margin-inline: auto; }
     .ges-acts { grid-template-columns: repeat(3, minmax(0, 140px)); justify-content: end; }
 }
 

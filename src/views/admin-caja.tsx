@@ -18,6 +18,11 @@ import {
 } from "@/helpers";
 import type { ICreditTicket, IFund, IShiftDetail, IShiftRow, ManualFundMovementType } from "@/helpers";
 
+import { AdminPagination, getPageSlice, getSafePage } from "./admin-pagination";
+
+/** Pocas filas por tabla: la caja se lee sin scrollear. */
+const CAJA_PAGE_SIZE = 8;
+
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
 
 /** Una cifra por método que puede faltar en turnos cerrados antes del desglose. */
@@ -170,6 +175,9 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
     const [draftTables, setDraftTables] = useState("");
     const [error, setError] = useState("");
     const [isSaving, setIsSaving] = useState(false);
+    const [shiftPage, setShiftPage] = useState(1);
+    const [creditPage, setCreditPage] = useState(1);
+    const [fundPage, setFundPage] = useState(1);
 
     const load = useCallback(
         async (signal?: AbortSignal) => {
@@ -223,6 +231,11 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
 
     const countedValue = counted.trim() === "" ? NaN : Number(counted.replace(",", "."));
     const hasCounted = Number.isFinite(countedValue) && countedValue >= 0;
+
+    // Tras cerrar un turno o cobrar un crédito la lista cambia: la página actual no puede quedar fuera
+    const currentShiftPage = getSafePage(shiftPage, shifts.length, CAJA_PAGE_SIZE);
+    const currentCreditPage = getSafePage(creditPage, credits.length, CAJA_PAGE_SIZE);
+    const currentFundPage = getSafePage(fundPage, fund?.movements.length ?? 0, CAJA_PAGE_SIZE);
 
     const closeShift = async () => {
         if (!hasCounted) return;
@@ -333,7 +346,7 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
                     </p>
                 ) : (
                     <div className="adm-scroll">
-                        <table className="adm-table">
+                        <table className="adm-table adm-table--compact">
                             <thead>
                                 <tr>
                                     <th>Abrió</th>
@@ -348,7 +361,7 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
                                 </tr>
                             </thead>
                             <tbody>
-                                {shifts.map((shift) => (
+                                {getPageSlice(shifts, currentShiftPage, CAJA_PAGE_SIZE).map((shift) => (
                                     <tr key={shift.id}>
                                         <td className="adm-name">
                                             {shift.openedByName}
@@ -386,6 +399,7 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
                         </table>
                     </div>
                 )}
+                <AdminPagination page={currentShiftPage} pageSize={CAJA_PAGE_SIZE} total={shifts.length} onChange={setShiftPage} />
             </div>
 
             <div className="adm-card">
@@ -407,7 +421,7 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
                     <p className="adm-empty">Nadie debe nada.</p>
                 ) : (
                     <div className="adm-scroll">
-                        <table className="adm-table">
+                        <table className="adm-table adm-table--compact">
                             <thead>
                                 <tr>
                                     <th>Quién</th>
@@ -417,7 +431,7 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
                                 </tr>
                             </thead>
                             <tbody>
-                                {credits.map((credit) => {
+                                {getPageSlice(credits, currentCreditPage, CAJA_PAGE_SIZE).map((credit) => {
                                     const age = credit.creditAt ? getCreditAge(credit.creditAt) : null;
                                     return (
                                         <tr key={credit.id}>
@@ -441,6 +455,7 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
                         </table>
                     </div>
                 )}
+                <AdminPagination page={currentCreditPage} pageSize={CAJA_PAGE_SIZE} total={credits.length} onChange={setCreditPage} />
             </div>
 
             {fund ? (
@@ -470,7 +485,7 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
                         </p>
                     ) : (
                         <div className="adm-scroll">
-                            <table className="adm-table">
+                            <table className="adm-table adm-table--compact">
                                 <thead>
                                     <tr>
                                         <th>Cuándo</th>
@@ -480,7 +495,7 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {fund.movements.map((one) => (
+                                    {getPageSlice(fund.movements, currentFundPage, CAJA_PAGE_SIZE).map((one) => (
                                         <tr key={one.id}>
                                             <td className="adm-name">{formatMoment(one.createdAt)}</td>
                                             <td className="adm-name">
@@ -498,6 +513,7 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
                             </table>
                         </div>
                     )}
+                    <AdminPagination page={currentFundPage} pageSize={CAJA_PAGE_SIZE} total={fund.movements.length} onChange={setFundPage} />
                 </div>
             ) : null}
 

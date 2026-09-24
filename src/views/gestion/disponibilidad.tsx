@@ -8,6 +8,8 @@ import {
 } from "@/helpers";
 import type { ISaleAvailability } from "@/helpers";
 
+import { GestionPager } from "./pager";
+
 type StateFilter = "todos" | "disponibles" | "apagados";
 
 const STATE_FILTERS: { id: StateFilter; label: string }[] = [
@@ -243,29 +245,7 @@ export const GestionDisponibilidad = ({ token, onSessionExpired }: IGestionDispo
                 </ul>
             )}
 
-            {pageCount > 1 ? (
-                <nav className="ges-pager" aria-label="Páginas">
-                    <button
-                        type="button"
-                        className="ges-btn ges-btn--sm"
-                        disabled={currentPage <= 1}
-                        onClick={() => setPage(currentPage - 1)}
-                    >
-                        ‹ Anterior
-                    </button>
-                    <span>
-                        {currentPage} de {pageCount}
-                    </span>
-                    <button
-                        type="button"
-                        className="ges-btn ges-btn--sm"
-                        disabled={currentPage >= pageCount}
-                        onClick={() => setPage(currentPage + 1)}
-                    >
-                        Siguiente ›
-                    </button>
-                </nav>
-            ) : null}
+            <GestionPager page={currentPage} pageCount={pageCount} onChange={setPage} />
         </main>
     );
 };
