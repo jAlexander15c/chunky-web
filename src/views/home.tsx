@@ -199,7 +199,7 @@ export const Home = () => {
                             <div className="ticket__alt">
                                 <p>¿Prefieres otra app? También estamos en PedidosYa.</p>
                                 <a className="button button--pedidosya" href={PEDIDOS_YA_URL} target="_blank" rel="noopener noreferrer">
-                                    Pídenos por PedidosYa <PiArrowUpRightBold aria-hidden />
+                                    Encuéntranos en PedidosYa <PiArrowUpRightBold aria-hidden />
                                 </a>
                             </div>
                         </div>
