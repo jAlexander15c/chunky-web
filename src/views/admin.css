@@ -1673,6 +1673,118 @@ a.adm-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .adm-menu-confirm b { font-size: 1rem; }
 .adm-menu-confirm p { margin: 0 0 0.3rem; font-size: 0.82rem; color: var(--ink); }
 
+/* Modificadores: lista, filas de opciones y selector del producto */
+.adm-mods { list-style: none; margin: 0; padding: 0; }
+
+.adm-mods li {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.7rem 0.1rem;
+    border-top: 1.5px solid var(--adm-line);
+}
+
+.adm-mods__main { flex: 1 1 auto; min-width: 0; display: grid; }
+.adm-mods__main b { font-size: 0.95rem; }
+.adm-mods__main em { font-style: normal; font-size: 0.8rem; color: var(--adm-text-2); overflow-wrap: break-word; }
+.adm-mods__used { font-size: 0.74rem; color: var(--adm-text-2); white-space: nowrap; }
+.adm-mods__used.is-idle { color: var(--adm-text-3); }
+
+.adm-optrows { display: grid; gap: 0.5rem; }
+
+.adm-optrow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 7.5rem 2.4rem;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.adm-money--extra b { font-size: 0.75rem; left: 0.6rem; }
+.adm-money--extra .adm-form__input { padding-left: 2.8rem; }
+
+.adm-optrow__remove {
+    width: 2.4rem;
+    height: 2.4rem;
+    border: 0;
+    border-radius: 50%;
+    background: var(--adm-panel-2);
+    color: var(--adm-text-2);
+    font: inherit;
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.adm-optrow__remove:disabled { opacity: 0.4; cursor: default; }
+.adm-optrow__remove:focus-visible, .adm-optrows__add:focus-visible { outline: 3px solid var(--orquidea); outline-offset: 2px; }
+
+.adm-optrows__add {
+    justify-self: start;
+    margin-top: 0.3rem;
+    min-height: 40px;
+    padding: 0.4rem 1rem;
+    border: 2px dashed var(--sky);
+    border-radius: var(--radius-pill);
+    background: transparent;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: var(--mora);
+    cursor: pointer;
+}
+
+.adm-optrows__add:disabled { opacity: 0.5; cursor: default; }
+
+.adm-modpick { border: 0; padding: 0; margin: 0 0 1rem; display: grid; gap: 0.45rem; min-width: 0; }
+
+.adm-modpick legend {
+    padding: 0;
+    margin-bottom: 0.4rem;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--adm-text-3);
+}
+
+.adm-modpick legend em { font-style: normal; font-weight: 600; letter-spacing: 0.02em; text-transform: none; opacity: 0.8; }
+
+.adm-modpick__row {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.6rem 0.8rem;
+    border: 2px solid var(--sky);
+    border-radius: 14px;
+    background: var(--crema);
+    cursor: pointer;
+}
+
+.adm-modpick__row.is-on { border-color: var(--mora); background: var(--sky); }
+.adm-modpick__row input { flex: none; width: 20px; height: 20px; margin: 0; accent-color: var(--mora); }
+.adm-modpick__row > span:not(.adm-modpick__order) { flex: 1 1 auto; min-width: 0; display: grid; }
+.adm-modpick__row b { font-size: 0.9rem; }
+.adm-modpick__row em { font-style: normal; font-size: 0.76rem; color: var(--adm-text-2); overflow-wrap: break-word; }
+
+.adm-modpick__order {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--mora);
+    color: var(--crema);
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
+.adm-modpick .adm-note { margin: 0; }
+
+@media (max-width: 520px) {
+    .adm-optrow { grid-template-columns: minmax(0, 1fr) 6.6rem 2.4rem; }
+}
+
 /* En el celular el formulario sube desde abajo y ocupa el ancho */
 @media (max-width: 620px) {
     .adm-menu-modal { place-items: end center; padding: 0; }

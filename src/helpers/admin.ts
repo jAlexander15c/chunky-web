@@ -1,6 +1,7 @@
 import { httpDelete, httpGet, httpPost, httpPostBinary, httpPut } from "./getHttp";
 import type { ICreditTicket, IShiftDetail } from "./gestion";
 import type { IWeekHours, StoreOverride } from "./hours";
+import type { IModifier } from "./modifiers";
 
 export type SupplyState = "comprar" | "pedir" | "contar" | "bien";
 export type ProductState = "agotado" | "poco" | "disponible" | "sin-control";
@@ -468,6 +469,8 @@ export interface IMenuItem {
     price: number | null;
     /** Con mas de una (tamaños, sabores) el precio se cambia en Loyverse. */
     variantCount: number;
+    /** En el orden en que el cliente los ve al pedir. */
+    modifierIds: string[];
     isAvailable: boolean;
     imageUrl: string | null;
     createdAt: string | null;
@@ -479,11 +482,19 @@ export interface IMenuItemInput {
     price: number;
     description: string;
     isAvailable: boolean;
+    modifierIds: string[];
+}
+
+/** Una opcion del formulario del modificador: sin id es nueva. */
+export interface IMenuModifierOptionInput {
+    id?: string;
+    name: string;
+    price: number;
 }
 
 /** Categorias y productos, incluidos los que no estan a la venta en la web. */
 export const fetchMenu = (token: string, signal?: AbortSignal) =>
-    httpGet<{ categories: IMenuCategory[]; items: IMenuItem[] }>("/admin/menu", { signal, headers: getAdminHeaders(token) });
+    httpGet<{ categories: IMenuCategory[]; items: IMenuItem[]; modifiers: IModifier[] }>("/admin/menu", { signal, headers: getAdminHeaders(token) });
 
 export const createMenuCategory = (token: string, name: string, color: CategoryColor) =>
     httpPost<{ category: IMenuCategory }>("/admin/categories", { name, color }, { headers: getAdminHeaders(token) });
@@ -508,6 +519,18 @@ export const updateMenuItem = (token: string, id: string, item: Omit<IMenuItemIn
 
 export const deleteMenuItem = (token: string, id: string) =>
     httpDelete<{ deleted: boolean }>(`/admin/items/${encodeURIComponent(id)}`, { headers: getAdminHeaders(token) });
+
+export const createMenuModifier = (token: string, name: string, options: IMenuModifierOptionInput[]) =>
+    httpPost<{ modifier: { id: string; name: string } }>("/admin/modifiers", { name, options }, { headers: getAdminHeaders(token) });
+
+export const updateMenuModifier = (token: string, id: string, name: string, options: IMenuModifierOptionInput[]) =>
+    httpPut<{ modifier: { id: string; name: string } }>(`/admin/modifiers/${encodeURIComponent(id)}`, { name, options }, {
+        headers: getAdminHeaders(token),
+    });
+
+/** Loyverse lo quita de los productos que lo usaban. */
+export const deleteMenuModifier = (token: string, id: string) =>
+    httpDelete<{ deleted: boolean }>(`/admin/modifiers/${encodeURIComponent(id)}`, { headers: getAdminHeaders(token) });
 
 export const uploadMenuItemImage = (token: string, itemId: string, image: Blob) =>
     httpPostBinary<{ imageUrl: string | null }>(`/admin/items/${encodeURIComponent(itemId)}/image`, image, {
