@@ -2,6 +2,7 @@ import { httpDelete, httpGet, httpPost, httpPostBinary, httpPut } from "./getHtt
 import type { ICreditTicket, IShiftDetail } from "./gestion";
 import type { IWeekHours, StoreOverride } from "./hours";
 import type { IModifier } from "./modifiers";
+import type { QuoteKind } from "./quote";
 
 export type SupplyState = "comprar" | "pedir" | "contar" | "bien";
 export type ProductState = "agotado" | "poco" | "disponible" | "sin-control";
@@ -305,7 +306,24 @@ export interface IWebReport {
     /** 24 horas de Panamá: sesiones por la hora en que empezaron. */
     hours: { hour: number; sessions: number }[];
     pages: { path: string; views: number }[];
-    buttons: { whatsapp: number; quotes: number; pastaOpens: number; pastaAdds: number };
+    buttons: { whatsapp: number; pastaOpens: number; pastaAdds: number };
+    quotes: IQuoteWebReport;
+}
+
+/** Pasos del cotizador. "photo" solo existe en cakes; "whatsapp" es después de enviar. */
+export type QuoteFunnelStep = "visit" | "start" | "photo" | "contact" | "submit" | "whatsapp";
+export type QuoteReportKind = "all" | QuoteKind;
+/** Pasos del formulario del cake, en orden. */
+export type CakeQuoteStep = "tamano" | "masa" | "rellenos" | "fotos" | "datos";
+
+export interface IQuoteWebReport {
+    /** null: el paso no existe para ese tipo (los postres no llevan fotos). */
+    funnel: Record<QuoteReportKind, { step: QuoteFunnelStep; sessions: number | null }[]>;
+    /** Cotizaciones enviadas (no sesiones) y su total estimado promedio. */
+    sent: Record<QuoteReportKind, { count: number; averageTotal: number | null }>;
+    top: { name: string; kind: QuoteKind; count: number; averageTotal: number | null }[];
+    /** Cakes armados y no enviados, por el paso más avanzado que tocaron. */
+    cakeDropOff: { step: CakeQuoteStep; sessions: number }[];
 }
 
 export const fetchWebReport = (token: string, from: string, to: string, signal?: AbortSignal) =>

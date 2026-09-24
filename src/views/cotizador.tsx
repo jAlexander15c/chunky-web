@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { PiArrowRightBold, PiCheckBold, PiImageBold, PiWhatsappLogoBold } from "react-icons/pi";
 
@@ -52,6 +52,42 @@ const INITIAL_DRAFT: IQuoteDraft = {
     cakeImage: null,
     topperImage: null,
 };
+
+/**
+ * Paso del cotizador que marca cada campo en el tracking (quote_step). Cambiar de pestaña
+ * no es armar, y el topper es opcional: no marcan paso.
+ */
+const QUOTE_STEP_BY_FIELD: Partial<Record<keyof IQuoteDraft, string>> = {
+    size: "tamano",
+    height: "tamano",
+    doughId: "masa",
+    fillingIds: "rellenos",
+    cakeImage: "fotos",
+    dessertId: "postre",
+    dessertSize: "tamano",
+    customerName: "datos",
+    customerPhone: "datos",
+    desiredDate: "datos",
+    note: "datos",
+};
+
+/** Marca cada paso una sola vez por cake o postre: el tablero cuenta sesiones, no clics. */
+const useQuoteStepTracking = () => {
+    const tracked = useRef(new Set<string>());
+    return useCallback((kind: QuoteKind, field: keyof IQuoteDraft) => {
+        const step = QUOTE_STEP_BY_FIELD[field];
+        const key = `${kind}:${step}`;
+        if (!step || tracked.current.has(key)) return;
+        tracked.current.add(key);
+        trackEvent("quote_step", step, kind);
+    }, []);
+};
+
+/** Lo que se cotizó, legible en el tablero: el tamaño del cake o el postre con su tamaño. */
+const getQuoteTrackLabel = (draft: IQuoteDraft, dessert: IQuoteDessert) =>
+    draft.kind === "postre"
+        ? `${dessert.name} ${draft.dessertSize}"`
+        : `${draft.size}" ${draft.height === 2 ? "doble altura" : "1 altura"}`;
 
 const useCotizadorHead = () => {
     useEffect(() => {
@@ -299,18 +335,26 @@ export const Cotizador = () => {
     const [sendError, setSendError] = useState("");
     const [sent, setSent] = useState<IQuote | null>(null);
 
-    const update = <K extends keyof IQuoteDraft>(key: K, value: IQuoteDraft[K]) =>
+    const markStep = useQuoteStepTracking();
+
+    const update = <K extends keyof IQuoteDraft>(key: K, value: IQuoteDraft[K]) => {
+        // Quitar la foto no es avanzar
+        if (key !== "cakeImage" || value) markStep(draft.kind, key);
         setDraft((current) => ({ ...current, [key]: value }));
+    };
 
     // El 4.5" solo viene en doble altura: elegirlo en 1 altura pasa solo a doble
-    const selectSize = (size: QuoteSize) =>
+    const selectSize = (size: QuoteSize) => {
+        markStep(draft.kind, "size");
         setDraft((current) => ({
             ...current,
             size,
             height: isQuoteSizeAvailable(size, current.height) ? current.height : 2,
         }));
+    };
 
-    const toggleFilling = (id: string) =>
+    const toggleFilling = (id: string) => {
+        markStep(draft.kind, "fillingIds");
         setDraft((current) => ({
             ...current,
             fillingIds: current.fillingIds.includes(id)
@@ -319,6 +363,7 @@ export const Cotizador = () => {
                   ? [...current.fillingIds, id]
                   : current.fillingIds,
         }));
+    };
 
     const dessert = getQuoteDessert(draft.dessertId);
     const cakeBreakdown = getQuoteBreakdown(draft);
@@ -333,7 +378,7 @@ export const Cotizador = () => {
         setSendError("");
         try {
             const { quote } = await submitQuote(draft);
-            trackEvent("quote_submit");
+            trackEvent("quote_submit", draft.kind, getQuoteTrackLabel(draft, dessert), quote.total);
             setSent(quote);
             document.getElementById("resumen")?.scrollIntoView({ block: "start" });
         } catch (error) {

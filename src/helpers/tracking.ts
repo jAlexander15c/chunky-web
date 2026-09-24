@@ -13,6 +13,7 @@ export type TrackEventName =
     | "checkout_start"
     | "pay_click"
     | "whatsapp_click"
+    | "quote_step"
     | "quote_submit"
     | "pasta_open"
     | "pasta_add";
@@ -22,6 +23,7 @@ interface ITrackEvent {
     target?: string;
     label?: string;
     path: string;
+    value?: number;
 }
 
 const SESSION_STORAGE_KEY = "chunky-session";
@@ -100,14 +102,17 @@ const listenPageHide = () => {
     window.addEventListener("pagehide", flushEvents);
 };
 
-/** Registra un clic del embudo. target es el id (producto, categoria) y label su nombre. */
-export const trackEvent = (name: TrackEventName, target?: string, label?: string) => {
+/**
+ * Registra un clic del embudo. target es el id (producto, categoria) y label su nombre.
+ * value es un monto, solo para los eventos que lo tienen (total de una cotizacion).
+ */
+export const trackEvent = (name: TrackEventName, target?: string, label?: string, value?: number) => {
     if (!isTrackingEnabled || typeof window === "undefined") return;
     const { pathname } = window.location;
     if (isStaffPath(pathname)) return;
 
     listenPageHide();
-    queue.push({ name, target: clip(target), label: clip(label), path: getTrackedPath(pathname) });
+    queue.push({ name, target: clip(target), label: clip(label), path: getTrackedPath(pathname), value });
     if (queue.length > QUEUE_MAX) queue = queue.slice(-QUEUE_MAX);
     scheduleFlush();
 };

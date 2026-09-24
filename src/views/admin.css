@@ -1512,6 +1512,25 @@ a.adm-btn { display: inline-flex; align-items: center; text-decoration: none; }
 
 .adm-funnel__step.is-leak .adm-funnel__rate { color: var(--adm-warn); }
 
+/* Cotizador: un paso que no existe para ese tipo (los postres no llevan fotos) */
+.adm-funnel__step.is-na .adm-funnel__track i { background: var(--adm-line); color: var(--adm-text-2); }
+.adm-funnel__name small { display: block; font-size: 0.66rem; font-weight: 500; color: var(--adm-text-3); }
+
+.adm-quote-facts { margin-top: 1rem; }
+
+.adm-quote-kind {
+    display: inline-block;
+    margin-left: 0.35rem;
+    padding: 0.05rem 0.45rem;
+    border-radius: var(--radius-pill);
+    font-size: 0.62rem;
+    font-weight: 700;
+    background: var(--sky);
+    color: var(--mora);
+}
+
+.adm-quote-kind.is-postre { background: #f3e2f4; color: #7a3f80; }
+
 .adm-callout--warn { background: var(--adm-warn-bg); color: var(--adm-warn); }
 .adm-callout--warn b { color: var(--ink); }
 
