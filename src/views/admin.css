@@ -1553,18 +1553,20 @@ a.adm-btn { display: inline-flex; align-items: center; text-decoration: none; }
 }
 
 .adm-menu-cat__head[aria-expanded="true"] .adm-menu-cat__chev { transform: rotate(90deg); }
-.adm-menu-cat__empty { padding: 0 0 0.8rem 1.6rem; }
+.adm-menu-cat__body { display: grid; gap: 0.7rem; justify-items: start; padding: 0 0 0.9rem 1.6rem; }
+.adm-menu-cat__body > .adm-menu-items { justify-self: stretch; }
 
-.adm-menu-items { list-style: none; margin: 0; padding: 0 0 0.8rem 1.6rem; display: grid; gap: 0.4rem; }
+.adm-menu-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; }
 
 .adm-menu-items li { display: flex; align-items: center; gap: 0.7rem; font-size: 0.88rem; }
 .adm-menu-items__thumb { flex: none; width: 36px; height: 36px; border-radius: 10px; object-fit: cover; background: var(--adm-panel-2); }
 .adm-menu-items__info { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem 0.6rem; }
 .adm-menu-items__name { min-width: 0; overflow-wrap: break-word; }
+.adm-menu-items__price em { font-style: normal; font-weight: 600; color: var(--adm-text-2); }
 .adm-menu-items__price { font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; }
 
 @media (max-width: 520px) {
-    .adm-menu-items { padding-left: 0; }
+    .adm-menu-cat__body { padding-left: 0; }
 }
 
 /* Formularios del menú */
@@ -1641,11 +1643,42 @@ a.adm-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .adm-menu-switch b { display: block; font-size: 0.88rem; }
 .adm-menu-switch em { font-style: normal; font-weight: 600; font-size: 0.75rem; color: var(--adm-text-2); }
 
+/* Editar: Eliminar a la izquierda, lejos de Guardar */
+.adm-menu-actions-row { flex-wrap: wrap; }
+.adm-menu-delete { margin-right: auto; border-color: transparent; color: var(--adm-crit); }
+
+@media (hover: hover) and (pointer: fine) {
+    .adm-menu-delete:hover:not(:disabled) { background: var(--adm-crit-bg); }
+}
+
+.adm-menu-blocked {
+    margin: 0 0 1rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--adm-text-2);
+    background: var(--adm-panel-2);
+    border-radius: 12px;
+    padding: 0.6rem 0.8rem;
+}
+
+.adm-menu-confirm {
+    display: grid;
+    gap: 0.5rem;
+    background: var(--adm-crit-bg);
+    color: var(--adm-crit);
+    border-radius: 14px;
+    padding: 1rem;
+}
+
+.adm-menu-confirm b { font-size: 1rem; }
+.adm-menu-confirm p { margin: 0 0 0.3rem; font-size: 0.82rem; color: var(--ink); }
+
 /* En el celular el formulario sube desde abajo y ocupa el ancho */
 @media (max-width: 620px) {
     .adm-menu-modal { place-items: end center; padding: 0; }
     .adm-menu-modal .adm-modal__panel { width: 100%; border-radius: 22px 22px 0 0; padding-bottom: calc(1.4rem + env(safe-area-inset-bottom, 0px)); }
     .adm-menu-modal .adm-modal__actions .adm-btn { flex: 1; min-height: 46px; }
+    .adm-menu-modal .adm-menu-delete { flex: 1 0 100%; order: 3; margin-right: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

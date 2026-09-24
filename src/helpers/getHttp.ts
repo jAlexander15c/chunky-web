@@ -30,7 +30,7 @@ if (!API_BASE) {
 }
 
 const sendJson = async <T>(
-    method: "POST" | "PUT",
+    method: "POST" | "PUT" | "DELETE",
     path: string,
     body: unknown,
     options?: { headers?: Record<string, string> }
@@ -42,7 +42,7 @@ const sendJson = async <T>(
             ...(API_KEY ? { "x-api-key": API_KEY } : {}),
             ...options?.headers,
         },
-        body: JSON.stringify(body),
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
 
     if (!res.ok) {
@@ -59,6 +59,9 @@ export const httpPost = <T>(path: string, body: unknown, options?: { headers?: R
 
 export const httpPut = <T>(path: string, body: unknown, options?: { headers?: Record<string, string> }) =>
     sendJson<T>("PUT", path, body, options);
+
+export const httpDelete = <T>(path: string, options?: { headers?: Record<string, string> }) =>
+    sendJson<T>("DELETE", path, undefined, options);
 
 /** POST de un archivo tal cual (ej. la foto de un producto), con su propio Content-Type. */
 export const httpPostBinary = async <T>(path: string, file: Blob, options?: { headers?: Record<string, string> }): Promise<T> => {

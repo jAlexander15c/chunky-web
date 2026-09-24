@@ -1,4 +1,4 @@
-import { httpGet, httpPost, httpPostBinary, httpPut } from "./getHttp";
+import { httpDelete, httpGet, httpPost, httpPostBinary, httpPut } from "./getHttp";
 import type { ICreditTicket, IShiftDetail } from "./gestion";
 import type { IWeekHours, StoreOverride } from "./hours";
 
@@ -464,7 +464,10 @@ export interface IMenuItem {
     id: string;
     name: string;
     categoryId: string | null;
+    description: string;
     price: number | null;
+    /** Con mas de una (tamaños, sabores) el precio se cambia en Loyverse. */
+    variantCount: number;
     isAvailable: boolean;
     imageUrl: string | null;
     createdAt: string | null;
@@ -487,6 +490,24 @@ export const createMenuCategory = (token: string, name: string, color: CategoryC
 
 export const createMenuItem = (token: string, item: IMenuItemInput) =>
     httpPost<{ item: { id: string; name: string } }>("/admin/items", item, { headers: getAdminHeaders(token) });
+
+export const updateMenuCategory = (token: string, id: string, name: string, color: CategoryColor) =>
+    httpPut<{ category: IMenuCategory }>(`/admin/categories/${encodeURIComponent(id)}`, { name, color }, {
+        headers: getAdminHeaders(token),
+    });
+
+/** El API la rechaza si todavia tiene productos. */
+export const deleteMenuCategory = (token: string, id: string) =>
+    httpDelete<{ deleted: boolean }>(`/admin/categories/${encodeURIComponent(id)}`, { headers: getAdminHeaders(token) });
+
+/** Sin precio cuando el producto tiene varias variantes: cada una conserva el suyo. */
+export const updateMenuItem = (token: string, id: string, item: Omit<IMenuItemInput, "price"> & { price?: number }) =>
+    httpPut<{ item: { id: string; name: string } }>(`/admin/items/${encodeURIComponent(id)}`, item, {
+        headers: getAdminHeaders(token),
+    });
+
+export const deleteMenuItem = (token: string, id: string) =>
+    httpDelete<{ deleted: boolean }>(`/admin/items/${encodeURIComponent(id)}`, { headers: getAdminHeaders(token) });
 
 export const uploadMenuItemImage = (token: string, itemId: string, image: Blob) =>
     httpPostBinary<{ imageUrl: string | null }>(`/admin/items/${encodeURIComponent(itemId)}/image`, image, {
