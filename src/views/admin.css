@@ -1559,6 +1559,23 @@ a.adm-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .adm-web-table__bar { display: block; height: 4px; margin-top: 0.3rem; background: var(--adm-panel-2); border-radius: 2px; }
 .adm-web-table__bar i { display: block; height: 100%; background: var(--adm-web); border-radius: 2px; }
 
+.adm-web-sources { min-width: 560px; }
+.adm-web-sources td { vertical-align: top; }
+.adm-web-sources .adm-web-table__bar { max-width: 220px; }
+
+.adm-web-sources__mediums { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.4rem; }
+
+.adm-web-sources__mediums span {
+    font-size: 0.66rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: var(--radius-pill);
+    background: var(--adm-panel-2);
+    color: var(--adm-text-2);
+}
+
+.adm-web-sources__legend { display: grid; gap: 0.25rem; margin: 0.9rem 0 0; font-size: 0.72rem; color: var(--adm-text-2); }
+.adm-web-sources__legend b { color: var(--ink); }
+
 .adm-web-buttons {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));

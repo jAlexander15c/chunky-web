@@ -308,6 +308,20 @@ export interface IWebReport {
     pages: { path: string; views: number }[];
     buttons: { whatsapp: number; pastaOpens: number; pastaAdds: number };
     quotes: IQuoteWebReport;
+    /** Opcional: un API anterior no lo manda y la tarjeta no se muestra. */
+    sources?: IWebSource[];
+}
+
+/** Visitas y resultados por origen. source null: sesiones de antes de medir el origen. */
+export interface IWebSource {
+    source: string | null;
+    sessions: number;
+    carts: number;
+    paidOrders: number;
+    /** Sesiones que enviaron una cotización. */
+    quotes: number;
+    /** utm_medium del enlace; null si llegó sin él. */
+    mediums: { medium: string | null; sessions: number }[];
 }
 
 /** Pasos del cotizador. "photo" solo existe en cakes; "whatsapp" es después de enviar. */

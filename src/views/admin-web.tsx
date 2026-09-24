@@ -19,6 +19,7 @@ import type {
     IQuoteWebReport,
     IWebPoint,
     IWebReport,
+    IWebSource,
     QuoteFunnelStep,
     QuoteReportKind,
     WebFunnelStep,
@@ -81,6 +82,21 @@ const PAGE_LABEL: Record<string, string> = {
 
 /** Por debajo de esto un % de producto no dice nada: una apertura y un agregado dan 100 %. */
 const MIN_OPENS_FOR_RATE = 5;
+/** Con menos visitas la conversión de un origen no dice nada. */
+const MIN_SESSIONS_FOR_RATE = 10;
+/** Desde aquí la conversión de un origen sale en verde. */
+const GOOD_SOURCE_CONVERSION = 0.05;
+
+/** Nombres de los orígenes que la web reconoce; el resto se muestra con su dominio. */
+const SOURCE_LABEL: Record<string, string> = {
+    instagram: "Instagram",
+    facebook: "Facebook",
+    whatsapp: "WhatsApp",
+    google: "Google",
+    pedidosya: "PedidosYa",
+    tiktok: "TikTok",
+    directo: "Directo",
+};
 
 const formatCount = (value: number) => value.toLocaleString("es-PA");
 
@@ -355,6 +371,8 @@ const WebBody = ({ report }: { report: IWebReport }) => {
                     <VisitsChart points={report.series} granularity={range.granularity} />
                 </div>
 
+                {report.sources ? <SourcesCard sources={report.sources} /> : null}
+
                 <QuoteFunnelCard quotes={report.quotes} />
                 <QuoteTopCard quotes={report.quotes} />
                 <QuoteDropOffCard quotes={report.quotes} />
@@ -369,6 +387,93 @@ const WebBody = ({ report }: { report: IWebReport }) => {
 };
 
 /* ============ Tarjetas ============ */
+
+const SourcesCard = ({ sources }: { sources: IWebSource[] }) => {
+    // Lo de antes de medir el origen va al final, aunque tenga más visitas
+    const measured = sources.filter((entry) => entry.source !== null);
+    const unmeasured = sources.find((entry) => entry.source === null) ?? null;
+    const topSessions = Math.max(1, ...measured.map((entry) => entry.sessions));
+
+    return (
+        <div className="adm-card adm-web-grid__wide">
+            <h3 className="script">De dónde llegan</h3>
+            <p className="adm-note">Cada visita cuenta en el origen con que abrió la web: el enlace con utm, la página anterior o la app de Instagram.</p>
+
+            {sources.length === 0 ? (
+                <p className="adm-empty">No hubo visitas en este período.</p>
+            ) : (
+                <>
+                    <div className="adm-scroll">
+                        <table className="adm-web-table adm-web-sources">
+                            <thead>
+                                <tr>
+                                    <th>Origen</th>
+                                    <th className="is-num">Visitas</th>
+                                    <th className="is-num">Con carrito</th>
+                                    <th className="is-num">Pagados</th>
+                                    <th className="is-num">Conversión</th>
+                                    <th className="is-num">Cotizaciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {measured.map((entry) => {
+                                    const conversion = entry.sessions >= MIN_SESSIONS_FOR_RATE ? Math.min(1, entry.paidOrders / entry.sessions) : null;
+                                    const hasMediums = entry.mediums.some((item) => item.medium !== null);
+                                    return (
+                                        <tr key={entry.source}>
+                                            <td>
+                                                {SOURCE_LABEL[entry.source ?? ""] ?? entry.source}
+                                                <span className="adm-web-table__bar" aria-hidden="true">
+                                                    <i style={{ width: `${(entry.sessions / topSessions) * 100}%` }} />
+                                                </span>
+                                                {hasMediums ? (
+                                                    <span className="adm-web-sources__mediums">
+                                                        {entry.mediums.map((item) => (
+                                                            <span key={item.medium ?? "sin-marca"}>
+                                                                {item.medium ?? "sin marca"} <b>{formatCount(item.sessions)}</b>
+                                                            </span>
+                                                        ))}
+                                                    </span>
+                                                ) : null}
+                                            </td>
+                                            <td className="is-num"><b>{formatCount(entry.sessions)}</b></td>
+                                            <td className="is-num">{formatCount(entry.carts)}</td>
+                                            <td className="is-num">{formatCount(entry.paidOrders)}</td>
+                                            <td className="is-num">
+                                                {conversion === null ? (
+                                                    <span className="adm-web-table__muted">pocas visitas</span>
+                                                ) : (
+                                                    <span className={`adm-pill ${conversion >= GOOD_SOURCE_CONVERSION ? "is-ok" : "is-warn"}`}>
+                                                        {formatPercent(conversion)}
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="is-num">{formatCount(entry.quotes)}</td>
+                                        </tr>
+                                    );
+                                })}
+                                {unmeasured ? (
+                                    <tr>
+                                        <td className="adm-web-table__muted">Antes de medir el origen</td>
+                                        <td className="is-num"><b>{formatCount(unmeasured.sessions)}</b></td>
+                                        <td className="is-num">{formatCount(unmeasured.carts)}</td>
+                                        <td className="is-num">{formatCount(unmeasured.paidOrders)}</td>
+                                        <td className="is-num"><span className="adm-web-table__muted">—</span></td>
+                                        <td className="is-num">{formatCount(unmeasured.quotes)}</td>
+                                    </tr>
+                                ) : null}
+                            </tbody>
+                        </table>
+                    </div>
+                    <p className="adm-web-sources__legend">
+                        <span><b>Directo</b>: escribieron la dirección, un enlace guardado o una app que no dice de dónde viene.</span>
+                        <span><b>Sin marca</b>: llegaron por un enlace sin utm (un post, un DM).</span>
+                    </p>
+                </>
+            )}
+        </div>
+    );
+};
 
 const FunnelCard = ({ report }: { report: IWebReport }) => {
     const { funnel } = report;

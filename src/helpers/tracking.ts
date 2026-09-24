@@ -26,7 +26,24 @@ interface ITrackEvent {
     value?: number;
 }
 
+interface ITrafficOrigin {
+    source: string;
+    medium?: string;
+}
+
 const SESSION_STORAGE_KEY = "chunky-session";
+const ORIGIN_STORAGE_KEY = "chunky-origin";
+/** Mismo tope que el API para source y medium. */
+const ORIGIN_TEXT_MAX = 40;
+/** Sitios conocidos por su dominio: el resto se guarda con el dominio tal cual. */
+const KNOWN_REFERRERS: { source: string; hosts: string[] }[] = [
+    { source: "instagram", hosts: ["instagram.com"] },
+    { source: "facebook", hosts: ["facebook.com", "fb.com", "messenger.com"] },
+    { source: "whatsapp", hosts: ["whatsapp.com", "wa.me"] },
+    { source: "google", hosts: ["google.com", "google.com.pa"] },
+    { source: "pedidosya", hosts: ["pedidosya.com.pa", "pedidosya.com"] },
+    { source: "tiktok", hosts: ["tiktok.com"] },
+];
 const FLUSH_INTERVAL_MS = 5000;
 /** El API acepta hasta 50 por lote: se manda antes de llegar. */
 const FLUSH_AT = 20;
@@ -42,6 +59,7 @@ const isTrackingEnabled = !import.meta.env.DEV || import.meta.env.VITE_TRACKING_
 let queue: ITrackEvent[] = [];
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 let fallbackSessionId: string | null = null;
+let fallbackOrigin: ITrafficOrigin | null = null;
 let isListening = false;
 
 const createSessionId = () =>
@@ -64,6 +82,53 @@ const getSessionId = () => {
     }
 };
 
+const getOriginText = (value: string | null) => {
+    const text = value?.trim().toLowerCase().slice(0, ORIGIN_TEXT_MAX);
+    return text || undefined;
+};
+
+const getReferrerSource = (referrer: string) => {
+    try {
+        const host = new URL(referrer).hostname.replace(/^www\./, "");
+        if (host === window.location.hostname.replace(/^www\./, "")) return undefined;
+        const known = KNOWN_REFERRERS.find(({ hosts }) => hosts.some((entry) => host === entry || host.endsWith(`.${entry}`)));
+        return known?.source ?? getOriginText(host);
+    } catch {
+        return undefined;
+    }
+};
+
+/** El navegador dentro de Instagram o Facebook casi nunca manda referrer, pero se nombra en el user agent. */
+const getInAppSource = (userAgent: string) => {
+    if (/Instagram/i.test(userAgent)) return "instagram";
+    if (/FBAN|FBAV/i.test(userAgent)) return "facebook";
+    return undefined;
+};
+
+/** Primero el enlace con utm_source, luego el sitio anterior, luego la app; si no hay nada, "directo". */
+const detectOrigin = (): ITrafficOrigin => {
+    const params = new URLSearchParams(window.location.search);
+    const utmSource = getOriginText(params.get("utm_source"));
+    if (utmSource) return { source: utmSource, medium: getOriginText(params.get("utm_medium")) };
+
+    const source = getReferrerSource(document.referrer) ?? getInAppSource(navigator.userAgent) ?? "directo";
+    return { source };
+};
+
+/** El origen se decide al abrir la pestaña y no cambia al navegar dentro de la web. */
+const getOrigin = () => {
+    try {
+        const stored = window.sessionStorage.getItem(ORIGIN_STORAGE_KEY);
+        if (stored) return JSON.parse(stored) as ITrafficOrigin;
+        const detected = detectOrigin();
+        window.sessionStorage.setItem(ORIGIN_STORAGE_KEY, JSON.stringify(detected));
+        return detected;
+    } catch {
+        fallbackOrigin ??= detectOrigin();
+        return fallbackOrigin;
+    }
+};
+
 const isStaffPath = (pathname: string) => STAFF_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 
 /** /pedido/ABC123 se cuenta como /pedido: el id del pedido no aporta y es de un cliente. */
@@ -81,7 +146,7 @@ const flushEvents = () => {
 
     const events = queue;
     queue = [];
-    httpPostKeepalive("/events", { sessionId: getSessionId(), events }).catch(() => undefined);
+    httpPostKeepalive("/events", { sessionId: getSessionId(), ...getOrigin(), events }).catch(() => undefined);
 };
 
 const scheduleFlush = () => {
@@ -112,6 +177,8 @@ export const trackEvent = (name: TrackEventName, target?: string, label?: string
     if (isStaffPath(pathname)) return;
 
     listenPageHide();
+    // Se lee ya, con la URL de llegada: al navegar dentro de la web se pierde el ?utm_
+    getOrigin();
     queue.push({ name, target: clip(target), label: clip(label), path: getTrackedPath(pathname), value });
     if (queue.length > QUEUE_MAX) queue = queue.slice(-QUEUE_MAX);
     scheduleFlush();
