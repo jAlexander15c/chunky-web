@@ -30,6 +30,7 @@ import type {
     SupplyState,
 } from "@/helpers";
 
+import { AdminBuyNow } from "./admin-buy-now";
 import { AdminPagination, getPageSlice, getSafePage } from "./admin-pagination";
 
 /** La cocina carga producción mientras alguien mira: se refresca solo. */
@@ -562,44 +563,7 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
             {error ? <p className="adm-error">{error}</p> : null}
 
             {/* ===== Comprar ya ===== */}
-            {toBuy.length > 0 ? (
-                <section className="adm-band">
-                    <div className="adm-band__head">
-                        <h2 className="script">Comprar ya</h2>
-                        <span className="adm-band__sub">Bajo el mínimo o se acaba en menos de 2 días</span>
-                        <span className="adm-src is-own">Postgres</span>
-                    </div>
-
-                    <div className="adm-card adm-card--alert">
-                        {toBuy.map((supply) => (
-                            <div className="adm-buy" key={supply.id}>
-                                <div>
-                                    <div className="adm-buy__name">{supply.name}</div>
-                                    <div className="adm-buy__why">
-                                        Quedan <b>{formatQuantity(supply.stock)} {supply.unit}</b>
-                                        {supply.dailyUse
-                                            ? ` · se gastan ${formatQuantity(supply.dailyUse)} ${supply.unit} por día · alcanza para ${supply.daysLeft} días`
-                                            : " · sin dos conteos no sabemos cuánto dura"}
-                                    </div>
-                                </div>
-                                <div className="adm-buy__ask">
-                                    {supply.suggestedPurchase ? (
-                                        <>
-                                            <span className="adm-buy__qty">{supply.suggestedPurchase}</span>
-                                            <span className="adm-buy__unit">
-                                                {supply.purchaseUnit ? `${supply.purchaseUnit}s` : supply.unit}
-                                                {supply.purchaseSize ? ` de ${formatQuantity(supply.purchaseSize)} ${supply.unit}` : ""}
-                                            </span>
-                                        </>
-                                    ) : (
-                                        <span className="adm-buy__unit">falta un conteo</span>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </section>
-            ) : null}
+            {toBuy.length > 0 ? <AdminBuyNow supplies={toBuy} /> : null}
 
             {/* ===== Insumos ===== */}
             <section className="adm-band">

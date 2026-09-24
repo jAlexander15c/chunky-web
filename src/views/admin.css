@@ -392,29 +392,152 @@
 .adm-split .is-web, .adm-legend .is-web { background: var(--adm-web); }
 
 /* ============ Comprar ya ============ */
+/* Tiene que asustar: franja roja con el total en grande y tarjetas con lo que queda enorme. */
 
-.adm-buy {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 0.3rem 1rem;
+.adm-urgent .adm-band__head h2 { color: var(--adm-crit); }
+
+.adm-urgent__alarm {
+    display: flex;
     align-items: center;
-    padding: 0.7rem 0;
-    border-top: 1.5px dotted var(--adm-line);
+    gap: 1.2rem 2.2rem;
+    padding: 1.3rem 1.7rem;
+    border-radius: var(--radius-panel);
+    background: var(--adm-crit);
+    color: var(--crema);
 }
 
-.adm-buy:first-of-type { border-top: 0; }
-.adm-buy__name { font-weight: 700; }
-.adm-buy__why { font-size: 0.75rem; color: var(--adm-text-2); }
-.adm-buy__why b { font-weight: 800; color: var(--adm-crit); }
-.adm-buy__ask { text-align: right; }
+.adm-urgent__total { display: flex; align-items: center; gap: 0.9rem; }
+.adm-urgent__total svg { width: 2.7rem; height: 2.7rem; flex: none; }
+.adm-urgent__total b { font-size: 5.4rem; font-weight: 900; line-height: 0.9; font-variant-numeric: tabular-nums; }
 
-.adm-buy__qty {
-    font-size: 1.1rem;
+.adm-urgent__total span,
+.adm-urgent__split span {
+    font-size: 0.8rem;
     font-weight: 800;
-    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    line-height: 1.25;
 }
 
-.adm-buy__unit { display: block; font-size: 0.7rem; color: var(--adm-text-3); }
+.adm-urgent__split {
+    display: flex;
+    gap: 2.1rem;
+    padding-left: 2.2rem;
+    border-left: 2px solid rgb(252 250 233 / 0.3);
+}
+
+.adm-urgent__split div { display: grid; gap: 0.15rem; }
+.adm-urgent__split b { font-size: 2.5rem; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
+.adm-urgent__split span { font-size: 0.7rem; letter-spacing: 0.08em; }
+
+.adm-urgent__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.9rem;
+    margin-top: 1.1rem;
+}
+
+.adm-urgent__card {
+    display: grid;
+    gap: 0.6rem;
+    padding: 0.9rem 1rem;
+    border: 2.5px solid var(--adm-crit);
+    border-radius: 16px;
+    background: var(--adm-panel);
+}
+
+/* Lo que se acaba hoy va en rojo sólido: es lo primero que se ve */
+.adm-urgent__card.is-hoy { background: var(--adm-crit); color: var(--crema); }
+.adm-urgent__card.is-sin-conteo { border-style: dashed; }
+
+.adm-urgent__top { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.adm-urgent__name { font-weight: 800; font-size: 1rem; min-width: 0; overflow-wrap: anywhere; }
+
+.adm-urgent__tag {
+    flex: none;
+    padding: 0.25rem 0.55rem;
+    border-radius: var(--radius-pill);
+    background: var(--adm-crit-bg);
+    color: var(--adm-crit);
+    font-size: 0.62rem;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.is-hoy .adm-urgent__tag { background: var(--crema); }
+.is-sin-conteo .adm-urgent__tag { background: var(--adm-warn-bg); color: var(--adm-warn); }
+
+.adm-urgent__stock { display: flex; align-items: baseline; gap: 0.5rem; color: var(--adm-crit); }
+.adm-urgent__stock b { font-size: 3.2rem; font-weight: 900; line-height: 0.95; font-variant-numeric: tabular-nums; }
+.adm-urgent__stock span { font-size: 0.85rem; font-weight: 700; }
+.is-hoy .adm-urgent__stock { color: inherit; }
+
+.adm-urgent__bar { height: 6px; border-radius: var(--radius-pill); background: var(--adm-crit-bg); overflow: hidden; }
+.adm-urgent__bar i { display: block; height: 100%; background: var(--adm-crit); }
+.is-hoy .adm-urgent__bar { background: rgb(252 250 233 / 0.25); }
+.is-hoy .adm-urgent__bar i { background: var(--crema); }
+
+.adm-urgent__foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.2rem 0.6rem;
+    padding-top: 0.55rem;
+    border-top: 1.5px dotted var(--adm-line);
+    font-size: 0.75rem;
+    color: var(--adm-text-2);
+}
+
+.adm-urgent__foot b { font-size: 1.25rem; font-weight: 900; color: var(--ink); font-variant-numeric: tabular-nums; }
+.adm-urgent__hint { font-weight: 700; color: var(--adm-warn); }
+.is-hoy .adm-urgent__foot { color: inherit; border-top-color: rgb(252 250 233 / 0.45); }
+.is-hoy .adm-urgent__foot b,
+.is-hoy .adm-urgent__hint { color: inherit; }
+
+.adm-urgent__more {
+    display: block;
+    width: 100%;
+    margin-top: 0.9rem;
+    min-height: 44px;
+    padding: 0.7rem 1.2rem;
+    border: 2px solid var(--adm-crit);
+    border-radius: var(--radius-pill);
+    background: transparent;
+    color: var(--adm-crit);
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.adm-urgent__more:hover { background: var(--adm-crit-bg); }
+
+@media (max-width: 980px) {
+    .adm-urgent__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 720px) {
+    .adm-urgent__alarm { flex-direction: column; align-items: stretch; padding: 1.1rem 1.2rem; }
+    .adm-urgent__total b { font-size: 4.4rem; }
+    .adm-urgent__split {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.5rem;
+        padding: 0.8rem 0 0;
+        border-left: 0;
+        border-top: 1.5px solid rgb(252 250 233 / 0.3);
+    }
+    .adm-urgent__split b { font-size: 1.9rem; }
+    .adm-urgent__split span { font-size: 0.6rem; }
+    .adm-urgent__grid { grid-template-columns: 1fr; gap: 0.7rem; }
+    .adm-urgent__card { gap: 0.45rem; }
+    .adm-urgent__stock b { font-size: 2.7rem; }
+    /* En el teléfono la barra sobra: la tarjeta queda más baja */
+    .adm-urgent__bar { display: none; }
+}
 
 /* ============ Tablas ============ */
 
