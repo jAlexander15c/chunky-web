@@ -121,6 +121,7 @@
 .quote-size,
 .quote-chip,
 .quote-heights label,
+.quote-kinds label,
 .quote-check,
 .quote-photo__drop {
     position: relative;
@@ -129,6 +130,7 @@
 .quote-size input,
 .quote-chip input,
 .quote-heights input,
+.quote-kinds input,
 .quote-check input,
 .quote-photo__drop input {
     position: absolute;
@@ -197,7 +199,8 @@
     transform: scale(0.98);
 }
 
-.quote-heights {
+.quote-heights,
+.quote-kinds {
     justify-self: start;
     display: inline-grid;
     grid-template-columns: 1fr 1fr;
@@ -208,7 +211,8 @@
     background: var(--sky);
 }
 
-.quote-heights span {
+.quote-heights span,
+.quote-kinds span {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -222,12 +226,14 @@
     transition: background-color 160ms var(--ease-out), color 160ms var(--ease-out);
 }
 
-.quote-heights input:checked + span {
+.quote-heights input:checked + span,
+.quote-kinds input:checked + span {
     background: var(--mora);
     color: var(--crema);
 }
 
-.quote-heights input:focus-visible + span {
+.quote-heights input:focus-visible + span,
+.quote-kinds input:focus-visible + span {
     outline: 3px solid var(--focus);
     outline-offset: 2px;
 }
@@ -239,6 +245,76 @@
 
 .quote-heights input:disabled + span {
     opacity: 0.42;
+}
+
+/* ============ Cakes o postres enteros ============ */
+
+.quote-kinds {
+    margin: 0 0 2rem;
+}
+
+.quote-kinds span {
+    min-height: 44px;
+    padding: 0 1.3rem;
+}
+
+.quote-desserts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.quote-dessert__drawing {
+    width: 100%;
+    max-width: 92px;
+    height: 70px;
+    margin-bottom: 0.3rem;
+}
+
+.quote-dessert__text {
+    display: grid;
+    gap: 0.1rem;
+}
+
+.quote-dessert__text b {
+    font-size: 0.95rem;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+.quote-dessert__text small {
+    font-size: 0.75rem;
+    color: var(--text-soft);
+}
+
+/* En el celular los nombres no caben en tres columnas: una tarjeta por fila, acostada */
+@media (max-width: 560px) {
+    .quote-desserts {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .quote-dessert .quote-size__card {
+        flex-direction: row;
+        gap: 0.8rem;
+        padding: 0.6rem 1rem;
+        text-align: left;
+    }
+
+    .quote-dessert__drawing {
+        flex: none;
+        width: 56px;
+        height: 44px;
+        margin: 0;
+    }
+
+    .quote-dessert__text {
+        flex: 1;
+    }
+
+    .quote-dessert .quote-size__price {
+        margin: 0;
+        white-space: nowrap;
+    }
 }
 
 .quote-size__note {

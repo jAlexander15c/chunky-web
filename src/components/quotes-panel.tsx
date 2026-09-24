@@ -12,6 +12,7 @@ import {
     formatPrice,
     formatQuoteDate,
     getQuoteSizeLabel,
+    isDessertSelection,
 } from "@/helpers";
 import type { IQuote, IQuoteDetail, QuoteStatus } from "@/helpers";
 
@@ -65,24 +66,27 @@ const QuoteDetail = ({
                 <span className={`qp-pill qp-pill--${quote.status}`}>{QUOTE_STATUS_LABEL[quote.status]}</span>
             </div>
 
-            <div className="qp-photos">
-                <figure className="qp-photo">
-                    <figcaption>Referencia del cake</figcaption>
-                    <a className="qp-photo__frame" href={quote.cakeImage} target="_blank" rel="noopener noreferrer">
-                        <img src={quote.cakeImage} alt={`Foto de referencia del cake de ${quote.customerName}`} />
-                    </a>
-                </figure>
-                <figure className="qp-photo">
-                    <figcaption>Referencia del topper</figcaption>
-                    {quote.topperImage ? (
-                        <a className="qp-photo__frame" href={quote.topperImage} target="_blank" rel="noopener noreferrer">
-                            <img src={quote.topperImage} alt={`Foto de referencia del topper de ${quote.customerName}`} />
+            {/* Los postres enteros (flan, cheesecake…) se cotizan sin fotos */}
+            {quote.cakeImage ? (
+                <div className="qp-photos">
+                    <figure className="qp-photo">
+                        <figcaption>Referencia del cake</figcaption>
+                        <a className="qp-photo__frame" href={quote.cakeImage} target="_blank" rel="noopener noreferrer">
+                            <img src={quote.cakeImage} alt={`Foto de referencia del cake de ${quote.customerName}`} />
                         </a>
-                    ) : (
-                        <div className="qp-photo__frame qp-photo__none">Sin topper</div>
-                    )}
-                </figure>
-            </div>
+                    </figure>
+                    <figure className="qp-photo">
+                        <figcaption>Referencia del topper</figcaption>
+                        {quote.topperImage ? (
+                            <a className="qp-photo__frame" href={quote.topperImage} target="_blank" rel="noopener noreferrer">
+                                <img src={quote.topperImage} alt={`Foto de referencia del topper de ${quote.customerName}`} />
+                            </a>
+                        ) : (
+                            <div className="qp-photo__frame qp-photo__none">Sin topper</div>
+                        )}
+                    </figure>
+                </div>
+            ) : null}
 
             <div className="qp-cols">
                 <section>
@@ -92,7 +96,7 @@ const QuoteDetail = ({
                             <span>{getQuoteSizeLabel(selection)}</span>
                             <span>{formatPrice(selection.basePrice)}</span>
                         </li>
-                        {[{ label: "Masa", line: selection.dough }, ...selection.fillings.map((line, index) => ({ label: `Relleno ${index + 1}`, line }))].map(
+                        {isDessertSelection(selection) ? null : [{ label: "Masa", line: selection.dough }, ...selection.fillings.map((line, index) => ({ label: `Relleno ${index + 1}`, line }))].map(
                             ({ label, line }) => (
                                 <li key={label}>
                                     <span>{label} · {line.name}</span>
@@ -100,7 +104,7 @@ const QuoteDetail = ({
                                 </li>
                             )
                         )}
-                        {selection.topper ? (
+                        {!isDessertSelection(selection) && selection.topper ? (
                             <li>
                                 <span>Topper</span>
                                 <span>+{formatPrice(selection.topperPrice)}</span>
