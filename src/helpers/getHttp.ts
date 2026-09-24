@@ -66,6 +66,21 @@ export const httpPut = <T>(path: string, body: unknown, options?: { headers?: Re
 export const httpDelete = <T>(path: string, options?: { headers?: Record<string, string> }) =>
     sendJson<T>("DELETE", path, undefined, options);
 
+/**
+ * POST JSON que sobrevive al cierre de la pestaña (keepalive). No usa sendBeacon porque el API
+ * pide el header x-api-key. No lee la respuesta: es para envios que no deben frenar nada.
+ */
+export const httpPostKeepalive = (path: string, body: unknown) =>
+    fetch(`${API_BASE}${path}`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            ...(API_KEY ? { "x-api-key": API_KEY } : {}),
+        },
+        body: JSON.stringify(body),
+        keepalive: true,
+    });
+
 /** POST de un archivo tal cual (ej. la foto de un producto), con su propio Content-Type. */
 export const httpPostBinary = async <T>(path: string, file: Blob, options?: { headers?: Record<string, string> }): Promise<T> => {
     const res = await fetch(`${API_BASE}${path}`, {

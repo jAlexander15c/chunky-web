@@ -639,7 +639,8 @@
 /* ============ Barras de productos ============ */
 
 .adm-bars { display: flex; flex-direction: column; gap: 0.7rem; }
-.adm-bar { display: grid; gap: 0.25rem; }
+/* .adm-bar tambien es la barra fija del encabezado: dentro de la lista no es sticky ni lleva fondo */
+.adm-bars > .adm-bar { display: grid; gap: 0.25rem; position: static; background: none; z-index: auto; }
 
 .adm-bar__top {
     display: flex;
@@ -1443,6 +1444,111 @@ a.adm-btn { display: inline-flex; align-items: center; text-decoration: none; }
 @media (prefers-reduced-motion: reduce) {
     .adm-fin { transition: none; }
 }
+
+/* ============ Web: embudo y clics ============ */
+
+/* Pedidos pagados: el verde de "bien", no una serie de venta */
+.adm-legend .is-paid { background: var(--adm-good); height: 8px; width: 8px; }
+
+.adm-chart__area { fill: rgb(58 75 142 / 0.08); }
+.adm-chart__line--thin { stroke-width: 2; }
+.adm-chart__bar.is-paid { fill: var(--adm-good); }
+.adm-chart__bar.is-local { fill: var(--adm-local); opacity: 0.75; }
+.adm-chart__bar.is-web { fill: var(--adm-web); }
+
+/* Cuatro cifras: una fila en escritorio, sin la cuarta sola abajo */
+.adm-tiles--web { grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); }
+
+.adm-web-grid {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: minmax(0, 1fr);
+    margin-top: 0.9rem;
+    align-items: start;
+}
+
+@media (min-width: 1000px) {
+    .adm-web-grid { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
+    .adm-web-grid__wide { grid-column: 1 / -1; }
+}
+
+.adm-funnel { display: grid; gap: 0.45rem; }
+
+.adm-funnel__step {
+    display: grid;
+    grid-template-columns: minmax(0, 9.5rem) minmax(0, 1fr) 3.2rem;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.adm-funnel__name { font-size: 0.8rem; font-weight: 600; }
+
+.adm-funnel__track { height: 26px; background: var(--adm-panel-2); border-radius: 8px; overflow: hidden; }
+
+.adm-funnel__track i {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    min-width: 2.4rem;
+    padding-left: 0.5rem;
+    border-radius: 8px;
+    background: var(--adm-local);
+    color: var(--crema);
+    font-size: 0.75rem;
+    font-style: normal;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.adm-funnel__step.is-paid .adm-funnel__track i { background: var(--adm-good); }
+
+.adm-funnel__rate {
+    text-align: right;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--adm-text-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.adm-funnel__step.is-leak .adm-funnel__rate { color: var(--adm-warn); }
+
+.adm-callout--warn { background: var(--adm-warn-bg); color: var(--adm-warn); }
+.adm-callout--warn b { color: var(--ink); }
+
+@media (max-width: 480px) {
+    .adm-funnel__step { grid-template-columns: minmax(0, 1fr) 3rem; }
+    .adm-funnel__name { grid-column: 1 / -1; }
+}
+
+.adm-web-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+
+.adm-web-table th {
+    padding: 0 0.4rem 0.5rem;
+    text-align: left;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--adm-text-3);
+}
+
+.adm-web-table td { padding: 0.45rem 0.4rem; border-top: 1px solid var(--adm-line); }
+.adm-web-table .is-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.adm-web-table b { font-weight: 800; }
+.adm-web-table__muted { color: var(--adm-text-3); }
+
+.adm-web-table__bar { display: block; height: 4px; margin-top: 0.3rem; background: var(--adm-panel-2); border-radius: 2px; }
+.adm-web-table__bar i { display: block; height: 100%; background: var(--adm-web); border-radius: 2px; }
+
+.adm-web-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+    gap: 0.6rem;
+}
+
+.adm-web-buttons div { display: grid; gap: 0.1rem; padding: 0.65rem 0.8rem; border-radius: 12px; background: var(--adm-panel-2); }
+.adm-web-buttons b { font-size: 1.3rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.adm-web-buttons span { font-size: 0.72rem; color: var(--adm-text-2); }
 
 /* ============ Menú: crear categorías y productos ============ */
 

@@ -16,6 +16,7 @@ import {
     useCategories,
     useSettings,
     useSpecialCategories,
+    trackEvent,
 } from "@/helpers";
 
 const MenuBoardSkeleton = () => (
@@ -64,7 +65,7 @@ export const MenuBoard = () => {
             {!loading && error && (
                 <div className="board__message">
                     <p>No pudimos cargar el tablero. Intenta de nuevo en un momento o pídenos directo.</p>
-                    <a className="board__message-link" href={getWhatsAppUrl()} target="_blank" rel="noreferrer">
+                    <a className="board__message-link" href={getWhatsAppUrl()} target="_blank" rel="noreferrer" onClick={() => trackEvent("whatsapp_click", "menu")}>
                         <PiWhatsappLogoBold aria-hidden /> Escríbenos por WhatsApp
                     </a>
                 </div>

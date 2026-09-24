@@ -16,3 +16,4 @@ export * from "./order-notify";
 export * from "./admin";
 export * from "./gestion";
 export * from "./quote";
+export * from "./tracking";

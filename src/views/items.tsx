@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router";
 import { PiArrowLeftBold, PiPlusBold, PiSlidersHorizontalBold, PiStarFourFill, PiWhatsappLogoBold } from "react-icons/pi";
 
@@ -22,6 +22,7 @@ import {
     useItems,
     useModifiers,
     useSettings,
+    trackEvent,
 } from "@/helpers";
 import type { IModifier } from "@/helpers";
 import type { IItem } from "@/interfaces";
@@ -83,7 +84,10 @@ const ProductCard = ({ item, index, closedLabel, modifiers, onChooseOptions }: I
                     {closedLabel ? (
                         <span className="product__closed">{closedLabel}</span>
                     ) : isCustomizable ? (
-                        <button type="button" className="button button--primary button--sm" onClick={() => onChooseOptions(item)}>
+                        <button type="button" className="button button--primary button--sm" onClick={() => {
+                            trackEvent("product_open", item.id, item.item_name);
+                            onChooseOptions(item);
+                        }}>
                             Elegir
                         </button>
                     ) : quantity > 0 ? (
@@ -111,6 +115,15 @@ export const Items = () => {
     const { settings, isReady: isSettingsReady } = useSettings();
     const modifiers = useModifiers();
     const [optionsItem, setOptionsItem] = useState<IItem | null>(null);
+
+    // Se cuenta aqui y no en el menu: tambien se llega desde el inicio o un enlace guardado.
+    // Espera al nombre (las categorias pueden estar cargando) y cuenta una vez por categoria.
+    const trackedCategoryRef = useRef("");
+    useEffect(() => {
+        if (!selectedCategoryId || !categoryName || trackedCategoryRef.current === selectedCategoryId) return;
+        trackedCategoryRef.current = selectedCategoryId;
+        trackEvent("category_open", selectedCategoryId, categoryName);
+    }, [selectedCategoryId, categoryName]);
     // El dia de pasta solo se venden bebidas aqui; la pasta se arma en su propia hoja
     const isBlockedToday = settings.pastaMode && selectedCategoryId !== settings.beveragesCategoryId;
     const { items, loading: isLoadingItems, error } = useItems(
@@ -180,7 +193,7 @@ export const Items = () => {
                 {selectedCategoryId && !isBlockedToday && !loading && error && (
                     <div className="empty-note">
                         <p>No pudimos cargar los productos. Intenta de nuevo en un momento o pídenos directo.</p>
-                        <a className="text-link" href={getWhatsAppUrl()} target="_blank" rel="noreferrer">
+                        <a className="text-link" href={getWhatsAppUrl()} target="_blank" rel="noreferrer" onClick={() => trackEvent("whatsapp_click", "categoria-pronto")}>
                             <PiWhatsappLogoBold aria-hidden /> Escríbenos por WhatsApp
                         </a>
                     </div>

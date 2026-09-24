@@ -1,7 +1,7 @@
 import { Link } from "react-router";
 import { PiWhatsappLogoBold } from "react-icons/pi";
 
-import { getOpeningHoursRows, getWhatsAppUrl, useSettings } from "@/helpers";
+import { getOpeningHoursRows, getWhatsAppUrl, trackEvent, useSettings } from "@/helpers";
 
 import logo from "@/assets/logos/Rosa.png";
 
@@ -30,7 +30,7 @@ export const SiteFooter = () => {
 
                 <div className="site-footer__col">
                     <h2 className="site-footer__title">Hablemos</h2>
-                    <a className="site-footer__link" href={getWhatsAppUrl()} target="_blank" rel="noreferrer">
+                    <a className="site-footer__link" href={getWhatsAppUrl()} target="_blank" rel="noreferrer" onClick={() => trackEvent("whatsapp_click", "footer")}>
                         <PiWhatsappLogoBold aria-hidden /> Escríbenos por WhatsApp
                     </a>
                     <Link className="site-footer__link" to="/menu">Ver el menú</Link>

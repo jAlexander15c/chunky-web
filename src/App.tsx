@@ -1,8 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router";
 
 import { Cart, CartButton, CartProvider, PastaBuilder, PastaBuilderProvider, SiteFooter, SiteHeader } from "@/components";
 import { AdminView, Cotizador, GestionView, Home, Items, Mantenimiento, Menu, OrderStatusView, StaffView } from "@/views";
+import { getTrackedPath, trackEvent } from "@/helpers";
 import { useWwwRedirect } from "@/hooks/useWwwRedirect";
 
 import './App.css'
@@ -23,8 +24,23 @@ const useScrollOnNavigate = () => {
   }, [pathname, hash]);
 };
 
+/** Una visita por cada ruta del sitio publico: es el primer paso del embudo. */
+const usePageTracking = () => {
+  const { pathname } = useLocation();
+  const lastPathRef = useRef("");
+
+  useEffect(() => {
+    const path = getTrackedPath(pathname);
+    // StrictMode corre el efecto dos veces en desarrollo: la misma ruta cuenta una vez
+    if (lastPathRef.current === path) return;
+    lastPathRef.current = path;
+    trackEvent("page_view", path);
+  }, [pathname]);
+};
+
 const SiteLayout = () => {
   useScrollOnNavigate();
+  usePageTracking();
 
   return (
     <CartProvider>

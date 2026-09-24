@@ -25,6 +25,7 @@ import {
     getWhatsAppUrl,
     isQuoteSizeAvailable,
     submitQuote,
+    trackEvent,
 } from "@/helpers";
 import type { IQuote, IQuoteDraft, IQuoteOption, QuoteHeight, QuoteSize } from "@/helpers";
 
@@ -181,7 +182,7 @@ const QuoteSent = ({ quote, onRestart }: { quote: IQuote; onRestart: () => void 
                 Guardamos tu selección y tus fotos. Falta un paso: escríbenos por WhatsApp con este código y te
                 respondemos con el total final.
             </p>
-            <a className="quote-button" href={getWhatsAppUrl(message)} target="_blank" rel="noopener noreferrer">
+            <a className="quote-button" href={getWhatsAppUrl(message)} target="_blank" rel="noopener noreferrer" onClick={() => trackEvent("whatsapp_click", "cotizador")}>
                 <PiWhatsappLogoBold aria-hidden /> Continuar en WhatsApp
             </a>
             <button type="button" className="quote-button quote-button--ghost" onClick={onRestart}>
@@ -232,6 +233,7 @@ export const Cotizador = () => {
         setSendError("");
         try {
             const { quote } = await submitQuote(draft);
+            trackEvent("quote_submit");
             setSent(quote);
             document.getElementById("resumen")?.scrollIntoView({ block: "start" });
         } catch (error) {

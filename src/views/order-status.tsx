@@ -16,6 +16,7 @@ import {
     getWhatsAppUrl,
     playChime,
     setLastOrderId,
+    trackEvent,
 } from "@/helpers";
 import type { IPublicOrder, OrderStatus } from "@/helpers";
 
@@ -206,7 +207,7 @@ const FailedOrder = ({ order }: { order: IPublicOrder }) => {
                 {lines.length > 0 && (
                     <button type="button" className="button button--primary button--block" onClick={retry}>Volver a intentar</button>
                 )}
-                <a className="checkout__help" href={helpUrl} target="_blank" rel="noopener">
+                <a className="checkout__help" href={helpUrl} target="_blank" rel="noopener" onClick={() => trackEvent("whatsapp_click", "pedido")}>
                     <PiWhatsappLogoBold aria-hidden /> Pedir por WhatsApp
                 </a>
             </div>

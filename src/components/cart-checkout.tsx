@@ -20,6 +20,7 @@ import {
     isAcceptingOrders,
     setLastOrderId,
     useSettings,
+    trackEvent,
 } from "@/helpers";
 import type { CheckoutErrors, Fulfillment, ICheckoutForm } from "@/helpers";
 
@@ -61,7 +62,9 @@ const FULFILLMENT_OPTIONS: { value: Fulfillment; label: string; detail: string }
     { value: "delivery", label: "Delivery", detail: "Envío gratis" },
 ];
 
-const openWhatsApp = (message: string) => {
+/** source dice desde donde se pidio por WhatsApp (bar cerrado, ayuda con el pago). */
+const openWhatsApp = (message: string, source: string) => {
+    trackEvent("whatsapp_click", source);
     window.open(getWhatsAppUrl(message), "_blank", "noopener");
 };
 
@@ -92,7 +95,16 @@ export const CartCheckout = () => {
         }
     }, [form]);
 
+    // El checkout empieza cuando escribe el primer dato, no al ver el carrito
+    const hasStartedRef = useRef(false);
+    const markCheckoutStart = () => {
+        if (hasStartedRef.current) return;
+        hasStartedRef.current = true;
+        trackEvent("checkout_start");
+    };
+
     const updateField = (field: TextField) => (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        markCheckoutStart();
         const value = field === "customerPhone" || field === "whatsappPhone"
             ? formatPhone(event.target.value)
             : event.target.value;
@@ -141,6 +153,8 @@ export const CartCheckout = () => {
     const clearLocation = () => setForm((current) => ({ ...current, deliveryLat: null, deliveryLng: null }));
 
     const createPayment = async () => {
+        markCheckoutStart();
+        trackEvent("pay_click");
         setPaymentError(null);
         const formErrors = getCheckoutErrors(form, requiresDelivery);
         setErrors(formErrors);
@@ -166,7 +180,7 @@ export const CartCheckout = () => {
         navigate(`/pedido/${orderIdRef.current}`);
     };
 
-    const sendHelpMessage = () => openWhatsApp(buildPaymentHelpMessage(lines, requiresDelivery ? form : { ...form, deliveryAddress: "" }, orderIdRef.current));
+    const sendHelpMessage = () => openWhatsApp(buildPaymentHelpMessage(lines, requiresDelivery ? form : { ...form, deliveryAddress: "" }, orderIdRef.current), "ayuda-pago");
 
     if (!isBarOpen) {
         return (
@@ -175,7 +189,7 @@ export const CartCheckout = () => {
                     <strong>{getOrderingStatusLabel(settings, false)}</strong>
                     <span>Los pagos en línea funcionan dentro del horario. Puedes dejar tu pedido por WhatsApp.</span>
                 </div>
-                <button type="button" className="button button--whatsapp button--block" onClick={() => openWhatsApp(buildOrderMessage(lines, requiresDelivery ? getDeliveryText(form) : undefined))}>
+                <button type="button" className="button button--whatsapp button--block" onClick={() => openWhatsApp(buildOrderMessage(lines, requiresDelivery ? getDeliveryText(form) : undefined), "bar-cerrado")}>
                     <PiWhatsappLogoBold aria-hidden /> Enviar pedido por WhatsApp
                 </button>
             </div>

@@ -7,8 +7,9 @@ import {
     formatDayLabel,
     formatHour,
     formatMoney,
+    formatRange,
     formatShortDate,
-    getPanamaToday,
+    getDelta,
     getPeriodRange,
 } from "@/helpers";
 import type { FinancePeriod, IFinancePoint, IFinanceReport } from "@/helpers";
@@ -170,15 +171,6 @@ const SalesChart = ({ points, granularity }: { points: IFinancePoint[]; granular
 };
 
 /* ============ Cálculos de la vista ============ */
-
-/** null si no hay con qué comparar: un período anterior en cero no da un porcentaje honesto. */
-const getDelta = (current: number, previous: number) =>
-    previous > 0 ? Math.round(((current - previous) / previous) * 100) : null;
-
-const formatRange = (from: string, to: string) => {
-    const withYear = from.slice(0, 4) !== to.slice(0, 4) || from.slice(0, 4) !== getPanamaToday().slice(0, 4);
-    return from === to ? formatShortDate(from, withYear) : `${formatShortDate(from, withYear)} – ${formatShortDate(to, withYear)}`;
-};
 
 /** "hoy", "hace 1 d" o "hace N d", contado en días de Panamá. */
 const formatAgeInDays = (value: string) => {

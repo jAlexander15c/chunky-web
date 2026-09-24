@@ -24,6 +24,7 @@ import {
     useItems,
     useModifiers,
     useSettings,
+    trackEvent,
 } from "@/helpers";
 import type { ICartModifier, IPastaOptions, IPastaSettings } from "@/helpers";
 import type { IItem } from "@/interfaces";
@@ -104,6 +105,7 @@ const PastaBuilderForm = ({ pasta, beveragesCategoryId, onDone }: IPastaBuilderF
         if (!isPastaOptionsComplete(selection)) return;
 
         const item = buildPastaItem(pasta);
+        trackEvent("pasta_add");
         for (let count = 0; count < quantity; count++) addItem(item, selection);
         // Las bebidas elegidas entran al carrito junto con la pasta
         for (const drink of pickedDrinks) {

@@ -270,6 +270,47 @@ export interface IFinanceReport {
 export const fetchFinance = (token: string, from: string, to: string, signal?: AbortSignal) =>
     httpGet<IFinanceReport>(`/admin/finance?from=${from}&to=${to}`, { signal, headers: getAdminHeaders(token) });
 
+/** Pasos del embudo de compra en la web. "paid" son los pedidos pagados, no un clic. */
+export type WebFunnelStep = "visit" | "category_open" | "add_to_cart" | "cart_open" | "checkout_start" | "pay_click" | "paid";
+
+export interface IWebTotals {
+    /** Pestañas distintas que abrieron la web. */
+    sessions: number;
+    paidOrders: number;
+    /** Pedidos pagados sobre sesiones, de 0 a 1. */
+    conversion: number;
+    /** Llegaron al checkout y no tocaron pagar. */
+    abandonedCheckouts: number;
+}
+
+export interface IWebPoint {
+    date: string;
+    end: string;
+    sessions: number;
+    /** Sesiones que agregaron algo al carrito. */
+    carts: number;
+    paidOrders: number;
+}
+
+export interface IWebReport {
+    range: IFinanceReport["range"];
+    /** Día del primer evento guardado: antes de esa fecha no se medía. */
+    dataSince: string | null;
+    totals: IWebTotals;
+    previous: IWebTotals;
+    funnel: { step: WebFunnelStep; sessions: number }[];
+    series: IWebPoint[];
+    topProducts: { id: string; name: string; opens: number; adds: number }[];
+    topCategories: { id: string; name: string; opens: number }[];
+    /** 24 horas de Panamá: sesiones por la hora en que empezaron. */
+    hours: { hour: number; sessions: number }[];
+    pages: { path: string; views: number }[];
+    buttons: { whatsapp: number; quotes: number; pastaOpens: number; pastaAdds: number };
+}
+
+export const fetchWebReport = (token: string, from: string, to: string, signal?: AbortSignal) =>
+    httpGet<IWebReport>(`/admin/analytics?from=${from}&to=${to}`, { signal, headers: getAdminHeaders(token) });
+
 export type FinancePeriod = "7d" | "30d" | "mes" | "mes-anterior" | "90d" | "anio";
 
 export const FINANCE_PERIODS: { id: FinancePeriod; label: string }[] = [
@@ -702,4 +743,15 @@ export const formatCountAge = (days: number | null) => {
     if (days <= 0) return "hoy";
     if (days === 1) return "ayer";
     return `hace ${days} d`;
+};
+
+/* ============ Comparación de períodos ============ */
+
+/** null si no hay con qué comparar: un período anterior en cero no da un porcentaje honesto. */
+export const getDelta = (current: number, previous: number) =>
+    previous > 0 ? Math.round(((current - previous) / previous) * 100) : null;
+
+export const formatRange = (from: string, to: string) => {
+    const withYear = from.slice(0, 4) !== to.slice(0, 4) || from.slice(0, 4) !== getPanamaToday().slice(0, 4);
+    return from === to ? formatShortDate(from, withYear) : `${formatShortDate(from, withYear)} – ${formatShortDate(to, withYear)}`;
 };

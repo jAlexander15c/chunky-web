@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 import { CartContext } from "./use-cart";
 
-import { getCartCount, getCartTotal, getLineKey } from "@/helpers";
+import { getCartCount, getCartTotal, getLineKey, trackEvent } from "@/helpers";
 import type { ICartLine, ICartModifier, IPastaOptions } from "@/helpers";
 import type { IItem } from "@/interfaces";
 
@@ -36,7 +36,14 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         }
     }, [lines]);
 
+    // Cada vez que el carrito se abre, venga del boton o de agregar algo con opciones
+    useEffect(() => {
+        if (isOpen) trackEvent("cart_open");
+    }, [isOpen]);
+
     const addItem = useCallback((item: IItem, options?: IPastaOptions, modifiers?: ICartModifier[]) => {
+        // Un solo punto para todos los "agregar": tarjeta, opciones y armador de pasta
+        trackEvent("add_to_cart", item.id, item.item_name);
         const lineKey = getLineKey(item.id, options, modifiers);
         setLines((current) => {
             const existing = current.find((line) => line.lineKey === lineKey);
