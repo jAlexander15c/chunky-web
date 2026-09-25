@@ -15,6 +15,8 @@ export interface IPublicSettings {
     openingHours: IWeekHours;
     /** Abierto o cerrado a mano por hoy desde /tablero; null sigue el horario. */
     storeOverride: StoreOverride | null;
+    /** El sitio publico tambien muestra el aviso de version nueva (el equipo siempre lo ve). */
+    clientUpdateNotice: boolean;
 }
 
 interface ISettingsState {
@@ -31,6 +33,7 @@ const DEFAULT_SETTINGS: IPublicSettings = {
     beveragesCategoryId: null,
     openingHours: DEFAULT_OPENING_HOURS,
     storeOverride: null,
+    clientUpdateNotice: false,
 };
 
 // Un cliente con la pagina abierta se entera del cambio de modo en menos de un minuto

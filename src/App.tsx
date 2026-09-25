@@ -1,9 +1,11 @@
 import { useEffect, useRef } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router";
 
-import { Cart, CartButton, CartProvider, PastaBuilder, PastaBuilderProvider, SiteFooter, SiteHeader } from "@/components";
+import { Cart, CartButton, CartProvider, PastaBuilder, PastaBuilderProvider, SiteFooter, SiteHeader, UpdateBanner, useCart, usePastaBuilder } from "@/components";
 import { AdminView, Cotizador, GestionView, Home, Items, Mantenimiento, Menu, OrderStatusView, StaffView } from "@/views";
-import { getTrackedPath, trackEvent } from "@/helpers";
+import { getTrackedPath, isAppReloading, trackEvent, useAppUpdate, useSettings } from "@/helpers";
+import { useOperationalAutoUpdate } from "@/hooks/useOperationalAutoUpdate";
+import { useSilentSiteUpdate } from "@/hooks/useSilentSiteUpdate";
 import { useWwwRedirect } from "@/hooks/useWwwRedirect";
 
 import './App.css'
@@ -34,8 +36,37 @@ const usePageTracking = () => {
     // StrictMode corre el efecto dos veces en desarrollo: la misma ruta cuenta una vez
     if (lastPathRef.current === path) return;
     lastPathRef.current = path;
+    // Se recarga por una version nueva: la pagina recargada registra esta visita
+    if (isAppReloading()) return;
     trackEvent("page_view", path);
   }, [pathname]);
+};
+
+/**
+ * Vive dentro de los providers porque no recarga con el carrito o el armador abiertos.
+ * El aviso al cliente solo sale si se encendio desde /admin; si no, la actualizacion es invisible.
+ */
+const SiteUpdate = () => {
+  useSilentSiteUpdate();
+  const isUpdateAvailable = useAppUpdate();
+  const { settings } = useSettings();
+  const { count, isOpen: isCartOpen } = useCart();
+  const { isOpen: isPastaBuilderOpen } = usePastaBuilder();
+
+  if (!isUpdateAvailable || !settings.clientUpdateNotice || isCartOpen || isPastaBuilderOpen) return null;
+  return <UpdateBanner isAboveCart={count > 0} />;
+};
+
+/** /admin, /gestion y /staff: se recargan solas en un momento seguro y mientras tanto muestran el aviso. */
+const OperationalLayout = () => {
+  const isUpdateAvailable = useOperationalAutoUpdate();
+
+  return (
+    <>
+      <Outlet />
+      {isUpdateAvailable ? <UpdateBanner /> : null}
+    </>
+  );
 };
 
 const SiteLayout = () => {
@@ -51,6 +82,7 @@ const SiteLayout = () => {
         <PastaBuilder />
         <Cart />
         <CartButton />
+        <SiteUpdate />
       </PastaBuilderProvider>
     </CartProvider>
   );
@@ -66,14 +98,17 @@ const App = () => {
       <Routes>
         {/* La cocina ahora es una seccion de /gestion (rol caja, PIN de cada colaborador) */}
         <Route path="/cocina" element={<Navigate to="/gestion" replace />} />
-        {/* Tablero administrativo: ventas, inventario y movimientos */}
-        <Route path="/admin" element={<AdminView />} />
         {/* Se llamaba /tablero: los enlaces guardados siguen funcionando */}
         <Route path="/tablero" element={<Navigate to="/admin" replace />} />
-        {/* Colaboradores: solo cargan inventario, sin ver ventas */}
-        <Route path="/gestion" element={<GestionView />} />
-        {/* Accesos del equipo a /admin y /gestion: no se enlaza desde el sitio publico */}
-        <Route path="/staff" element={<StaffView />} />
+        {/* Pantallas del equipo: el aviso de version nueva siempre se muestra aqui */}
+        <Route element={<OperationalLayout />}>
+          {/* Tablero administrativo: ventas, inventario y movimientos */}
+          <Route path="/admin" element={<AdminView />} />
+          {/* Colaboradores: solo cargan inventario, sin ver ventas */}
+          <Route path="/gestion" element={<GestionView />} />
+          {/* Accesos del equipo a /admin y /gestion: no se enlaza desde el sitio publico */}
+          <Route path="/staff" element={<StaffView />} />
+        </Route>
         <Route element={<SiteLayout />}>
           <Route index element={<Home />} />
           <Route path="/menu" element={<Menu />} />

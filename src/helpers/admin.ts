@@ -499,6 +499,10 @@ export const setPastaMode = (token: string, enabled: boolean) =>
 export const setDeliveryMode = (token: string, enabled: boolean) =>
     httpPost<{ deliveryMode: boolean }>("/admin/delivery-mode", { enabled }, { headers: getAdminHeaders(token) });
 
+/** Muestra o no al cliente el aviso de version nueva de la web. En /admin y /gestion siempre se muestra. */
+export const setClientUpdateNotice = (token: string, enabled: boolean) =>
+    httpPost<{ clientUpdateNotice: boolean }>("/admin/client-update-notice", { enabled }, { headers: getAdminHeaders(token) });
+
 /** Abre o cierra el local a mano por hoy ("auto" vuelve al horario). A medianoche vuelve solo al horario. */
 export const setStoreStatus = (token: string, status: StoreOverride | "auto") =>
     httpPost<{ status: StoreOverride | "auto" }>("/admin/store-status", { status }, { headers: getAdminHeaders(token) });
