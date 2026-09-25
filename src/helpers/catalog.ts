@@ -42,7 +42,6 @@ const CATEGORY_PRESENTATION: Record<string, ICategoryPresentation> = {
     desayunos: {
         description: "Sabores especiales para comenzar la mañana",
         tone: "orquidea",
-        schedule: "8 a 11 am",
     },
     postres: {
         description: "Sabor, textura y dulzura en su mejor forma",
