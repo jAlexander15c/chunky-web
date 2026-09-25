@@ -390,14 +390,10 @@ export interface IPastaModeContext {
     beveragesCategoryId: string | null;
 }
 
-export function shouldDisplayCategory(category: ICategory, date = new Date(), pastaContext?: IPastaModeContext) {
+export const shouldDisplayCategory = (category: ICategory, pastaContext?: IPastaModeContext) => {
     if (pastaContext?.pastaMode) return category.id === pastaContext.beveragesCategoryId;
-
-    const hour = date.getHours();
-    const categoryColor = normalizeCategoryColor(category.color);
-
-    return !(categoryColor === "PURPLE" && (hour < 8 || hour > 11));
-}
+    return true;
+};
 
 export function getCategoryName(categoryId?: string) {
     if (!categoryId || !categoriesCache) return "Items";

@@ -23,7 +23,7 @@ Galletas gruesas estilo New York y bakery con personalidad propia: una marca "el
 ## Operating Context
 
 - Catalogo servido por API propia (`/categories/get-categories`, `/items/get-items`), sincronizado con el POS; solo se muestran items `available_for_sale`.
-- Categorias por color: ORANGE galletas, RED salado, BLUE bebidas, PURPLE desayuno (solo 8-11 h), DEFAULT postres. Imagenes de categoria en R2.
+- Categorias por color: ORANGE galletas, RED salado, BLUE bebidas, PURPLE desayuno (todo el horario), DEFAULT postres. Imagenes de categoria en R2.
 - Horario de pedidos: lunes a viernes 8:00 a. m.-8:00 p. m., sabado 8:00 a. m.-5:00 p. m., domingo cerrado (`isWithinOperatingHours`).
 - Pedido final: mensaje prellenado a WhatsApp 50763266648. No hay pago en linea.
 

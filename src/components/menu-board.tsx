@@ -45,7 +45,7 @@ export const MenuBoard = () => {
     const specials = useSpecialCategories();
     const visibleCategories = [
         ...specials.map((special) => special.category),
-        ...categories.filter((category) => !isSpecialCategory(category) && shouldDisplayCategory(category, new Date(), settings)),
+        ...categories.filter((category) => !isSpecialCategory(category) && shouldDisplayCategory(category, settings)),
     ];
     const getSpecial = (categoryId: string) => specials.find((special) => special.category.id === categoryId);
 

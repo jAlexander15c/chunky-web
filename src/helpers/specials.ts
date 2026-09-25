@@ -52,7 +52,7 @@ export const useSpecialCategories = (): ISpecialCategory[] => {
     const pastaItemId = settings.pasta?.itemId;
 
     const specials = useMemo(
-        () => (isReady ? categories.filter((category) => isSpecialCategory(category) && shouldDisplayCategory(category, new Date(), settings)) : []),
+        () => (isReady ? categories.filter((category) => isSpecialCategory(category) && shouldDisplayCategory(category, settings)) : []),
         [categories, isReady, settings]
     );
     const [stock, setStock] = useState<Record<string, ISpecialStock>>({});
