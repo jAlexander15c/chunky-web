@@ -87,6 +87,8 @@ export interface ITicket {
     lines: ITicketLine[];
     /** Las cuentas abiertas de la misma mesa, esta incluida. Vacío en las de para llevar. */
     tableAccounts: ITableAccount[];
+    /** Comandas de la mesa que la cocina aún no entrega. En 0 con platos enviados: pendiente de pago. */
+    inKitchen: number;
     /** Cuándo se dejó a crédito y quién. Siguen puestos después de cobrarla. */
     creditAt: string | null;
     creditByName: string | null;
@@ -119,6 +121,8 @@ export interface ITableSummary {
     paidAmount: number;
     items: number;
     pending: number;
+    /** Comandas enviadas que la cocina aún no entrega. En 0 con platos: pendiente de pago. */
+    inKitchen: number;
     /** Cuentas abiertas en la mesa. Total, platos y pendientes suman las de todas. */
     accounts: number;
     openedAt: string | null;

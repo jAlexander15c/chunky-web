@@ -983,7 +983,10 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
         const renderTable = (table: ITableSummary) => {
             const busy = table.ticketId !== null;
             const isTogo = table.tableNumber === null;
-            const tone = busy && table.items > 0 ? (table.pending > 0 ? " is-busy" : " is-ready") : busy ? " is-busy" : "";
+            // Todo enviado y entregado, pero la cuenta sigue abierta: falta cobrarla
+            const isDue = busy && table.items > 0 && table.pending === 0 && table.inKitchen === 0;
+            const tone =
+                busy && table.items > 0 ? (table.pending > 0 ? " is-busy" : isDue ? " is-due" : " is-ready") : busy ? " is-busy" : "";
 
             return (
                 <button
@@ -1015,6 +1018,8 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                             </span>
                             {table.pending > 0 ? (
                                 <span className="ges-table__pend">{table.pending} por enviar</span>
+                            ) : isDue ? (
+                                <span className="ges-table__due">Pendiente de pago</span>
                             ) : table.items > 0 ? (
                                 <span className="ges-table__ok">En cocina</span>
                             ) : null}
@@ -1068,6 +1073,8 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
     /* ---- Cuenta abierta ---- */
     const pending = ticket.lines.filter((line) => !line.sentAt);
     const sent = ticket.lines.filter((line) => line.sentAt);
+    // La cocina ya entregó todo lo enviado: solo falta cobrar
+    const isDelivered = sent.length > 0 && ticket.inKitchen === 0;
     const label = getTicketLabel(ticket);
     const tableNumber = ticket.tableNumber;
     // Una mesa con varias cuentas: los textos hablan de "la cuenta de Ana", no de cerrar la mesa
@@ -1259,7 +1266,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
 
                                 {sent.length > 0 ? (
                                     <>
-                                        <p className="ges-grp">Ya está en cocina</p>
+                                        <p className="ges-grp">{isDelivered ? "Entregado · pendiente de pago" : "Ya está en cocina"}</p>
                                         {sent.map((line) => (
                                             <div className="ges-tl is-sent" key={line.id}>
                                                 <b>{line.name}</b>
@@ -1306,7 +1313,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                             disabled={pending.length === 0 || !hasShift}
                             onClick={() => void run(() => sendTicketToKitchen(token, ticket.id), "No pudimos enviar a cocina.")}
                         >
-                            {pending.length > 0 ? `Enviar ${pending.length} a cocina` : "Todo está en cocina"}
+                            {pending.length > 0 ? `Enviar ${pending.length} a cocina` : isDelivered ? "Todo entregado" : "Todo está en cocina"}
                         </button>
 
                         <button

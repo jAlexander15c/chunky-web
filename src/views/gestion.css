@@ -606,6 +606,7 @@
 .ges-table:disabled, .ges-prod:disabled { opacity: 0.45; cursor: not-allowed; }
 .ges-table.is-busy { background: var(--sky); border-color: var(--mora); }
 .ges-table.is-ready { background: var(--ges-good-bg); border-color: var(--ges-good); }
+.ges-table.is-due { background: var(--ges-warn-bg); border-color: var(--ges-warn); }
 .ges-table--togo { border-style: dashed; }
 
 @media (hover: hover) and (pointer: fine) {
@@ -647,6 +648,7 @@
 .ges-table__m { font-size: 0.72rem; color: var(--ges-text-2); font-weight: 700; }
 
 .ges-table__pend,
+.ges-table__due,
 .ges-table__ok {
     font-size: 0.66rem;
     font-weight: 800;
@@ -658,6 +660,7 @@
 
 .ges-table__pend { color: var(--ges-warn); background: var(--ges-warn-bg); padding: 0.05rem 0.45rem; border-radius: var(--radius-pill); }
 .ges-table__ok { color: var(--ges-good); }
+.ges-table__due { color: var(--ges-warn); }
 .ges-table__paid { font-size: 0.72rem; font-weight: 800; color: var(--ges-warn); font-variant-numeric: tabular-nums; }
 
 .ges-warning {
