@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { getCategories } from "./getCategories";
 import { getApiUrl } from "./getHttp";
 import { getItems } from "./getItems";
 import { getNextOpeningLabel, getOpeningStatusLabel, isWithinOperatingHours } from "./hours";
 import type { IWeekHours, StoreOverride } from "./hours";
+import { keepIfSame, useLiveRefresh } from "./live-refresh";
 import { getItemPrice } from "./order";
 
 import type { ICategory, IItem } from "@/interfaces";
@@ -124,8 +125,9 @@ function normalizeCategoryColor(color?: string) {
     return (color ?? "").trim().toUpperCase();
 }
 
-export async function fetchCategoriesCached() {
-    const freshCategories = getFreshCategories();
+/** Con `force` se ignora la cache (la caja revalida en segundo plano). */
+export async function fetchCategoriesCached(force = false) {
+    const freshCategories = force ? null : getFreshCategories();
     if (freshCategories) {
         console.log("[get-categories] desde cache:", freshCategories.length, "categorias", freshCategories);
         return freshCategories;
@@ -176,11 +178,11 @@ function readCachedItems(categoryId: string, scope: CatalogScope) {
     return undefined;
 }
 
-export async function fetchItemsByCategoryCached(categoryId: string, scope: CatalogScope = "normal") {
+export async function fetchItemsByCategoryCached(categoryId: string, scope: CatalogScope = "normal", force = false) {
     if (!categoryId) return [];
 
     const cacheKey = getItemsCacheKey(categoryId, scope);
-    const cached = readCachedItems(categoryId, scope);
+    const cached = force ? undefined : readCachedItems(categoryId, scope);
     if (cached) {
         console.log(`[get-items] desde cache category_id=${categoryId}:`, cached.length, "items", cached);
         return cached;
@@ -221,10 +223,21 @@ export async function fetchItemsByCategoryCached(categoryId: string, scope: Cata
     return request;
 }
 
-export function useCategories() {
+/** `live`: para la caja, que queda abierta todo el dia y tiene que ver los cambios del tablero. */
+interface ICatalogHookOptions {
+    live?: boolean;
+}
+
+export function useCategories({ live = false }: ICatalogHookOptions = {}) {
     const [categories, setCategories] = useState<ICategory[]>(() => getFreshCategories() ?? []);
     const [loading, setLoading] = useState(() => !getFreshCategories());
     const [error, setError] = useState<string>("");
+
+    useLiveRefresh(() => {
+        fetchCategoriesCached(true)
+            .then((next) => setCategories((current) => keepIfSame(current, next)))
+            .catch(() => undefined);
+    }, live);
 
     useEffect(() => {
         let cancelled = false;
@@ -264,11 +277,27 @@ export function useCategories() {
     return { categories, loading, error };
 }
 
-export function useItems(categoryId?: string, scope: CatalogScope = "normal") {
+export function useItems(categoryId?: string, scope: CatalogScope = "normal", { live = false }: ICatalogHookOptions = {}) {
     const initialItems = useMemo(() => (categoryId ? readCachedItems(categoryId, scope) ?? [] : []), [categoryId, scope]);
     const [items, setItems] = useState<IItem[]>(initialItems);
     const [loading, setLoading] = useState(Boolean(categoryId) && initialItems.length === 0);
     const [error, setError] = useState<string>("");
+
+    // Si se cambio de categoria mientras llegaba la respuesta, esa respuesta ya no se muestra
+    const currentKeyRef = useRef("");
+    useEffect(() => {
+        currentKeyRef.current = categoryId ? getItemsCacheKey(categoryId, scope) : "";
+    }, [categoryId, scope]);
+
+    useLiveRefresh(() => {
+        if (!categoryId) return;
+        const requestedKey = getItemsCacheKey(categoryId, scope);
+        fetchItemsByCategoryCached(categoryId, scope, true)
+            .then((next) => {
+                if (currentKeyRef.current === requestedKey) setItems((current) => keepIfSame(current, next));
+            })
+            .catch(() => undefined);
+    }, live);
 
     useEffect(() => {
         let cancelled = false;

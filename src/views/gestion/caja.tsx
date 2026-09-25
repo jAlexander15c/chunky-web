@@ -905,10 +905,11 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(true);
 
-    const { categories } = useCategories();
+    // La caja queda abierta todo el dia: revalida el menu para ver los cambios del tablero sin recargar
+    const { categories } = useCategories({ live: true });
     const currentCategory = categoryId ?? categories[0]?.id;
-    const { items } = useItems(currentCategory);
-    const modifiers = useModifiers();
+    const { items } = useItems(currentCategory, "normal", { live: true });
+    const modifiers = useModifiers({ live: true });
 
     const handleError = useCallback(
         (requestError: unknown, fallback: string) => {

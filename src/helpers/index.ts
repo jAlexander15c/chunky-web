@@ -18,3 +18,4 @@ export * from "./gestion";
 export * from "./quote";
 export * from "./tracking";
 export * from "./app-version";
+export * from "./live-refresh";

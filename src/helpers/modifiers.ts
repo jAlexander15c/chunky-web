@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { httpGet } from "./getHttp";
+import { keepIfSame, useLiveRefresh } from "./live-refresh";
 
 import type { IItem } from "@/interfaces";
 
@@ -37,9 +38,9 @@ let modifiersCache: IModifier[] | null = null;
 let modifiersSavedAt = 0;
 let modifiersRequest: Promise<IModifier[]> | null = null;
 
-/** Catalogo de modificadores del API, con cache corta en memoria. */
-export const fetchModifiersCached = () => {
-    if (modifiersCache && Date.now() - modifiersSavedAt < MODIFIERS_TTL_MS) return Promise.resolve(modifiersCache);
+/** Catalogo de modificadores del API, con cache corta en memoria. Con `force` se ignora la cache. */
+export const fetchModifiersCached = (force = false) => {
+    if (!force && modifiersCache && Date.now() - modifiersSavedAt < MODIFIERS_TTL_MS) return Promise.resolve(modifiersCache);
 
     if (!modifiersRequest) {
         modifiersRequest = httpGet<{ modifiers: IModifier[] }>("/modifiers")
@@ -61,8 +62,13 @@ export const fetchModifiersCached = () => {
     return modifiersRequest;
 };
 
-export const useModifiers = () => {
+/** `live`: para la caja, que queda abierta todo el dia y tiene que ver los cambios del tablero. */
+export const useModifiers = ({ live = false }: { live?: boolean } = {}) => {
     const [modifiers, setModifiers] = useState<IModifier[]>(() => modifiersCache ?? []);
+
+    useLiveRefresh(() => {
+        void fetchModifiersCached(true).then((next) => setModifiers((current) => keepIfSame(current, next)));
+    }, live);
 
     useEffect(() => {
         let cancelled = false;
