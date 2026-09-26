@@ -13,12 +13,14 @@ import {
     formatCreditDay,
     formatMoney,
     getCreditAge,
+    getPageSlice,
+    getSafePage,
     registerAdminFundMovement,
     setTablesCount,
 } from "@/helpers";
 import type { ICreditTicket, IFund, IShiftDetail, IShiftRow, ManualFundMovementType } from "@/helpers";
 
-import { AdminPagination, getPageSlice, getSafePage } from "./admin-pagination";
+import { AdminPagination } from "./admin-pagination";
 
 /** Pocas filas por tabla: la caja se lee sin scrollear. */
 const CAJA_PAGE_SIZE = 8;

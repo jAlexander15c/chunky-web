@@ -13,6 +13,8 @@ import {
     formatCountAge,
     formatDayClock,
     formatQuantity,
+    getPageSlice,
+    getSafePage,
     registerCount,
     registerProduction,
     registerPurchase,
@@ -31,7 +33,7 @@ import type {
 } from "@/helpers";
 
 import { AdminBuyNow } from "./admin-buy-now";
-import { AdminPagination, getPageSlice, getSafePage } from "./admin-pagination";
+import { AdminPagination } from "./admin-pagination";
 
 /** La cocina carga producción mientras alguien mira: se refresca solo. */
 const REFRESH_MS = 60000;

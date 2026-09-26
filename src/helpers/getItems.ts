@@ -8,5 +8,6 @@ export const getItems = (
   // chunky-api filtra con category_id; categoryId se mantiene para el API desplegado
   const id = params?.categoryId ? encodeURIComponent(params.categoryId) : "";
   const q = id ? `?category_id=${id}&categoryId=${id}` : "";
-  return httpGet<IItem[]>(`/items/get-items${q}`, opts);
+  // Con categoria llega la lista; sin ella, { items }
+  return httpGet<IItem[] | { items?: IItem[] }>(`/items/get-items${q}`, opts);
 };

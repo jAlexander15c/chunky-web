@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router";
 import { PiArrowLeftBold, PiPlusBold, PiSlidersHorizontalBold, PiStarFourFill, PiWhatsappLogoBold } from "react-icons/pi";
 
@@ -133,9 +133,8 @@ export const Items = () => {
     const loading = isLoadingItems || !isSettingsReady;
     const isOpen = isAcceptingOrders(settings);
 
-    const availableItems = useMemo(
-        () => items.filter((item) => item.category_id === selectedCategoryId && item.id !== settings.pasta?.itemId && hasItemAvailableForSale(item)),
-        [items, selectedCategoryId, settings.pasta?.itemId]
+    const availableItems = items.filter(
+        (item) => item.category_id === selectedCategoryId && item.id !== settings.pasta?.itemId && hasItemAvailableForSale(item)
     );
 
     return (

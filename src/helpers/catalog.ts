@@ -135,9 +135,9 @@ async function fetchCategoriesCached(force = false) {
     if (!categoriesRequest) {
         console.log("[get-categories] pidiendo al API");
         categoriesRequest = getCategories()
-            .then((response: any) => {
+            .then((response) => {
                 console.log("[get-categories] respuesta del API:", response);
-                const nextCategories = response.data.categories as ICategory[];
+                const nextCategories = response.data.categories;
                 console.log(
                     "[get-categories] categorias:",
                     nextCategories?.length ?? 0,
@@ -192,7 +192,7 @@ export async function fetchItemsByCategoryCached(categoryId: string, scope: Cata
     if (!request) {
         console.log(`[get-items] pidiendo al API category_id=${categoryId}`);
         request = getItems({ categoryId })
-            .then((response: any) => {
+            .then((response) => {
                 console.log(`[get-items] respuesta del API category_id=${categoryId}:`, response);
                 // `getItems` may return either an array of items or an object with `items`.
                 const nextItems: IItem[] = Array.isArray(response)
@@ -257,9 +257,9 @@ export function useCategories({ live = false }: ICatalogHookOptions = {}) {
                 if (!cancelled) {
                     setCategories(nextCategories);
                 }
-            } catch (e: any) {
+            } catch (e) {
                 if (!cancelled) {
-                    setError(e?.message ?? "Error");
+                    setError(e instanceof Error ? e.message : "Error");
                 }
             } finally {
                 if (!cancelled) {
@@ -325,9 +325,9 @@ export function useItems(categoryId?: string, scope: CatalogScope = "normal", { 
                 if (!cancelled) {
                     setItems(nextItems);
                 }
-            } catch (e: any) {
+            } catch (e) {
                 if (!cancelled) {
-                    setError(e?.message ?? "Error");
+                    setError(e instanceof Error ? e.message : "Error");
                 }
             } finally {
                 if (!cancelled) {
@@ -402,9 +402,9 @@ export function getCategoryName(categoryId?: string) {
 export function hasItemAvailableForSale(item: IItem) {
     if (!Array.isArray(item.variants) || item.variants.length === 0) return false;
 
-    return item.variants.some((variant: any) => {
+    return item.variants.some((variant) => {
         const stores = Array.isArray(variant?.stores) ? variant.stores : [];
-        return stores.some((store: any) => store?.available_for_sale === true);
+        return stores.some((store) => store?.available_for_sale === true);
     });
 }
 
