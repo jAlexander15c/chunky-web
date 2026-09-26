@@ -89,6 +89,15 @@ export const Privacidad = () => {
                     <ul>
                         <li>Tu registro de cliente se borra solo si pasan 3 años sin que compres.</li>
                         <li>De un pedido que nunca se pagó, borramos tu nombre, celular y dirección a los 90 días.</li>
+                        <li>
+                            De un pedido pagado que no quedó en tu registro de cliente, borramos tu nombre, celular, nota y
+                            dirección a los 90 días del pago.
+                        </li>
+                        <li>
+                            De una cotización, borramos las fotos de referencia a los 90 días de la fecha del evento, y tu nombre,
+                            WhatsApp y nota al año.
+                        </li>
+                        <li>El enlace para ver el estado de tu pedido deja de funcionar a los 7 días.</li>
                         <li>Las visitas a la web, que no te identifican, se borran a los 180 días.</li>
                         <li>Los montos de las ventas se guardan el tiempo que exige la ley para la contabilidad.</li>
                     </ul>
@@ -111,8 +120,8 @@ export const Privacidad = () => {
                     <h2>Cookies y lo que guarda tu navegador</h2>
                     <p>
                         No usamos cookies ni herramientas de rastreo de otras empresas. Tu navegador guarda, solo en tu
-                        aparato, tu carrito, lo que escribes en el formulario mientras compras, tu último pedido para que
-                        puedas volver a verlo y que ya aceptaste este aviso, para no preguntártelo otra vez.
+                        aparato, tu carrito, tu nombre y celular mientras compras (la dirección y la nota se borran al cerrar
+                        la pestaña) y, por 7 días, la llave de tus últimos pedidos para que puedas volver a verlos.
                     </p>
                     <p>
                         Para mejorar la web contamos visitas y clics con un número al azar que dura lo que la pestaña abierta.

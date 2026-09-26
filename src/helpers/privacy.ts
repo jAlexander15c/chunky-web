@@ -2,7 +2,7 @@
  * Versión del aviso de privacidad: la fecha en que cambió su texto. Viaja con cada pedido y
  * cotización para dejar constancia de qué aviso aceptó el cliente. Si cambia el aviso, cambia esta fecha.
  */
-export const PRIVACY_NOTICE_VERSION = "2026-09-25";
+export const PRIVACY_NOTICE_VERSION = "2026-09-26";
 
 /** "25 de septiembre de 2026", para mostrarla en /privacidad. */
 export const getPrivacyNoticeDateLabel = () =>
