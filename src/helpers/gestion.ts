@@ -390,8 +390,16 @@ export const fetchTicket = (token: string, ticketId: number, signal?: AbortSigna
 export const addTicketLine = (
     token: string,
     ticketId: number,
-    line: { variantId: string; quantity: number; modifierOptionIds?: string[] }
+    line: { variantId: string; quantity: number; modifierOptionIds?: string[]; note?: string | null }
 ) => httpPost<{ ticket: ITicket }>(`/gestion/caja/cuentas/${ticketId}/lineas`, line, { headers: getGestionHeaders(token) });
+
+/** Lo que la cocina debe saber de un plato ("sin cebolla"). Vacía la quita. Solo antes de enviarlo. */
+export const setTicketLineNote = (token: string, ticketId: number, lineId: number, note: string | null) =>
+    httpPost<{ ticket: ITicket }>(
+        `/gestion/caja/cuentas/${ticketId}/lineas/${lineId}/nota`,
+        { note },
+        { headers: getGestionHeaders(token) }
+    );
 
 /** Cantidad cero borra la línea. Solo sirve con lo que no se haya mandado a cocina. */
 export const changeTicketLine = (token: string, ticketId: number, lineId: number, quantity: number) =>
@@ -404,6 +412,10 @@ export const changeTicketLine = (token: string, ticketId: number, lineId: number
 export const sendTicketToKitchen = (token: string, ticketId: number) =>
     httpPost<{ ticket: ITicket }>(`/gestion/caja/cuentas/${ticketId}/cocina`, {}, { headers: getGestionHeaders(token) });
 
+/**
+ * Cobra la cuenta completa: con un solo medio, o con las partes de un Mixto ya armadas
+ * (tienen que sumar el total). En Loyverse sale un recibo por parte.
+ */
 export const payTicket = (token: string, ticketId: number, payments: ITicketPayment[]) =>
     httpPost<{ ticket: ITicket }>(
         `/gestion/caja/cuentas/${ticketId}/cobrar`,
@@ -412,19 +424,9 @@ export const payTicket = (token: string, ticketId: number, payments: ITicketPaym
     );
 
 /**
- * Registra lo que paga una persona de la cuenta (cobro Mixto por partes). El pago que
- * completa el total cierra la cuenta: la respuesta llega ya cobrada.
+ * Quita un pago por partes que quedó registrado con el cobro anterior (uno por uno), para
+ * poder armar el Mixto de nuevo. Solo mientras la cuenta sigue abierta.
  */
-export const addTicketPayment = (
-    token: string,
-    ticketId: number,
-    payment: { method: PaymentMethod; amount: number; payerName: string | null }
-) =>
-    httpPost<{ ticket: ITicket }>(`/gestion/caja/cuentas/${ticketId}/pagos`, payment, {
-        headers: getGestionHeaders(token),
-    });
-
-/** Quita un pago por partes cargado por error, mientras la cuenta sigue abierta. */
 export const removeTicketPayment = (token: string, ticketId: number, index: number) =>
     httpPost<{ ticket: ITicket }>(`/gestion/caja/cuentas/${ticketId}/pagos/${index}/quitar`, {}, {
         headers: getGestionHeaders(token),

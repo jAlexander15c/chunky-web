@@ -86,6 +86,7 @@ const KitchenTicket = ({ order, now, onStep }: { order: IKitchenOrder; now: numb
                                 ].join(" · ")}
                             </span>
                         )}
+                        {line.note && <span className="kitchen-ticket__line-note">{line.note}</span>}
                     </li>
                 ))}
             </ul>

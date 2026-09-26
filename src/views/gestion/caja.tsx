@@ -5,7 +5,6 @@ import {
     HttpError,
     PAYMENT_LABEL,
     addTicketLine,
-    addTicketPayment,
     assignTicketCustomer,
     changeTicketLine,
     fetchCustomerMatches,
@@ -28,6 +27,7 @@ import {
     removeTicketPayment,
     renameTicket,
     sendTicketToKitchen,
+    setTicketLineNote,
     useCategories,
     useItems,
     useModifiers,
@@ -83,135 +83,258 @@ const parseAmount = (value: string) => {
 const formatPaymentTime = (value?: string) =>
     value ? new Date(value).toLocaleTimeString("es-PA", { hour: "numeric", minute: "2-digit", hour12: true }) : "";
 
-interface IPartialPaymentFormProps {
-    missing: number;
-    onAdd: (payment: { method: PaymentMethod; amount: number; payerName: string | null }) => Promise<void>;
+/** Hasta cuántas partes se puede armar un Mixto (la API acepta 10 pagos). */
+const MAX_MIXED_PARTS = 10;
+
+const EQUAL_SPLITS = [2, 3, 4];
+
+/** Una parte de un Mixto mientras se arma. received es solo para calcular el vuelto. */
+interface IMixedPart {
+    key: number;
+    method: PaymentMethod;
+    amount: string;
+    payerName: string;
+    received: string;
+}
+
+let mixedPartKey = 0;
+
+const getNewPart = (method: PaymentMethod = "efectivo", amount = ""): IMixedPart => ({
+    key: ++mixedPartKey,
+    method,
+    amount,
+    payerName: "",
+    received: "",
+});
+
+/** El total en partes iguales al centavo; lo que sobra del redondeo va en la última. */
+const getEqualAmounts = (total: number, count: number) => {
+    const base = Math.floor((total / count) * 100) / 100;
+    return Array.from({ length: count }, (_, index) =>
+        index === count - 1 ? roundMoney(total - base * (count - 1)) : base
+    );
+};
+
+const getPartsSum = (parts: IMixedPart[]) =>
+    roundMoney(parts.reduce((sum, one) => sum + roundMoney(parseAmount(one.amount)), 0));
+
+interface IMixedPaymentBuilderProps {
+    total: number;
+    onPay: (payments: ITicketPayment[]) => Promise<void>;
+    onClose: () => void;
 }
 
 /**
- * El siguiente pago de una cuenta que se paga por partes. Solo se registra lo que va a la
- * cuenta: si pagan en efectivo con más, el vuelto se calcula aquí y se da aparte.
+ * Mixto: se arman las partes como las pida el cliente (medio, monto y quién paga), se
+ * cambian o se quitan libremente, y se cobra todo junto cuando la suma cuadra con el total.
+ * Nada se registra antes: cerrar el diálogo descarta lo armado. El vuelto del efectivo se
+ * calcula por parte y se da aparte.
  */
-const PartialPaymentForm = ({ missing, onAdd }: IPartialPaymentFormProps) => {
-    const [method, setMethod] = useState<PaymentMethod>("efectivo");
-    const [amount, setAmount] = useState("");
-    const [payerName, setPayerName] = useState("");
-    const [received, setReceived] = useState("");
+const MixedPaymentBuilder = ({ total, onPay, onClose }: IMixedPaymentBuilderProps) => {
+    const [parts, setParts] = useState<IMixedPart[]>(() => [getNewPart()]);
     const [error, setError] = useState("");
     const [isSending, setIsSending] = useState(false);
 
-    const value = roundMoney(parseAmount(amount));
-    const change = roundMoney(parseAmount(received) - value);
-    const isShort = method === "efectivo" && received !== "" && change < -0.005;
-    const isOver = value > missing + 0.005;
-    const closesAccount = value > 0 && Math.abs(value - missing) < 0.005;
-    const canAdd = value > 0 && !isOver && !isShort && !isSending;
+    const paid = getPartsSum(parts);
+    const difference = roundMoney(total - paid);
+    const isBalanced = Math.abs(difference) < 0.005;
+    const hasEmptyPart = parts.some((one) => roundMoney(parseAmount(one.amount)) <= 0);
+    const canPay = isBalanced && !hasEmptyPart && !isSending;
+
+    const updatePart = (key: number, change: Partial<IMixedPart>) => {
+        setParts((current) => current.map((one) => (one.key === key ? { ...one, ...change } : one)));
+        setError("");
+    };
+
+    const removePart = (key: number) => {
+        setParts((current) => current.filter((one) => one.key !== key));
+        setError("");
+    };
+
+    // Lo que le falta a la cuenta sin contar esta parte: con eso la parte cierra el total
+    const getMissingFor = (part: IMixedPart) =>
+        Math.max(roundMoney(total - paid + roundMoney(parseAmount(part.amount))), 0);
+
+    const splitEqually = (count: number) => {
+        const amounts = getEqualAmounts(total, count);
+        // Se respeta lo ya escrito de cada parte (medio y nombre); solo cambian los montos
+        setParts((current) =>
+            amounts.map((amount, index) =>
+                current[index] ? { ...current[index], amount: amount.toFixed(2) } : getNewPart("efectivo", amount.toFixed(2))
+            )
+        );
+        setError("");
+    };
 
     const submit = async () => {
         setIsSending(true);
         setError("");
 
         try {
-            await onAdd({ method, amount: value, payerName: payerName.trim() || null });
-            setAmount("");
-            setPayerName("");
-            setReceived("");
+            await onPay(
+                parts.map((one) => ({
+                    method: one.method,
+                    amount: roundMoney(parseAmount(one.amount)),
+                    payerName: one.payerName.trim() || null,
+                }))
+            );
         } catch (requestError) {
-            setError(requestError instanceof HttpError ? requestError.message : "No se pudo registrar el pago.");
-        } finally {
+            setError(requestError instanceof HttpError ? requestError.message : "No se pudo cobrar.");
             setIsSending(false);
         }
     };
 
     return (
-        <div className="ges-part">
-            <span className="ges-part__lbl">Siguiente pago</span>
+        <>
+            <div className="ges-split">
+                <span>Partes iguales</span>
+                {EQUAL_SPLITS.map((count) => (
+                    <button key={count} type="button" disabled={isSending} onClick={() => splitEqually(count)}>
+                        {count}
+                    </button>
+                ))}
+            </div>
 
-            <div className="ges-part__row">
-                <label className="ges-field ges-field--sm">
-                    <span>Medio</span>
-                    <select
-                        id="caja-parte-medio"
-                        value={method}
-                        onChange={(event) => setMethod(event.target.value as PaymentMethod)}
+            <div className="ges-mixed">
+                {parts.map((part, index) => {
+                    const change = roundMoney(parseAmount(part.received) - parseAmount(part.amount));
+                    const isShort = part.received !== "" && change < -0.005;
+                    const missingFor = getMissingFor(part);
+
+                    return (
+                        <div className="ges-part" key={part.key}>
+                            <div className="ges-part__head">
+                                <span className="ges-part__lbl">Parte {index + 1}</span>
+                                {parts.length > 1 ? (
+                                    <button
+                                        type="button"
+                                        className="ges-part__drop"
+                                        disabled={isSending}
+                                        onClick={() => removePart(part.key)}
+                                    >
+                                        Quitar
+                                    </button>
+                                ) : null}
+                            </div>
+
+                            <div className="ges-part__row">
+                                <label className="ges-field ges-field--sm">
+                                    <span>Medio</span>
+                                    <select
+                                        id={`caja-parte-medio-${part.key}`}
+                                        value={part.method}
+                                        onChange={(event) => updatePart(part.key, { method: event.target.value as PaymentMethod })}
+                                    >
+                                        {PAYMENT_METHODS.map((option) => (
+                                            <option key={option} value={option}>{PAYMENT_LABEL[option]}</option>
+                                        ))}
+                                    </select>
+                                </label>
+                                <label className="ges-field ges-field--sm">
+                                    <span>Monto</span>
+                                    <input
+                                        id={`caja-parte-monto-${part.key}`}
+                                        type="text"
+                                        inputMode="decimal"
+                                        value={part.amount}
+                                        placeholder="0.00"
+                                        onChange={(event) => updatePart(part.key, { amount: event.target.value })}
+                                    />
+                                </label>
+                            </div>
+
+                            <div className="ges-quick">
+                                <button
+                                    type="button"
+                                    disabled={missingFor <= 0 || missingFor === roundMoney(parseAmount(part.amount))}
+                                    onClick={() => updatePart(part.key, { amount: missingFor.toFixed(2) })}
+                                >
+                                    Lo que falta {formatCash(missingFor)}
+                                </button>
+                            </div>
+
+                            <label className="ges-field ges-field--sm">
+                                <span>Quién paga (opcional)</span>
+                                <input
+                                    id={`caja-parte-nombre-${part.key}`}
+                                    type="text"
+                                    maxLength={40}
+                                    value={part.payerName}
+                                    placeholder="Ej. Luis"
+                                    onChange={(event) => updatePart(part.key, { payerName: event.target.value })}
+                                />
+                            </label>
+
+                            {part.method === "efectivo" ? (
+                                <div className="ges-part__row ges-part__row--end">
+                                    <label className="ges-field ges-field--sm">
+                                        <span>Con cuánto paga</span>
+                                        <input
+                                            id={`caja-parte-recibido-${part.key}`}
+                                            type="text"
+                                            inputMode="decimal"
+                                            value={part.received}
+                                            placeholder="0.00"
+                                            onChange={(event) => updatePart(part.key, { received: event.target.value })}
+                                        />
+                                    </label>
+                                    <div className={`ges-change ges-change--sm${isShort ? " is-short" : ""}`}>
+                                        <span>{isShort ? "Falta" : "Vuelto"}</span>
+                                        <b>{formatCash(part.received ? Math.abs(change) : 0)}</b>
+                                    </div>
+                                </div>
+                            ) : null}
+                        </div>
+                    );
+                })}
+
+                {parts.length < MAX_MIXED_PARTS ? (
+                    <button
+                        type="button"
+                        className="ges-mixed__add"
+                        disabled={isSending}
+                        // La parte nueva arranca con lo que falta, que es lo más común
+                        onClick={() =>
+                            setParts((current) => [
+                                ...current,
+                                getNewPart("efectivo", difference > 0.005 ? difference.toFixed(2) : ""),
+                            ])
+                        }
                     >
-                        {PAYMENT_METHODS.map((option) => (
-                            <option key={option} value={option}>{PAYMENT_LABEL[option]}</option>
-                        ))}
-                    </select>
-                </label>
-                <label className="ges-field ges-field--sm">
-                    <span>Monto</span>
-                    <input
-                        id="caja-parte-monto"
-                        type="text"
-                        inputMode="decimal"
-                        autoFocus
-                        value={amount}
-                        placeholder="0.00"
-                        onChange={(event) => setAmount(event.target.value)}
-                    />
-                </label>
+                        + Agregar parte
+                    </button>
+                ) : null}
             </div>
 
-            <div className="ges-quick">
-                <button type="button" onClick={() => setAmount(missing.toFixed(2))}>
-                    Lo que falta {formatCash(missing)}
-                </button>
-                <button type="button" onClick={() => setAmount(roundMoney(missing / 2).toFixed(2))}>
-                    La mitad {formatCash(roundMoney(missing / 2))}
-                </button>
-            </div>
-
-            <label className="ges-field ges-field--sm">
-                <span>Quién paga (opcional)</span>
-                <input
-                    id="caja-parte-nombre"
-                    type="text"
-                    maxLength={40}
-                    value={payerName}
-                    placeholder="Ej. Luis"
-                    onChange={(event) => setPayerName(event.target.value)}
-                />
-            </label>
-
-            {method === "efectivo" ? (
-                <div className="ges-part__row ges-part__row--end">
-                    <label className="ges-field ges-field--sm">
-                        <span>Con cuánto paga</span>
-                        <input
-                            id="caja-parte-recibido"
-                            type="text"
-                            inputMode="decimal"
-                            value={received}
-                            placeholder="0.00"
-                            onChange={(event) => setReceived(event.target.value)}
-                        />
-                    </label>
-                    <div className={`ges-change ges-change--sm${isShort ? " is-short" : ""}`}>
-                        <span>{isShort ? "Falta" : "Vuelto"}</span>
-                        <b>{formatCash(received ? Math.abs(change) : 0)}</b>
-                    </div>
+            <div className="ges-paidsum ges-paidsum--three">
+                <div><span>Total</span><b>{formatCash(total)}</b></div>
+                <div><span>Suma</span><b>{formatCash(paid)}</b></div>
+                <div className={isBalanced ? "is-paid" : difference > 0 ? "is-missing" : "is-over"}>
+                    <span>{isBalanced ? "Cuadra" : difference > 0 ? "Falta" : "Sobra"}</span>
+                    <b>{formatCash(Math.abs(difference))}</b>
                 </div>
-            ) : null}
+            </div>
 
-            {isOver ? (
-                <p className="ges-error" role="alert">
-                    Falta {formatCash(missing)}. El vuelto se da aparte: aquí va solo lo que se aplica a la cuenta.
-                </p>
-            ) : null}
             {error ? <p className="ges-error" role="alert">{error}</p> : null}
 
-            <button type="button" className="ges-btn ges-btn--solid ges-btn--block" disabled={!canAdd} onClick={() => void submit()}>
+            <button type="button" className="ges-btn ges-btn--solid ges-btn--block" disabled={!canPay} onClick={() => void submit()}>
                 {isSending
-                    ? "Registrando…"
-                    : closesAccount
-                      ? `Registrar ${formatCash(value)} y cerrar la cuenta`
-                      : value > 0
-                        ? `Registrar pago de ${formatCash(value)}`
-                        : "Registrar pago"}
+                    ? "Cobrando…"
+                    : canPay
+                      ? `Cobrar ${formatCash(total)} en ${parts.length} ${parts.length === 1 ? "parte" : "partes"}`
+                      : hasEmptyPart
+                        ? "Falta el monto de una parte"
+                        : "Cuadra las partes para cobrar"}
             </button>
-        </div>
+
+            <p className="ges-note">
+                Nada se registra hasta cobrar. En Loyverse sale un recibo por parte, con su tipo de pago y su monto.
+            </p>
+
+            <div className="ges-modal__acts ges-modal__acts--one">
+                <button type="button" className="ges-btn" onClick={onClose} disabled={isSending}>Cancelar</button>
+            </div>
+        </>
     );
 };
 
@@ -392,7 +515,6 @@ const CustomerSuggest = ({ ticket, onFindCustomers, onAssignCustomer }: ICustome
 interface IPayDialogProps extends Omit<ICustomerSuggestProps, "ticket"> {
     ticket: ITicket;
     onPay: (payments: ITicketPayment[]) => Promise<void>;
-    onAddPayment: (payment: { method: PaymentMethod; amount: number; payerName: string | null }) => Promise<void>;
     onRemovePayment: (index: number) => Promise<void>;
     onCredit: (customerName: string) => Promise<void>;
     onClose: () => void;
@@ -401,7 +523,6 @@ interface IPayDialogProps extends Omit<ICustomerSuggestProps, "ticket"> {
 const PayDialog = ({
     ticket,
     onPay,
-    onAddPayment,
     onRemovePayment,
     onCredit,
     onClose,
@@ -412,7 +533,7 @@ const PayDialog = ({
     const hasPartials = partials.length > 0;
 
     const [isCrediting, setIsCrediting] = useState(false);
-    // Con pagos por partes ya registrados solo queda seguir en Mixto
+    // Con pagos del cobro anterior (uno por uno) se muestran en Mixto para quitarlos
     const [isMixed, setIsMixed] = useState(hasPartials);
     const [method, setMethod] = useState<PaymentMethod>("efectivo");
     const [received, setReceived] = useState("");
@@ -505,38 +626,33 @@ const PayDialog = ({
                     </button>
                 </div>
 
-                {isMixed ? (
+                {isMixed && hasPartials ? (
+                    // Pagos registrados uno por uno antes del Mixto armado: se quitan y se arma de nuevo
                     <>
                         <span className="ges-part__lbl">Pagos registrados</span>
                         <div className="ges-ledger">
-                            {partials.length === 0 ? (
-                                <p className="ges-ledger__empty">
-                                    Todavía no hay pagos. Registra lo que paga cada persona; con el último se cierra la cuenta.
-                                </p>
-                            ) : (
-                                partials.map((one, index) => (
-                                    <div className="ges-ledger__row" key={`${one.paidAt ?? ""}-${index}`}>
-                                        <span className="ges-ledger__ok" aria-hidden="true">✓</span>
-                                        <span className="ges-ledger__who">
-                                            <b>{PAYMENT_LABEL[one.method]}{one.payerName ? ` · ${one.payerName}` : ""}</b>
-                                            <small>
-                                                {formatPaymentTime(one.paidAt)}
-                                                {one.byName ? ` · cargó ${one.byName}` : ""}
-                                            </small>
-                                        </span>
-                                        <span className="ges-ledger__amt">{formatCash(one.amount)}</span>
-                                        <button
-                                            type="button"
-                                            className="ges-ledger__drop"
-                                            aria-label={`Quitar el pago de ${formatCash(one.amount)}`}
-                                            disabled={removing !== null}
-                                            onClick={() => void remove(index)}
-                                        >
-                                            {removing === index ? "…" : "×"}
-                                        </button>
-                                    </div>
-                                ))
-                            )}
+                            {partials.map((one, index) => (
+                                <div className="ges-ledger__row" key={`${one.paidAt ?? ""}-${index}`}>
+                                    <span className="ges-ledger__ok" aria-hidden="true">✓</span>
+                                    <span className="ges-ledger__who">
+                                        <b>{PAYMENT_LABEL[one.method]}{one.payerName ? ` · ${one.payerName}` : ""}</b>
+                                        <small>
+                                            {formatPaymentTime(one.paidAt)}
+                                            {one.byName ? ` · cargó ${one.byName}` : ""}
+                                        </small>
+                                    </span>
+                                    <span className="ges-ledger__amt">{formatCash(one.amount)}</span>
+                                    <button
+                                        type="button"
+                                        className="ges-ledger__drop"
+                                        aria-label={`Quitar el pago de ${formatCash(one.amount)}`}
+                                        disabled={removing !== null}
+                                        onClick={() => void remove(index)}
+                                    >
+                                        {removing === index ? "…" : "×"}
+                                    </button>
+                                </div>
+                            ))}
                         </div>
 
                         <div className="ges-paidsum">
@@ -546,25 +662,19 @@ const PayDialog = ({
 
                         {error ? <p className="ges-error" role="alert">{error}</p> : null}
 
-                        {missing < 0.005 && hasPartials ? (
-                            // Pagada entera pero sin cerrar: pasó cuando Loyverse no pudo facturar el último pago
-                            <p className="ges-note">
-                                Ya está todo pagado pero la cuenta no se cerró. Quita el último pago y vuelve a
-                                registrarlo para cerrarla.
-                            </p>
-                        ) : (
-                            <PartialPaymentForm missing={missing} onAdd={onAddPayment} />
-                        )}
-
                         <p className="ges-note">
-                            En Loyverse cada pago queda como su propio recibo, con su tipo de pago y su monto.
+                            Estos pagos se registraron con el cobro anterior. Quítalos para armar el Mixto completo y
+                            cobrarlo de una vez.
                         </p>
 
                         <div className="ges-modal__acts ges-modal__acts--one">
-                            <button type="button" className="ges-btn" onClick={onClose}>
-                                {hasPartials ? "Cerrar (la cuenta sigue abierta)" : "Cancelar"}
-                            </button>
+                            <button type="button" className="ges-btn" onClick={onClose}>Cerrar (la cuenta sigue abierta)</button>
                         </div>
+                        {creditOption}
+                    </>
+                ) : isMixed ? (
+                    <>
+                        <MixedPaymentBuilder total={total} onPay={onPay} onClose={onClose} />
                         {creditOption}
                     </>
                 ) : (
@@ -697,15 +807,19 @@ const VoidDialog = ({ label, onVoid, onClose }: IVoidDialogProps) => {
 
 /* ============ Elegir opciones antes de agregar ============ */
 
+/** Largo máximo de la nota de un plato (lo mismo que acepta la API). */
+const LINE_NOTE_MAX = 120;
+
 interface IOptionsDialogProps {
     item: IItem;
-    onAdd: (modifierOptionIds: string[]) => Promise<void>;
+    onAdd: (modifierOptionIds: string[], note: string | null) => Promise<void>;
     onClose: () => void;
 }
 
 const OptionsDialog = ({ item, onAdd, onClose }: IOptionsDialogProps) => {
     const modifiers = useModifiers();
     const [chosen, setChosen] = useState<ICartModifier[]>([]);
+    const [note, setNote] = useState("");
     const [isSending, setIsSending] = useState(false);
 
     const itemModifiers = getItemModifiers(item, modifiers);
@@ -715,6 +829,18 @@ const OptionsDialog = ({ item, onAdd, onClose }: IOptionsDialogProps) => {
             <div className="ges-modal__panel">
                 <h3 className="script">{item.item_name}</h3>
                 <ModifierPicker modifiers={itemModifiers} chosen={chosen} onChange={setChosen} />
+                <label className="ges-field">
+                    <span>Nota para cocina</span>
+                    <input
+                        id="caja-opciones-nota"
+                        type="text"
+                        maxLength={LINE_NOTE_MAX}
+                        autoComplete="off"
+                        value={note}
+                        placeholder="Opcional. Ej. sin azúcar glass"
+                        onChange={(event) => setNote(event.target.value)}
+                    />
+                </label>
                 <div className="ges-modal__acts">
                     <button type="button" className="ges-btn" onClick={onClose} disabled={isSending}>Cancelar</button>
                     <button
@@ -723,13 +849,82 @@ const OptionsDialog = ({ item, onAdd, onClose }: IOptionsDialogProps) => {
                         disabled={isSending}
                         onClick={async () => {
                             setIsSending(true);
-                            await onAdd(chosen.map((one) => one.modifierOptionId));
+                            await onAdd(chosen.map((one) => one.modifierOptionId), note.trim() || null);
                         }}
                     >
                         Agregar
                     </button>
                 </div>
             </div>
+        </div>
+    );
+};
+
+/* ============ Nota de un plato ============ */
+
+interface ILineNoteDialogProps {
+    line: ITicketLine;
+    onSave: (note: string | null) => Promise<void>;
+    onClose: () => void;
+}
+
+/** Lo que la cocina debe saber de ese plato. Sale bajo el plato en la comanda. */
+const LineNoteDialog = ({ line, onSave, onClose }: ILineNoteDialogProps) => {
+    const [note, setNote] = useState(line.note ?? "");
+    const [error, setError] = useState("");
+    const [isSending, setIsSending] = useState(false);
+
+    const save = async (value: string | null) => {
+        setIsSending(true);
+        setError("");
+        try {
+            await onSave(value);
+        } catch (requestError) {
+            setError(requestError instanceof HttpError ? requestError.message : "No se pudo guardar la nota.");
+            setIsSending(false);
+        }
+    };
+
+    return (
+        <div className="ges-modal" role="dialog" aria-modal="true" aria-label={`Nota para ${line.name}`}>
+            <form
+                className="ges-modal__panel"
+                onSubmit={(event) => {
+                    event.preventDefault();
+                    void save(note.trim() || null);
+                }}
+            >
+                <h3 className="script">Nota para {line.name}</h3>
+                <label className="ges-field">
+                    <span>Qué debe saber la cocina</span>
+                    <input
+                        id="caja-nota-plato"
+                        type="text"
+                        autoFocus
+                        maxLength={LINE_NOTE_MAX}
+                        autoComplete="off"
+                        value={note}
+                        placeholder="Ej. sin cebolla, bien tostado"
+                        onChange={(event) => { setNote(event.target.value); setError(""); }}
+                    />
+                    <small className="ges-field__hint">
+                        {note.length}/{LINE_NOTE_MAX} · Sale bajo el plato en la comanda.
+                    </small>
+                </label>
+                {error ? <p className="ges-error" role="alert">{error}</p> : null}
+                <div className="ges-modal__acts">
+                    {line.note ? (
+                        <button type="button" className="ges-btn" disabled={isSending} onClick={() => void save(null)}>
+                            Quitar nota
+                        </button>
+                    ) : (
+                        <button type="button" className="ges-btn" disabled={isSending} onClick={onClose}>Cancelar</button>
+                    )}
+                    <button type="submit" className="ges-btn ges-btn--solid" disabled={isSending || !note.trim()}>
+                        {isSending ? "Guardando…" : "Guardar nota"}
+                    </button>
+                </div>
+            </form>
         </div>
     );
 };
@@ -1005,6 +1200,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
     const [isOpeningTogo, setIsOpeningTogo] = useState(false);
     const [isOpeningAccount, setIsOpeningAccount] = useState(false);
     const [moving, setMoving] = useState<ITicketLine | null>(null);
+    const [noting, setNoting] = useState<ITicketLine | null>(null);
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(true);
 
@@ -1362,12 +1558,22 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                                                     {line.modifiers.length > 0
                                                         ? line.modifiers.map((one) => one.option).join(", ")
                                                         : `× ${formatCash(line.unitPrice)}`}
-                                                    {tableNumber !== null ? (
-                                                        <button type="button" className="ges-tl__move" onClick={() => setMoving(line)}>
-                                                            Pasar a…
+                                                    <span className="ges-tl__acts">
+                                                        <button
+                                                            type="button"
+                                                            className={`ges-tl__move${line.note ? " has-note" : ""}`}
+                                                            onClick={() => setNoting(line)}
+                                                        >
+                                                            Nota
                                                         </button>
-                                                    ) : null}
+                                                        {tableNumber !== null ? (
+                                                            <button type="button" className="ges-tl__move" onClick={() => setMoving(line)}>
+                                                                Pasar a…
+                                                            </button>
+                                                        ) : null}
+                                                    </span>
                                                 </small>
+                                                {line.note ? <p className="ges-tl__note">{line.note}</p> : null}
                                             </div>
                                         ))}
                                     </>
@@ -1389,6 +1595,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                                                         </button>
                                                     ) : null}
                                                 </small>
+                                                {line.note ? <p className="ges-tl__note">{line.note}</p> : null}
                                             </div>
                                         ))}
                                     </>
@@ -1473,15 +1680,28 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                 <OptionsDialog
                     item={options}
                     onClose={() => setOptions(null)}
-                    onAdd={async (modifierOptionIds) => {
+                    onAdd={async (modifierOptionIds, note) => {
                         const variantId = options.variants?.[0]?.variant_id;
                         if (variantId) {
                             await run(
-                                () => addTicketLine(token, ticket.id, { variantId, quantity: 1, modifierOptionIds }),
+                                () => addTicketLine(token, ticket.id, { variantId, quantity: 1, modifierOptionIds, note }),
                                 "No pudimos agregar el producto."
                             );
                         }
                         setOptions(null);
+                    }}
+                />
+            ) : null}
+
+            {noting ? (
+                <LineNoteDialog
+                    line={noting}
+                    onClose={() => setNoting(null)}
+                    onSave={async (note) => {
+                        const data = await setTicketLineNote(token, ticket.id, noting.id, note);
+                        setTicket(data.ticket);
+                        setNoting(null);
+                        setError("");
                     }}
                 />
             ) : null}
@@ -1541,17 +1761,6 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                         const data = await payTicket(token, ticket.id, payments);
                         setIsPaying(false);
                         await showNextAccount(data.ticket.tableAccounts);
-                    }}
-                    onAddPayment={async (payment) => {
-                        const data = await addTicketPayment(token, ticket.id, payment);
-                        setError("");
-                        // El pago que completa el total llega con la cuenta ya cobrada
-                        if (data.ticket.status !== "abierta") {
-                            setIsPaying(false);
-                            await showNextAccount(data.ticket.tableAccounts);
-                            return;
-                        }
-                        setTicket(data.ticket);
                     }}
                     onRemovePayment={async (index) => {
                         const data = await removeTicketPayment(token, ticket.id, index);

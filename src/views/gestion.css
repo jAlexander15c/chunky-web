@@ -814,6 +814,14 @@
 
 /* Pasar un plato a otra cuenta de la mesa: va al final de la línea, con texto y no redondo */
 .ges-tl small .ges-tl__move { width: auto; height: 28px; margin-left: auto; padding: 0 0.7rem; font-size: 0.72rem; color: var(--ink); }
+/* Nota y Pasar a… van juntas al final de la línea, y si no caben bajan juntas */
+.ges-tl__acts { margin-left: auto; display: flex; gap: 0.35rem; }
+.ges-tl small .ges-tl__acts .ges-tl__move { margin-left: 0; }
+.ges-tl small .ges-tl__move.has-note { border-color: #d99a1e; background: #fdebc0; }
+
+/* La nota del plato para la cocina, bajo la línea */
+.ges-tl__note { grid-column: 1 / -1; margin: 0; font-size: 0.76rem; font-style: italic; font-weight: 700; color: var(--ges-warn); }
+.ges-tl__note::before { content: "Nota: "; font-style: normal; font-weight: 800; }
 
 /* ============ Cuentas de una mesa ============ */
 
@@ -1005,6 +1013,55 @@
 .ges-paidsum b { font-size: 1.25rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .ges-paidsum .is-paid { background: var(--ges-good-bg); color: var(--ges-good); }
 .ges-paidsum .is-missing { background: var(--ges-warn-bg); color: var(--ges-warn); }
+.ges-paidsum .is-over { background: var(--ges-crit-bg); color: var(--ges-crit); }
+
+/* Mixto armado: Total · Suma · Falta/Sobra */
+.ges-paidsum--three { grid-template-columns: repeat(3, 1fr); }
+.ges-paidsum--three > div { background: var(--ges-panel-2); }
+.ges-paidsum--three b { font-size: 1.05rem; }
+
+/* Mixto armado: las partes se editan libres y se cobran juntas al cuadrar */
+.ges-split { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+.ges-split span { font-size: 0.68rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ges-text-3); margin-right: 0.2rem; }
+
+.ges-split button {
+    font: inherit;
+    border: 1.5px solid var(--sky);
+    background: transparent;
+    border-radius: var(--radius-pill);
+    min-width: 40px;
+    height: 34px;
+    font-weight: 800;
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.ges-mixed { display: grid; gap: 0.5rem; }
+.ges-mixed .ges-part { border-top: 0; padding: 0.7rem; background: var(--ges-panel-2); border-radius: 14px; }
+.ges-part__head { display: flex; justify-content: space-between; align-items: center; min-height: 28px; }
+
+.ges-part__drop {
+    font: inherit;
+    border: 0;
+    background: transparent;
+    color: var(--ges-crit);
+    font-weight: 800;
+    font-size: 0.75rem;
+    padding: 0.3rem 0.5rem;
+    cursor: pointer;
+}
+
+.ges-mixed__add {
+    font: inherit;
+    font-weight: 800;
+    font-size: 0.85rem;
+    border: 2px dashed var(--sky);
+    background: transparent;
+    color: var(--mora);
+    border-radius: 14px;
+    padding: 0.7rem;
+    cursor: pointer;
+}
 
 .ges-part { border-top: 1.5px dashed var(--ges-line); padding-top: 0.7rem; display: grid; gap: 0.55rem; }
 .ges-part__row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }

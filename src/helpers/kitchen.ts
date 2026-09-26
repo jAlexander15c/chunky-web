@@ -10,7 +10,8 @@ export interface IKitchenOrder {
     // web: pagado con Yappy desde la pagina · mesa: enviado desde la caja de /gestion
     channel?: "web" | "mesa";
     note: string | null;
-    lines: { name: string; quantity: number; options?: IPastaOptions; modifiers?: { name: string; option: string }[] }[];
+    // note: lo que la caja anotó en ese plato ("sin cebolla")
+    lines: { name: string; quantity: number; options?: IPastaOptions; modifiers?: { name: string; option: string }[]; note?: string }[];
     // Solo el dia de pasta. mapUrl ya viene armado por el API (coordenadas o busqueda de la direccion)
     delivery: { address: string; details: string | null; lat: number | null; lng: number | null; mapUrl: string } | null;
     total: number;
