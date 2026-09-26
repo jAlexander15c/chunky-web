@@ -6,7 +6,6 @@ import { getItems } from "./getItems";
 import { getNextOpeningLabel, getOpeningStatusLabel, isWithinOperatingHours } from "./hours";
 import type { IWeekHours, StoreOverride } from "./hours";
 import { keepIfSame, useLiveRefresh } from "./live-refresh";
-import { getItemPrice } from "./order";
 
 import type { ICategory, IItem } from "@/interfaces";
 
@@ -127,22 +126,12 @@ function normalizeCategoryColor(color?: string) {
 /** Con `force` se ignora la cache (la caja revalida en segundo plano). */
 async function fetchCategoriesCached(force = false) {
     const freshCategories = force ? null : getFreshCategories();
-    if (freshCategories) {
-        console.log("[get-categories] desde cache:", freshCategories.length, "categorias", freshCategories);
-        return freshCategories;
-    }
+    if (freshCategories) return freshCategories;
 
     if (!categoriesRequest) {
-        console.log("[get-categories] pidiendo al API");
         categoriesRequest = getCategories()
             .then((response) => {
-                console.log("[get-categories] respuesta del API:", response);
                 const nextCategories = response.data.categories;
-                console.log(
-                    "[get-categories] categorias:",
-                    nextCategories?.length ?? 0,
-                    nextCategories?.map((category) => ({ id: category.id, name: category.name, color: category.color }))
-                );
                 categoriesCache = { value: nextCategories, savedAt: Date.now() };
                 writeSessionEntry(CATEGORY_CACHE_KEY, categoriesCache);
                 return nextCategories;
@@ -182,26 +171,17 @@ export async function fetchItemsByCategoryCached(categoryId: string, scope: Cata
 
     const cacheKey = getItemsCacheKey(categoryId, scope);
     const cached = force ? undefined : readCachedItems(categoryId, scope);
-    if (cached) {
-        console.log(`[get-items] desde cache category_id=${categoryId}:`, cached.length, "items", cached);
-        return cached;
-    }
+    if (cached) return cached;
 
     let request = itemRequests.get(cacheKey);
 
     if (!request) {
-        console.log(`[get-items] pidiendo al API category_id=${categoryId}`);
         request = getItems({ categoryId })
             .then((response) => {
-                console.log(`[get-items] respuesta del API category_id=${categoryId}:`, response);
                 // `getItems` may return either an array of items or an object with `items`.
                 const nextItems: IItem[] = Array.isArray(response)
                     ? response
                     : (response?.items ?? []);
-                console.log(
-                    `[get-items] items=${nextItems.length} a la venta=${nextItems.filter(hasItemAvailableForSale).length}`,
-                    nextItems.map((item) => ({ name: item.item_name, disponible: hasItemAvailableForSale(item), precio: getItemPrice(item), precioGeneral: item.variants?.[0]?.default_price }))
-                );
 
                 const entry = { value: nextItems, savedAt: Date.now() };
                 itemsCache.set(cacheKey, entry);

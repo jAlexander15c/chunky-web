@@ -21,7 +21,7 @@ const getApiBaseUrl = (value?: string) => {
 
 // chunky-api en Railway (produccion). Para apuntar a otra API usa VITE_API_BASE_URL (ej. http://localhost:3000 en .env.local)
 const API_BASE = getApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
-console.log("[api] base:", API_BASE);
+if (import.meta.env.DEV) console.info("[api] base:", API_BASE);
 // Llave que pide chunky-api en el header x-api-key (VITE_API_KEY en .env.local)
 const API_KEY = import.meta.env.VITE_API_KEY as string | undefined;
 
@@ -122,16 +122,16 @@ export async function httpGet<T>(
         signal: options?.signal,
     });
 
+    // Como en los POST: solo el `message` del API, nunca el cuerpo completo del error
     if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new HttpError(res.status, text || res.statusText);
+        const data = await res.json().catch(() => null);
+        throw new HttpError(res.status, data?.message || res.statusText);
     }
 
     // Un 200 con HTML suele ser la URL del API mal configurada (responde la propia web)
     const contentType = res.headers.get("content-type") ?? "";
     if (!contentType.includes("application/json")) {
-        const text = await res.text().catch(() => "");
-        console.error(`[api] ${url} respondio ${res.status} sin JSON (${contentType}):`, text.slice(0, 200));
+        console.error(`[api] ${path} respondio ${res.status} sin JSON (${contentType})`);
         throw new HttpError(res.status, "La respuesta del API no es JSON");
     }
 

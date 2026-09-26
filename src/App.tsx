@@ -1,14 +1,29 @@
-import { useEffect, useRef } from "react";
+import { Suspense, lazy, useEffect, useRef } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router";
 
 import { Cart, CartButton, CartProvider, PastaBuilder, PastaBuilderProvider, SiteFooter, SiteHeader, UpdateBanner, useCart, usePastaBuilder } from "@/components";
-import { AdminView, Cotizador, GestionView, Home, Items, Mantenimiento, Menu, OrderStatusView, Privacidad, StaffView } from "@/views";
+// Cada vista por su archivo y no desde "@/views": importar el indice metería todo en el paquete principal
+import { Home } from "@/views/home";
+import { Items } from "@/views/items";
+import { Mantenimiento } from "@/views/mantenimiento";
+import { Menu } from "@/views/menu";
+import { OrderStatusView } from "@/views/order-status";
 import { getTrackedPath, isAppReloading, trackEvent, useAppUpdate, useSettings } from "@/helpers";
 import { useOperationalAutoUpdate } from "@/hooks/useOperationalAutoUpdate";
 import { useSilentSiteUpdate } from "@/hooks/useSilentSiteUpdate";
 import { useWwwRedirect } from "@/hooks/useWwwRedirect";
 
 import './App.css'
+
+/**
+ * Pantallas que el cliente casi nunca abre o que son del equipo: se descargan al entrar a ellas,
+ * así el menú y el checkout cargan sin el tablero, la gestión ni el cotizador.
+ */
+const AdminView = lazy(() => import("@/views/admin").then((module) => ({ default: module.AdminView })));
+const GestionView = lazy(() => import("@/views/gestion").then((module) => ({ default: module.GestionView })));
+const StaffView = lazy(() => import("@/views/staff").then((module) => ({ default: module.StaffView })));
+const Cotizador = lazy(() => import("@/views/cotizador").then((module) => ({ default: module.Cotizador })));
+const Privacidad = lazy(() => import("@/views/privacidad").then((module) => ({ default: module.Privacidad })));
 
 /** Con VITE_MAINTENANCE_MODE=true todas las rutas muestran la vista de mantenimiento. */
 const isMaintenanceMode = import.meta.env.VITE_MAINTENANCE_MODE === "true";
@@ -63,7 +78,9 @@ const OperationalLayout = () => {
 
   return (
     <>
-      <Outlet />
+      <Suspense fallback={null}>
+        <Outlet />
+      </Suspense>
       {isUpdateAvailable ? <UpdateBanner /> : null}
     </>
   );
@@ -77,7 +94,9 @@ const SiteLayout = () => {
     <CartProvider>
       <PastaBuilderProvider>
         <SiteHeader />
-        <Outlet />
+        <Suspense fallback={<main className="section" aria-busy="true" />}>
+          <Outlet />
+        </Suspense>
         <SiteFooter />
         <PastaBuilder />
         <Cart />
