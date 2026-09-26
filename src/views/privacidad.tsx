@@ -57,9 +57,6 @@ export const Privacidad = () => {
                             <b>Cuando cotizas un cake o postre:</b> tu nombre, tu WhatsApp, la fecha que quieres, tu nota y las fotos
                             de referencia que subes.
                         </li>
-                        <li>
-                            <b>Promociones:</b> solo si marcas la casilla, guardamos que aceptaste recibirlas y desde cuándo.
-                        </li>
                     </ul>
                 </section>
 
@@ -69,7 +66,6 @@ export const Privacidad = () => {
                         <li>Para preparar, cobrar y entregar tu pedido, y para darte el recibo.</li>
                         <li>Para coordinar contigo tu cotización por WhatsApp.</li>
                         <li>Para llevar tu historial de compras y saber qué te gusta.</li>
-                        <li>Para mandarte novedades y promociones por WhatsApp, solo si lo aceptaste.</li>
                     </ul>
                     <p>No vendemos ni alquilamos tus datos.</p>
                 </section>
@@ -102,8 +98,7 @@ export const Privacidad = () => {
                     <h2>Tus derechos</h2>
                     <p>
                         Puedes pedirnos ver tus datos, corregirlos, borrarlos, oponerte a que los usemos o recibir una copia.
-                        También puedes dejar de recibir promociones cuando quieras. Escríbenos por WhatsApp: es gratis y
-                        respondemos en un máximo de 10 días hábiles.
+                        Escríbenos por WhatsApp: es gratis y respondemos en un máximo de 10 días hábiles.
                     </p>
                     <p>
                         Si borramos tu registro, la venta queda en la contabilidad sin tu nombre, celular ni dirección. El recibo

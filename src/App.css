@@ -1853,7 +1853,7 @@ main {
   accent-color: var(--mora);
 }
 
-/* Aviso de privacidad y promociones: texto largo, así que la casilla va arriba y no centrada */
+/* Aviso de privacidad: texto largo, así que la casilla va arriba y no centrada */
 .checkout__privacy {
   display: grid;
   gap: 0.5rem;

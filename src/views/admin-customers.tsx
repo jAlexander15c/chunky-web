@@ -81,15 +81,14 @@ const getSearchKey = (value: string) =>
 
 interface IEditDialogProps {
     detail: ICustomerDetail;
-    onSave: (data: { name: string; phone: string | null; promoConsent: boolean }) => Promise<void>;
+    onSave: (data: { name: string; phone: string | null }) => Promise<void>;
     onClose: () => void;
 }
 
-/** Corregir datos (derecho de rectificación) y dar o retirar el permiso de promociones. */
+/** Corregir datos (derecho de rectificación). */
 const EditDialog = ({ detail, onSave, onClose }: IEditDialogProps) => {
     const [name, setName] = useState(detail.customer.name);
     const [phone, setPhone] = useState(detail.customer.phone ?? "");
-    const [promoConsent, setPromoConsent] = useState(Boolean(detail.customer.promoConsentAt));
     const [error, setError] = useState("");
     const [isSending, setIsSending] = useState(false);
 
@@ -102,7 +101,7 @@ const EditDialog = ({ detail, onSave, onClose }: IEditDialogProps) => {
         setIsSending(true);
         setError("");
         try {
-            await onSave({ name: name.trim(), phone: digits || null, promoConsent });
+            await onSave({ name: name.trim(), phone: digits || null });
             onClose();
         } catch (requestError) {
             setError(getErrorMessage(requestError, "No se pudo guardar."));
@@ -114,7 +113,7 @@ const EditDialog = ({ detail, onSave, onClose }: IEditDialogProps) => {
         <div className="adm-modal" role="dialog" aria-modal="true" aria-label="Corregir datos del cliente">
             <form className="adm-modal__panel" onSubmit={submit}>
                 <h3 className="script">Corregir datos</h3>
-                <p className="adm-modal__hint">Si el cliente pide corregir su nombre o su celular, o dejar de recibir promociones.</p>
+                <p className="adm-modal__hint">Si el cliente pide corregir su nombre o su celular.</p>
 
                 <div className="adm-form adm-form--single">
                     <label className="adm-form__row">
@@ -141,16 +140,6 @@ const EditDialog = ({ detail, onSave, onClose }: IEditDialogProps) => {
                         />
                     </label>
                 </div>
-
-                <label className="adm-check">
-                    <input
-                        id="customer-promo"
-                        type="checkbox"
-                        checked={promoConsent}
-                        onChange={(event) => setPromoConsent(event.target.checked)}
-                    />
-                    <span>Acepta promociones por WhatsApp</span>
-                </label>
 
                 {error ? <p className="adm-gate__error">{error}</p> : null}
 
@@ -393,7 +382,6 @@ const CustomerCard = ({ token, customerId, customers, onChanged, onSessionExpire
                         href={`https://wa.me/507${customer.phone}`}
                         target="_blank"
                         rel="noreferrer"
-                        title={customer.promoConsentAt ? undefined : "No aceptó promociones: escríbele solo sobre sus pedidos"}
                     >
                         WhatsApp
                     </a>
@@ -416,10 +404,6 @@ const CustomerCard = ({ token, customerId, customers, onChanged, onSessionExpire
                 <div>
                     <dt>Aceptó el aviso de privacidad</dt>
                     <dd>{customer.consentAt ? formatDay(customer.consentAt) : "antes del aviso"}</dd>
-                </div>
-                <div>
-                    <dt>Promociones por WhatsApp</dt>
-                    <dd>{customer.promoConsentAt ? `sí, desde el ${formatDay(customer.promoConsentAt)}` : "no aceptó"}</dd>
                 </div>
             </dl>
 
@@ -496,7 +480,8 @@ const CustomerCard = ({ token, customerId, customers, onChanged, onSessionExpire
                     detail={detail}
                     onClose={() => setDialog(null)}
                     onSave={async (data) => {
-                        await updateCustomer(token, customerId, data);
+                        // No se mandan promociones: al corregir, cualquier permiso viejo queda retirado
+                        await updateCustomer(token, customerId, { ...data, promoConsent: false });
                         await load();
                         onChanged();
                     }}

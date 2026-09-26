@@ -876,7 +876,7 @@ export const fetchCustomers = (token: string, period: CustomerPeriod, signal?: A
 export const fetchCustomerDetail = (token: string, id: number, signal?: AbortSignal) =>
     httpGet<ICustomerDetail>(`/admin/customers/${id}`, { signal, headers: getAdminHeaders(token) });
 
-/** Corregir datos y dar o retirar el permiso de promociones. */
+/** Corregir datos del cliente. promoConsent queda en false: no se mandan promociones. */
 export const updateCustomer = (token: string, id: number, data: { name: string; phone: string | null; promoConsent: boolean }) =>
     httpPut<{ customer: ICustomerDetail["customer"] }>(`/admin/customers/${id}`, data, { headers: getAdminHeaders(token) });
 

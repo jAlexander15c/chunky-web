@@ -62,8 +62,6 @@ export interface ICheckoutForm {
     deliveryLng: number | null;
     /** Aceptó el aviso de privacidad (Ley 81). Obligatorio para quien no lo aceptó antes en este aparato. */
     privacyConsent: boolean;
-    /** Quiere novedades y promociones por WhatsApp. Opcional y desmarcado. */
-    promoConsent: boolean;
 }
 
 export type CheckoutErrors = Partial<
@@ -157,7 +155,6 @@ export const createOrder = (lines: ICartLine[], form: ICheckoutForm, requiresDel
         whatsappPhone: form.hasOtherWhatsapp ? getPhoneDigits(form.whatsappPhone) : undefined,
         note: form.note.trim() || undefined,
         privacyConsent: form.privacyConsent || hasAcceptedPrivacy(form.customerPhone),
-        promoConsent: form.promoConsent || undefined,
     });
 
 const getDeliveryPayload = (form: ICheckoutForm) => ({

@@ -40,7 +40,6 @@ const EMPTY_FORM: ICheckoutForm = {
     deliveryLat: null,
     deliveryLng: null,
     privacyConsent: false,
-    promoConsent: false,
 };
 
 /** Campos de texto del formulario (los demas son un casillero o coordenadas). */
@@ -121,9 +120,9 @@ export const CartCheckout = () => {
         setErrors((current) => ({ ...current, deliveryAddress: undefined }));
     };
 
-    const toggleConsent = (field: "privacyConsent" | "promoConsent") => (event: ChangeEvent<HTMLInputElement>) => {
-        setForm((current) => ({ ...current, [field]: event.target.checked }));
-        if (field === "privacyConsent") setErrors((current) => ({ ...current, privacyConsent: undefined }));
+    const togglePrivacyConsent = (event: ChangeEvent<HTMLInputElement>) => {
+        setForm((current) => ({ ...current, privacyConsent: event.target.checked }));
+        setErrors((current) => ({ ...current, privacyConsent: undefined }));
     };
 
     const toggleOtherWhatsapp =(event: ChangeEvent<HTMLInputElement>) => {
@@ -382,7 +381,7 @@ export const CartCheckout = () => {
                                     id="checkout-privacy"
                                     type="checkbox"
                                     checked={form.privacyConsent}
-                                    onChange={toggleConsent("privacyConsent")}
+                                    onChange={togglePrivacyConsent}
                                     aria-invalid={Boolean(errors.privacyConsent)}
                                     aria-describedby={errors.privacyConsent ? "checkout-privacy-error" : undefined}
                                 />
@@ -397,19 +396,6 @@ export const CartCheckout = () => {
                             )}
                         </>
                     )}
-
-                    <label className="field__check checkout__consent" htmlFor="checkout-promo">
-                        <input
-                            id="checkout-promo"
-                            type="checkbox"
-                            checked={form.promoConsent}
-                            onChange={toggleConsent("promoConsent")}
-                        />
-                        <span>
-                            Quiero recibir novedades y promociones por WhatsApp.{" "}
-                            <span className="field__optional">(opcional)</span>
-                        </span>
-                    </label>
                 </div>
             </div>
 
