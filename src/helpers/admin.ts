@@ -187,6 +187,10 @@ export const setAdminToken = (token: string | null) => {
     }
 };
 
+/** Revoca el token en el servidor. No falla: si no hay red, igual se borra del navegador. */
+export const logoutAdmin = (token: string) =>
+    httpPost<void>("/admin/logout", {}, { headers: getAdminHeaders(token) }).catch(() => undefined);
+
 export const loginAdmin = (pin: string) => httpPost<{ token: string }>("/admin/login", { pin });
 
 export const fetchDashboard = (token: string, days = 14, signal?: AbortSignal) =>

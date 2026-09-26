@@ -11,7 +11,7 @@ import { httpGet, httpPost } from "./getHttp";
 import type { IModifier } from "./modifiers";
 
 /** Quién entró: su nombre para el saludo y qué secciones puede ver. */
-interface IGestionSession {
+export interface IGestionSession {
     id: number;
     name: string;
     roles: CollaboratorRole[];
@@ -212,53 +212,25 @@ export interface IShiftDetail extends IShift {
 }
 
 const GESTION_TOKEN_STORAGE_KEY = "chunky-gestion-token";
-const GESTION_NAME_STORAGE_KEY = "chunky-gestion-nombre";
-const GESTION_ROLES_STORAGE_KEY = "chunky-gestion-roles";
+/** Nombre y roles ya no se guardan: se piden al API al entrar. Se borran de navegadores viejos. */
+const LEGACY_GESTION_STORAGE_KEYS = ["chunky-gestion-nombre", "chunky-gestion-roles"];
 
 const getGestionHeaders = (token: string) => ({ "x-gestion-token": token });
 
 export const getGestionToken = () => {
     try {
+        LEGACY_GESTION_STORAGE_KEYS.forEach((key) => window.localStorage.removeItem(key));
         return window.localStorage.getItem(GESTION_TOKEN_STORAGE_KEY);
     } catch {
         return null;
     }
 };
 
-/** El nombre solo se guarda para saludar antes de la primera respuesta del API. */
-export const getGestionName = () => {
+/** Solo se guarda el token; el servidor lo revoca al cerrar sesión y lo cierra tras 2 horas sin uso. */
+export const setGestionToken = (token: string | null) => {
     try {
-        return window.localStorage.getItem(GESTION_NAME_STORAGE_KEY) ?? "";
-    } catch {
-        return "";
-    }
-};
-
-/**
- * Los roles guardados solo deciden qué secciones se ofrecen. Quien manda es el API:
- * si alguien los editara aquí, sus peticiones igual volverían con 403.
- */
-export const getGestionRoles = (): CollaboratorRole[] => {
-    try {
-        const raw = window.localStorage.getItem(GESTION_ROLES_STORAGE_KEY);
-        const parsed = raw ? JSON.parse(raw) : [];
-        return Array.isArray(parsed) ? parsed.filter((role) => COLLABORATOR_ROLES.includes(role)) : [];
-    } catch {
-        return [];
-    }
-};
-
-export const setGestionSession = (token: string | null, name = "", roles: CollaboratorRole[] = []) => {
-    try {
-        if (token) {
-            window.localStorage.setItem(GESTION_TOKEN_STORAGE_KEY, token);
-            window.localStorage.setItem(GESTION_NAME_STORAGE_KEY, name);
-            window.localStorage.setItem(GESTION_ROLES_STORAGE_KEY, JSON.stringify(roles));
-        } else {
-            window.localStorage.removeItem(GESTION_TOKEN_STORAGE_KEY);
-            window.localStorage.removeItem(GESTION_NAME_STORAGE_KEY);
-            window.localStorage.removeItem(GESTION_ROLES_STORAGE_KEY);
-        }
+        if (token) window.localStorage.setItem(GESTION_TOKEN_STORAGE_KEY, token);
+        else window.localStorage.removeItem(GESTION_TOKEN_STORAGE_KEY);
     } catch {
         return;
     }
@@ -266,6 +238,22 @@ export const setGestionSession = (token: string | null, name = "", roles: Collab
 
 export const loginGestion = (pin: string) =>
     httpPost<{ token: string; collaborator: IGestionSession }>("/gestion/login", { pin });
+
+/**
+ * Quién tiene la sesión abierta. Los roles solo deciden qué secciones se ofrecen:
+ * quien manda es el API, que responde 403 a lo que no le toca.
+ */
+export const fetchGestionMe = async (token: string, signal?: AbortSignal): Promise<IGestionSession> => {
+    const { collaborator } = await httpGet<{ collaborator: IGestionSession }>("/gestion/me", {
+        signal,
+        headers: getGestionHeaders(token),
+    });
+    return { ...collaborator, roles: collaborator.roles.filter((role) => COLLABORATOR_ROLES.includes(role)) };
+};
+
+/** Revoca el token en el servidor. No falla: si no hay red, igual se borra del navegador. */
+export const logoutGestion = (token: string) =>
+    httpPost<void>("/gestion/logout", {}, { headers: getGestionHeaders(token) }).catch(() => undefined);
 
 export const fetchGestionSupplies = (token: string, signal?: AbortSignal) =>
     httpGet<{ supplies: ISupplyStatus[] }>("/gestion/supplies", { signal, headers: getGestionHeaders(token) });

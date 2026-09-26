@@ -53,6 +53,8 @@ const sendJson = async <T>(
         throw new HttpError(res.status, data?.message || res.statusText);
     }
 
+    // 204 (ej. cerrar sesión) no trae cuerpo
+    if (res.status === 204) return undefined as T;
     return res.json() as Promise<T>;
 };
 

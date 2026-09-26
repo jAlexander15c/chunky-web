@@ -4,14 +4,14 @@ import type { ReactNode } from "react";
 import {
     HttpError,
     ROLE_LABEL,
+    fetchGestionMe,
     formatCash,
-    getGestionName,
-    getGestionRoles,
     getGestionToken,
     loginGestion,
-    setGestionSession,
+    logoutGestion,
+    setGestionToken,
 } from "@/helpers";
-import type { CollaboratorRole, IShiftDetail } from "@/helpers";
+import type { CollaboratorRole, IGestionSession, IShiftDetail } from "@/helpers";
 import { useKitchenFeed } from "@/hooks/useKitchenFeed";
 
 import { GestionCaja } from "./gestion/caja";
@@ -40,7 +40,7 @@ const useGestionHead = () => {
 const PIN_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"];
 
 interface IGestionLoginProps {
-    onLogin: (token: string, name: string, roles: CollaboratorRole[]) => void;
+    onLogin: (token: string, collaborator: IGestionSession) => void;
 }
 
 const GestionLogin = ({ onLogin }: IGestionLoginProps) => {
@@ -55,7 +55,7 @@ const GestionLogin = ({ onLogin }: IGestionLoginProps) => {
 
             try {
                 const { token, collaborator } = await loginGestion(candidate);
-                onLogin(token, collaborator.name, collaborator.roles);
+                onLogin(token, collaborator);
             } catch (loginError) {
                 setPin("");
                 setIsSending(false);
@@ -320,26 +320,66 @@ const GestionShell = ({ token, name, roles, onLogout }: IGestionShellProps) => {
     );
 };
 
+/** Mientras se pregunta al API quién tiene la sesión abierta (al recargar la página). */
+const GestionSessionCheck = ({ error, onRetry }: { error: string; onRetry: () => void }) => (
+    <div className="ges ges-gate">
+        <div className="ges-gate__panel">
+            <span className="ges-gate__mark script">Gestión</span>
+            <p className="ges-gate__error" role="alert">{error || "Entrando…"}</p>
+            {error ? (
+                <button type="button" className="ges-btn" onClick={onRetry}>Reintentar</button>
+            ) : null}
+        </div>
+    </div>
+);
+
 export const GestionView = () => {
     const [token, setToken] = useState<string | null>(() => getGestionToken());
-    const [name, setName] = useState(() => getGestionName());
-    const [roles, setRoles] = useState<CollaboratorRole[]>(() => getGestionRoles());
+    const [session, setSession] = useState<IGestionSession | null>(null);
+    const [sessionError, setSessionError] = useState("");
+    const [retryKey, setRetryKey] = useState(0);
     useGestionHead();
 
-    const login = useCallback((newToken: string, newName: string, newRoles: CollaboratorRole[]) => {
-        setGestionSession(newToken, newName, newRoles);
+    const login = useCallback((newToken: string, collaborator: IGestionSession) => {
+        setGestionToken(newToken);
         setToken(newToken);
-        setName(newName);
-        setRoles(newRoles);
+        setSession(collaborator);
     }, []);
 
+    // También al vencer la sesión: revocar una ya vencida no hace daño
     const logout = useCallback(() => {
-        setGestionSession(null);
+        if (token) void logoutGestion(token);
+        setGestionToken(null);
         setToken(null);
-        setName("");
-        setRoles([]);
-    }, []);
+        setSession(null);
+    }, [token]);
+
+    // Con un token guardado, nombre y roles se piden al API: no se guardan en el navegador
+    useEffect(() => {
+        if (!token || session) return;
+
+        const controller = new AbortController();
+        fetchGestionMe(token, controller.signal)
+            .then(setSession)
+            .catch((requestError) => {
+                if (controller.signal.aborted) return;
+                if (requestError instanceof HttpError && requestError.status === 401) {
+                    setGestionToken(null);
+                    setToken(null);
+                    return;
+                }
+                setSessionError("No pudimos conectar. Revisa el Wi-Fi.");
+            });
+        return () => controller.abort();
+    }, [token, session, retryKey]);
 
     if (!token) return <GestionLogin onLogin={login} />;
-    return <GestionShell token={token} name={name} roles={roles} onLogout={logout} />;
+    if (!session) {
+        const retry = () => {
+            setSessionError("");
+            setRetryKey((key) => key + 1);
+        };
+        return <GestionSessionCheck error={sessionError} onRetry={retry} />;
+    }
+    return <GestionShell token={token} name={session.name} roles={session.roles} onLogout={logout} />;
 };

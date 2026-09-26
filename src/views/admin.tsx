@@ -9,6 +9,7 @@ import {
     getAdminToken,
     loadSettings,
     loginAdmin,
+    logoutAdmin,
     setAdminToken,
     setClientUpdateNotice,
     setDeliveryMode,
@@ -598,10 +599,12 @@ export const AdminView = () => {
     const [token, setToken] = useState<string | null>(() => getAdminToken());
     useAdminHead();
 
+    // También al vencer la sesión: revocar una ya vencida no hace daño
     const logout = useCallback(() => {
+        if (token) void logoutAdmin(token);
         setAdminToken(null);
         setToken(null);
-    }, []);
+    }, [token]);
 
     if (!token) return <AdminLogin onLogin={setToken} />;
     return <AdminDashboard token={token} onLogout={logout} />;
