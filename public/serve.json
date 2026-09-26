@@ -11,7 +11,7 @@
         { "key": "Permissions-Policy", "value": "geolocation=(self), camera=(), microphone=(), payment=()" },
         {
           "key": "Content-Security-Policy-Report-Only",
-          "value": "default-src 'self'; script-src 'self' https://bt-cdn.yappy.cloud https://bt-cdn-uat.yappycloud.com; style-src 'self' 'unsafe-inline' https://bt-cdn.yappy.cloud https://bt-cdn-uat.yappycloud.com; font-src 'self' data: https://bt-cdn.yappy.cloud https://bt-cdn-uat.yappycloud.com; img-src 'self' data: blob: https:; connect-src 'self' https://chunky-api-production.up.railway.app https://*.up.railway.app https://*.yappy.cloud https://*.yappycloud.com; frame-src https://*.yappy.cloud https://*.yappycloud.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+          "value": "default-src 'self'; script-src 'self' https://bt-cdn.yappy.cloud https://bt-cdn-uat.yappycloud.com; style-src 'self' 'unsafe-inline' https://bt-cdn.yappy.cloud https://bt-cdn-uat.yappycloud.com https://fonts.googleapis.com; font-src 'self' data: https://bt-cdn.yappy.cloud https://bt-cdn-uat.yappycloud.com https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://chunky-api-production.up.railway.app https://*.up.railway.app https://*.yappy.cloud https://*.yappycloud.com https://apipagosbg.bgeneral.cloud; frame-src https://*.yappy.cloud https://*.yappycloud.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
         }
       ]
     },
