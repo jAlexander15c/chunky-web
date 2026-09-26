@@ -47,7 +47,7 @@ interface IItemVariant {
 }
 
 /** Precio y disponibilidad de la variante en una tienda de Loyverse (manda sobre default_price). */
-export interface IItemVariantStore {
+interface IItemVariantStore {
     store_id: string,
     pricing_type: string,
     price: number | null,

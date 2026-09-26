@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
 
-export interface IPastaBuilderContext {
+interface IPastaBuilderContext {
     isOpen: boolean;
     open: () => void;
     close: () => void;

@@ -39,7 +39,7 @@ let modifiersSavedAt = 0;
 let modifiersRequest: Promise<IModifier[]> | null = null;
 
 /** Catalogo de modificadores del API, con cache corta en memoria. Con `force` se ignora la cache. */
-export const fetchModifiersCached = (force = false) => {
+const fetchModifiersCached = (force = false) => {
     if (!force && modifiersCache && Date.now() - modifiersSavedAt < MODIFIERS_TTL_MS) return Promise.resolve(modifiersCache);
 
     if (!modifiersRequest) {

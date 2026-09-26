@@ -9,7 +9,7 @@ export interface IPastaOptions {
     protein: string;
 }
 
-export type PastaOptionKey = keyof IPastaOptions;
+type PastaOptionKey = keyof IPastaOptions;
 
 export interface IPastaSettings {
     itemId: string;

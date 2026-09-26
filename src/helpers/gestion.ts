@@ -11,7 +11,7 @@ import { httpGet, httpPost } from "./getHttp";
 import type { IModifier } from "./modifiers";
 
 /** Quién entró: su nombre para el saludo y qué secciones puede ver. */
-export interface IGestionSession {
+interface IGestionSession {
     id: number;
     name: string;
     roles: CollaboratorRole[];
@@ -58,7 +58,7 @@ export const getTicketLineTotal = (line: Pick<ITicketLine, "unitPrice" | "modifi
  * anulada: se cerró sin cobrar. reembolsada: se cobró y luego se devolvió completa.
  * credito: se la llevó alguien que paga después; no entra a caja hasta que se cobra.
  */
-export type TicketStatus = "abierta" | "cobrada" | "anulada" | "reembolsada" | "credito";
+type TicketStatus = "abierta" | "cobrada" | "anulada" | "reembolsada" | "credito";
 
 /** Una de las cuentas abiertas de la mesa, para cambiar entre ellas. */
 export interface ITableAccount {
@@ -106,7 +106,7 @@ export interface ICreditTicket {
     creditByName: string | null;
 }
 
-export interface ICreditTotals {
+interface ICreditTotals {
     count: number;
     total: number;
 }
@@ -134,7 +134,7 @@ export const getTicketLabel = (ticket: Pick<ITicket, "id" | "tableNumber" | "cus
         ? `Mesa ${ticket.tableNumber}${ticket.customerName ? ` · ${ticket.customerName}` : ""}`
         : `Para llevar · ${ticket.customerName || `#${ticket.id}`}`;
 
-export interface ICashMovement {
+interface ICashMovement {
     id: number;
     type: "entrada" | "salida";
     amount: number;
@@ -143,7 +143,7 @@ export interface ICashMovement {
     createdAt: string;
 }
 
-export interface IShift {
+interface IShift {
     id: number;
     /** Solo quien abrió el turno lo cierra en caja; si no está, lo cierra el admin. */
     openedById: number | null;

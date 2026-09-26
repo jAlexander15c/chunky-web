@@ -26,7 +26,7 @@ const stopChecking = () => {
 };
 
 /** Consulta /version.json; al ver otro build marca la actualizacion y deja de consultar. */
-export const checkForUpdate = () => {
+const checkForUpdate = () => {
     if (!isVersionCheckEnabled || isUpdateAvailable) return Promise.resolve();
 
     if (!request) {

@@ -86,7 +86,7 @@ export const getQuoteSurcharge = (extra: number, size: QuoteSize, height: QuoteH
 
 const getFilling = (id: string) => QUOTE_FILLINGS.find((one) => one.id === id);
 
-export const isIncludedFilling = (id: string) => getFilling(id)?.extra === 0;
+const isIncludedFilling = (id: string) => getFilling(id)?.extra === 0;
 
 /**
  * Si un relleno se puede sumar a lo elegido. Uno o dos, y nunca dos incluidos:
@@ -114,7 +114,7 @@ export const getFillingsLabel = (chosen: string[]) => {
  * sin empaque, que en realidad cuesta unos $3. Precio del 8" = (gastos + empaque) x 2.95; los
  * tamaños chicos bajan por área, empaque incluido, y todo se redondea al dólar.
  */
-export type DessertSize = "5.5" | "7" | "8";
+type DessertSize = "5.5" | "7" | "8";
 
 export const DESSERT_SIZES: DessertSize[] = ["5.5", "7", "8"];
 
@@ -162,7 +162,7 @@ export interface IQuoteDraft {
     topperImage: string | null;
 }
 
-export interface IQuoteBreakdownLine {
+interface IQuoteBreakdownLine {
     label: string;
     name: string;
     price: number;
@@ -277,14 +277,14 @@ export const QUOTE_STATUS_PLURAL: Record<QuoteStatus, string> = {
     cancelada: "Canceladas",
 };
 
-export interface IQuoteLine {
+interface IQuoteLine {
     id: string;
     name: string;
     price: number;
 }
 
 /** Las cotizaciones de antes de los postres no traen `kind`: son cakes. */
-export interface ICakeSelection {
+interface ICakeSelection {
     kind?: "cake";
     size: QuoteSize;
     height: QuoteHeight;
@@ -295,7 +295,7 @@ export interface ICakeSelection {
     topperPrice: number;
 }
 
-export interface IDessertSelection {
+interface IDessertSelection {
     kind: "postre";
     dessert: { id: string; name: string };
     size: DessertSize;

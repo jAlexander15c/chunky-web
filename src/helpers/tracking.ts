@@ -4,7 +4,7 @@ import { httpPostKeepalive } from "./getHttp";
  * Pasos del embudo de compra y unos pocos botones sueltos. Es una lista cerrada:
  * el API rechaza cualquier otro nombre (misma lista en chunky-api analytics.validation).
  */
-export type TrackEventName =
+type TrackEventName =
     | "page_view"
     | "category_open"
     | "product_open"

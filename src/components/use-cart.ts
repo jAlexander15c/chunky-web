@@ -3,7 +3,7 @@ import { createContext, useContext } from "react";
 import type { ICartLine, ICartModifier, IPastaOptions } from "@/helpers";
 import type { IItem } from "@/interfaces";
 
-export interface ICartContext {
+interface ICartContext {
     lines: ICartLine[];
     count: number;
     total: number;

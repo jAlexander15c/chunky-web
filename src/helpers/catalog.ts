@@ -13,7 +13,7 @@ import type { ICategory, IItem } from "@/interfaces";
 const CATEGORY_CACHE_KEY = "chunky-categories-cache";
 const ITEMS_CACHE_PREFIX = "chunky-items-cache:";
 
-export type CategoryTone = "mantequilla" | "orquidea" | "sky" | "lima";
+type CategoryTone = "mantequilla" | "orquidea" | "sky" | "lima";
 
 interface ICategoryPresentation {
     description: string;
@@ -108,7 +108,7 @@ let categoriesRequest: Promise<ICategory[]> | null = null;
  * El API devuelve otro menu el dia de pasta, asi que la cache de productos se guarda aparte por modo:
  * un menu guardado antes del cambio no se muestra despues.
  */
-export type CatalogScope = "normal" | "pasta";
+type CatalogScope = "normal" | "pasta";
 
 export const getCatalogScope = (isPastaMode: boolean): CatalogScope => (isPastaMode ? "pasta" : "normal");
 
@@ -125,7 +125,7 @@ function normalizeCategoryColor(color?: string) {
 }
 
 /** Con `force` se ignora la cache (la caja revalida en segundo plano). */
-export async function fetchCategoriesCached(force = false) {
+async function fetchCategoriesCached(force = false) {
     const freshCategories = force ? null : getFreshCategories();
     if (freshCategories) {
         console.log("[get-categories] desde cache:", freshCategories.length, "categorias", freshCategories);
@@ -352,7 +352,7 @@ export const isSpecialCategory = (category?: Pick<ICategory, "name">) =>
     Boolean(category) && !CATEGORY_PRESENTATION[normalizeCategoryName(category?.name)];
 
 /** Loyverse no guarda descripcion de categoria: todas las especiales usan este texto. */
-export const SPECIAL_CATEGORY_DESCRIPTION = "Edición especial, por tiempo limitado";
+const SPECIAL_CATEGORY_DESCRIPTION = "Edición especial, por tiempo limitado";
 
 /** Presentacion por nombre de categoria; las desconocidas solo toman el tono de su color. */
 export const getCategoryPresentation = (category?: Pick<ICategory, "name" | "color">): ICategoryPresentation => {
@@ -384,7 +384,7 @@ export const getCategoryById = (categoryId?: string) => {
 };
 
 /** El dia de pasta solo se muestra la categoria de bebidas (la pasta tiene su propia entrada). */
-export interface IPastaModeContext {
+interface IPastaModeContext {
     pastaMode: boolean;
     beveragesCategoryId: string | null;
 }
@@ -409,7 +409,7 @@ export function hasItemAvailableForSale(item: IItem) {
 }
 
 /** Lo que decide si hoy se reciben pedidos: sale de GET /settings/public (ver useSettings). */
-export interface IOrderingContext {
+interface IOrderingContext {
     pastaMode: boolean;
     openingHours: IWeekHours;
     storeOverride: StoreOverride | null;

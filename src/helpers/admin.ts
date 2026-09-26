@@ -7,7 +7,7 @@ import type { QuoteKind } from "./quote";
 export type SupplyState = "comprar" | "pedir" | "contar" | "bien";
 export type ProductState = "agotado" | "poco" | "disponible" | "sin-control";
 export type MovementType = "compra" | "conteo" | "produccion" | "venta" | "merma" | "ajuste";
-export type MovementSource = "local" | "loyverse" | "web";
+type MovementSource = "local" | "loyverse" | "web";
 export type SupplyCategory = "alimento" | "limpieza" | "mantenimiento";
 
 export const SUPPLY_CATEGORY_LABEL: Record<SupplyCategory, string> = {
@@ -103,7 +103,7 @@ export interface IShiftRow {
 }
 
 /** apertura y cierre los genera el turno; entrada, salida y ajuste se cargan a mano. */
-export type FundMovementType = "apertura" | "cierre" | "entrada" | "salida" | "ajuste";
+type FundMovementType = "apertura" | "cierre" | "entrada" | "salida" | "ajuste";
 export type ManualFundMovementType = "entrada" | "salida" | "ajuste";
 
 export const FUND_MOVEMENT_LABEL: Record<FundMovementType, string> = {
@@ -114,7 +114,7 @@ export const FUND_MOVEMENT_LABEL: Record<FundMovementType, string> = {
     ajuste: "Ajuste",
 };
 
-export interface IFundMovement {
+interface IFundMovement {
     id: number;
     type: FundMovementType;
     /** Con signo: positivo entra al fondo, negativo sale. */
@@ -138,7 +138,7 @@ export interface IFundMovementInput {
     reason: string;
 }
 
-export interface IDaySales {
+interface IDaySales {
     date: string;
     web: number;
     mostrador: number;
@@ -146,7 +146,7 @@ export interface IDaySales {
     tickets: number;
 }
 
-export interface ISalesReport {
+interface ISalesReport {
     days: IDaySales[];
     topProducts: { name: string; units: number; webUnits: number; webShare: number }[];
     today: { web: number; mostrador: number; total: number; tickets: number; averageTicket: number };
@@ -198,7 +198,7 @@ export const fetchSupplies = (token: string, signal?: AbortSignal) =>
 export const fetchProducts = (token: string, signal?: AbortSignal) =>
     httpGet<{ products: IProductStatus[] }>("/admin/products", { signal, headers: getAdminHeaders(token) });
 
-export interface IMovementQuery {
+interface IMovementQuery {
     limit: number;
     offset?: number;
     type?: MovementType;
@@ -222,7 +222,7 @@ export const fetchMovements = (token: string, query: IMovementQuery, signal?: Ab
 
 /* ============ Finanzas ============ */
 
-export interface IFinanceTotals {
+interface IFinanceTotals {
     total: number;
     mostrador: number;
     web: number;
@@ -274,7 +274,7 @@ export const fetchFinance = (token: string, from: string, to: string, signal?: A
 /** Pasos del embudo de compra en la web. "paid" son los pedidos pagados, no un clic. */
 export type WebFunnelStep = "visit" | "category_open" | "add_to_cart" | "cart_open" | "checkout_start" | "pay_click" | "paid";
 
-export interface IWebTotals {
+interface IWebTotals {
     /** Pestañas distintas que abrieron la web. */
     sessions: number;
     paidOrders: number;
@@ -358,9 +358,9 @@ const PANAMA_OFFSET_MS = 5 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Hoy en Panamá (YYYY-MM-DD): el día del negocio, sin importar dónde esté quien mira. */
-export const getPanamaToday = () => new Date(Date.now() - PANAMA_OFFSET_MS).toISOString().slice(0, 10);
+const getPanamaToday = () => new Date(Date.now() - PANAMA_OFFSET_MS).toISOString().slice(0, 10);
 
-export const addDays = (date: string, days: number) =>
+const addDays = (date: string, days: number) =>
     new Date(Date.parse(`${date}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
 
 /** Primer y último día (incluidos) de cada atajo de período. */
@@ -555,7 +555,7 @@ export interface IMenuItem {
     createdAt: string | null;
 }
 
-export interface IMenuItemInput {
+interface IMenuItemInput {
     name: string;
     categoryId: string;
     price: number;
@@ -664,7 +664,7 @@ export const cropMenuImage = async (file: File): Promise<Blob> => {
 
 /* ============ Descuadres de pago ============ */
 
-export type IncidentKind = "RECEIPT_MISSING" | "IPN_UNMATCHED" | "LATE_PAYMENT" | "IPN_INVALID_HASH";
+type IncidentKind = "RECEIPT_MISSING" | "IPN_UNMATCHED" | "LATE_PAYMENT" | "IPN_INVALID_HASH";
 export type IncidentStatus = "open" | "resolved";
 
 export const INCIDENT_LABEL: Record<IncidentKind, string> = {
