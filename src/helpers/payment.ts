@@ -161,7 +161,13 @@ export const getCheckoutErrors = (form: ICheckoutForm, requiresDelivery = false)
     return errors;
 };
 
-export const createOrder = (lines: ICartLine[], form: ICheckoutForm, requiresDelivery = false) =>
+/** Clave de un intento de pago: si la petición se repite (doble toque, red que falla), el API no crea otro pedido. */
+export const createIdempotencyKey = () =>
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 14)}-${Math.random().toString(36).slice(2, 14)}`;
+
+export const createOrder = (lines: ICartLine[], form: ICheckoutForm, requiresDelivery = false, idempotencyKey?: string) =>
     httpPost<IYappyPaymentSession>("/orders", {
         lines: lines.map((line) => ({
             variantId: line.item.variants[0].variant_id,
@@ -176,7 +182,7 @@ export const createOrder = (lines: ICartLine[], form: ICheckoutForm, requiresDel
         note: form.note.trim() || undefined,
         privacyConsent: form.privacyConsent,
         privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
-    });
+    }, idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : undefined);
 
 const getDeliveryPayload = (form: ICheckoutForm) => ({
     address: form.deliveryAddress.trim(),

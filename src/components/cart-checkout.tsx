@@ -10,6 +10,7 @@ import {
     HttpError,
     buildOrderMessage,
     buildPaymentHelpMessage,
+    createIdempotencyKey,
     createOrder,
     formatPhone,
     getCheckoutErrors,
@@ -87,6 +88,8 @@ export const CartCheckout = () => {
     const [isLocating, setIsLocating] = useState(false);
     const [locationError, setLocationError] = useState<string | null>(null);
     const orderIdRef = useRef<string | null>(null);
+    // Se repite en los reintentos (doble toque, red que falla) y se renueva cuando el pedido sale
+    const idempotencyKeyRef = useRef<string | null>(null);
 
     useEffect(() => {
         formInMemory.current = form;
@@ -164,7 +167,9 @@ export const CartCheckout = () => {
         if (Object.keys(formErrors).length > 0) return null;
 
         try {
-            const session = await createOrder(lines, form, requiresDelivery);
+            idempotencyKeyRef.current ??= createIdempotencyKey();
+            const session = await createOrder(lines, form, requiresDelivery, idempotencyKeyRef.current);
+            idempotencyKeyRef.current = null;
             rememberOrderAccess(session.orderId, session.accessToken);
             orderIdRef.current = session.orderId;
             setLastOrderId(session.orderId);

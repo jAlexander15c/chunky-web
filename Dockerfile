@@ -1,5 +1,6 @@
+# Node 24 (LTS). Node 20 ya no recibe parches de seguridad.
 # Stage 1: Build
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
@@ -22,13 +23,17 @@ ENV VITE_API_BASE_URL=$VITE_API_BASE_URL \
 RUN npm run build
 
 # Stage 2: Serve
-FROM node:20-alpine AS runner
+FROM node:24-alpine AS runner
 
 WORKDIR /app
 
-RUN npm install -g serve
+# Version fija: un despliegue no debe cambiar de servidor sin que lo decidamos
+RUN npm install -g serve@14.2.6
 
-COPY --from=builder /app/dist ./dist
+COPY --from=builder --chown=node:node /app/dist ./dist
+
+# Sin privilegios de root dentro del contenedor
+USER node
 
 EXPOSE 3000
 
