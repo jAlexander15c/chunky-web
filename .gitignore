@@ -39,3 +39,10 @@ next-env.d.ts
 .playwright-mcp/
 .impeccable/review/
 .impeccable/mocks/
+
+# build (el Dockerfile compila con npm run build)
+/dist
+/.vite
+
+# notas locales
+/docs
