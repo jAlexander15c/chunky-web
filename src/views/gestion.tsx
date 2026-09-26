@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
-import { QuotesIncome, QuotesPanel } from "@/components";
 import {
     HttpError,
     ROLE_LABEL,
@@ -19,6 +18,7 @@ import { GestionCaja } from "./gestion/caja";
 import { GestionCocina, KitchenToast } from "./gestion/cocina";
 import { GestionCreditos } from "./gestion/creditos";
 import { GestionInventario } from "./gestion/inventario";
+import { GestionPasteleria } from "./gestion/pasteleria";
 import { GestionTurno } from "./gestion/turno";
 
 import "./gestion.css";
@@ -127,7 +127,7 @@ const GestionLogin = ({ onLogin }: IGestionLoginProps) => {
 
 /* ============ Armazón ============ */
 
-type Section = "caja" | "turno" | "creditos" | "cocina" | "inventario" | "cotizaciones" | "ingresos";
+type Section = "caja" | "turno" | "creditos" | "cocina" | "inventario" | "pasteleria";
 
 interface ISectionInfo {
     id: Section;
@@ -199,25 +199,14 @@ const SECTIONS: ISectionInfo[] = [
         ),
     },
     {
-        id: "cotizaciones",
-        label: "Cotizaciones",
+        id: "pasteleria",
+        label: "Pastelería",
         role: "pastelera",
-        sub: "Cakes y postres de la web, y los que registras a mano",
+        sub: "Cotizaciones de cakes y postres, y lo que dejan",
         icon: (
             <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M4 21V11h16v10M2 11h20M12 11V7" />
                 <circle cx="12" cy="5" r="2" />
-            </svg>
-        ),
-    },
-    {
-        id: "ingresos",
-        label: "Ingresos",
-        role: "pastelera",
-        sub: "Bruto y neto de las cotizaciones entregadas",
-        icon: (
-            <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M4 19V10M10 19V5M16 19v-7M21 19H3" />
             </svg>
         ),
     },
@@ -318,14 +307,8 @@ const GestionShell = ({ token, name, roles, onLogout }: IGestionShellProps) => {
                         <GestionCreditos token={token} onSessionExpired={onLogout} onShiftChange={setShift} />
                     ) : current.id === "cocina" ? (
                         <GestionCocina feed={kitchen} onSessionExpired={onLogout} />
-                    ) : current.id === "cotizaciones" ? (
-                        <div className="ges-quotes">
-                            <QuotesPanel token={token} onSessionExpired={onLogout} />
-                        </div>
-                    ) : current.id === "ingresos" ? (
-                        <div className="ges-quotes">
-                            <QuotesIncome token={token} onSessionExpired={onLogout} />
-                        </div>
+                    ) : current.id === "pasteleria" ? (
+                        <GestionPasteleria token={token} onSessionExpired={onLogout} />
                     ) : (
                         <GestionInventario token={token} onSessionExpired={onLogout} />
                     )}

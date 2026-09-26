@@ -34,7 +34,7 @@ const formatLastLogin = (value: string | null) => {
 const ROLE_HINT: Record<CollaboratorRole, string> = {
     inventario: "Compras, conteos y mermas",
     caja: "Mesas, cobrar y cerrar la caja",
-    pastelera: "Cotizaciones de cakes: las ve con sus fotos y las confirma",
+    pastelera: "Pastelería: cotizaciones de cakes con sus fotos, registro a mano e ingresos",
 };
 
 interface ICollaboratorDialogProps {
