@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 
-import { getWhatsAppUrl } from "@/helpers";
+import { getPrivacyNoticeDateLabel, getWhatsAppUrl } from "@/helpers";
 
-/** Cuando cambia el texto, se cambia esta fecha. */
-const UPDATED_AT = "25 de septiembre de 2026";
+/** Cuando cambia el texto, se cambia PRIVACY_NOTICE_VERSION: queda en cada pedido y cotización. */
+const UPDATED_AT = getPrivacyNoticeDateLabel();
 
 /**
  * Aviso de privacidad (Ley 81 de 2019 y Decreto Ejecutivo 285 de 2021, Panamá). En palabras

@@ -17,16 +17,15 @@ import {
     getMapsUrl,
     getOrderingStatusLabel,
     getWhatsAppUrl,
-    hasAcceptedPrivacy,
     isAcceptingOrders,
-    rememberPrivacyAccepted,
+    readCheckoutDraft,
+    rememberOrderAccess,
+    saveCheckoutDraft,
     setLastOrderId,
     useSettings,
     trackEvent,
 } from "@/helpers";
 import type { CheckoutErrors, Fulfillment, ICheckoutForm } from "@/helpers";
-
-const FORM_STORAGE_KEY = "chunky-checkout";
 
 const EMPTY_FORM: ICheckoutForm = {
     customerName: "",
@@ -51,14 +50,13 @@ const GEOLOCATION_TIMEOUT_MS = 10000;
 // Seis decimales son ~11 cm: de sobra para encontrar una puerta
 const roundCoordinate = (value: number) => Math.round(value * 1e6) / 1e6;
 
-const readStoredForm = (): ICheckoutForm => {
-    try {
-        const raw = window.sessionStorage.getItem(FORM_STORAGE_KEY);
-        return raw ? { ...EMPTY_FORM, ...JSON.parse(raw) } : EMPTY_FORM;
-    } catch {
-        return EMPTY_FORM;
-    }
-};
+/**
+ * El formulario completo sobrevive a cerrar y abrir el carrito, pero solo en memoria: la dirección,
+ * la ubicación y la nota se pierden al recargar. Lo que sobrevive a una recarga es el borrador corto.
+ */
+const formInMemory: { current: ICheckoutForm | null } = { current: null };
+
+const readStoredForm = (): ICheckoutForm => formInMemory.current ?? { ...EMPTY_FORM, ...readCheckoutDraft() };
 
 const FULFILLMENT_OPTIONS: { value: Fulfillment; label: string; detail: string }[] = [
     { value: "pickup", label: "Retiro en el local", detail: "Pasas a buscarlo" },
@@ -91,11 +89,8 @@ export const CartCheckout = () => {
     const orderIdRef = useRef<string | null>(null);
 
     useEffect(() => {
-        try {
-            window.sessionStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(form));
-        } catch {
-            return;
-        }
+        formInMemory.current = form;
+        saveCheckoutDraft(form);
     }, [form]);
 
     // El checkout empieza cuando escribe el primer dato, no al ver el carrito
@@ -170,8 +165,7 @@ export const CartCheckout = () => {
 
         try {
             const session = await createOrder(lines, form, requiresDelivery);
-            // Ya aceptó el aviso con este celular: en este navegador no se le vuelve a preguntar
-            rememberPrivacyAccepted(form.customerPhone);
+            rememberOrderAccess(session.orderId, session.accessToken);
             orderIdRef.current = session.orderId;
             setLastOrderId(session.orderId);
             return session;
@@ -185,7 +179,8 @@ export const CartCheckout = () => {
 
     const goToOrder = () => {
         if (!orderIdRef.current) return;
-        setForm((current) => ({ ...current, note: "" }));
+        // El siguiente pedido vuelve a pedir la casilla del aviso
+        setForm((current) => ({ ...current, note: "", privacyConsent: false }));
         setIsOpen(false);
         navigate(`/pedido/${orderIdRef.current}`);
     };
@@ -369,32 +364,23 @@ export const CartCheckout = () => {
                 </div>
 
                 <div className="checkout__privacy">
-                    {hasAcceptedPrivacy(form.customerPhone) ? (
-                        <p className="checkout__legal">
-                            Usamos tu nombre y celular para preparar y entregar tu pedido y guardar tu historial de compras.{" "}
-                            <a href="/privacidad" target="_blank" rel="noopener">Aviso de privacidad</a>
-                        </p>
-                    ) : (
-                        <>
-                            <label className="field__check checkout__consent" htmlFor="checkout-privacy">
-                                <input
-                                    id="checkout-privacy"
-                                    type="checkbox"
-                                    checked={form.privacyConsent}
-                                    onChange={togglePrivacyConsent}
-                                    aria-invalid={Boolean(errors.privacyConsent)}
-                                    aria-describedby={errors.privacyConsent ? "checkout-privacy-error" : undefined}
-                                />
-                                <span>
-                                    Acepto el{" "}
-                                    <a href="/privacidad" target="_blank" rel="noopener">aviso de privacidad</a>: usan mi
-                                    nombre y celular para preparar y entregar mi pedido y guardar mis compras.
-                                </span>
-                            </label>
-                            {errors.privacyConsent && (
-                                <span id="checkout-privacy-error" className="field__error" role="alert">{errors.privacyConsent}</span>
-                            )}
-                        </>
+                    <label className="field__check checkout__consent" htmlFor="checkout-privacy">
+                        <input
+                            id="checkout-privacy"
+                            type="checkbox"
+                            checked={form.privacyConsent}
+                            onChange={togglePrivacyConsent}
+                            aria-invalid={Boolean(errors.privacyConsent)}
+                            aria-describedby={errors.privacyConsent ? "checkout-privacy-error" : undefined}
+                        />
+                        <span>
+                            Acepto el{" "}
+                            <a href="/privacidad" target="_blank" rel="noopener">aviso de privacidad</a>: usan mi
+                            nombre y celular para preparar y entregar mi pedido y guardar mis compras.
+                        </span>
+                    </label>
+                    {errors.privacyConsent && (
+                        <span id="checkout-privacy-error" className="field__error" role="alert">{errors.privacyConsent}</span>
                     )}
                 </div>
             </div>

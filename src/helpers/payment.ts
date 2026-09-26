@@ -2,6 +2,7 @@ import { httpGet, httpPost } from "./getHttp";
 import { formatCartLine, formatPrice, getCartTotal } from "./order";
 import type { ICartLine } from "./order";
 import type { IPastaOptions } from "./pasta";
+import { PRIVACY_NOTICE_VERSION } from "./privacy";
 
 export type OrderStatus =
     | "PENDING_PAYMENT"
@@ -17,8 +18,8 @@ export type OrderStatus =
 export interface IPublicOrder {
     id: string;
     status: OrderStatus;
+    /** Solo el nombre de pila. */
     customerName: string;
-    note: string | null;
     lines: {
         name: string;
         quantity: number;
@@ -40,6 +41,8 @@ export interface IPublicOrder {
 
 export interface IYappyPaymentSession {
     orderId: string;
+    /** Llave para consultar el pedido: sin ella, conocer el id no basta. */
+    accessToken: string;
     transactionId: string;
     token: string;
     documentName: string;
@@ -60,7 +63,7 @@ export interface ICheckoutForm {
     deliveryDetails: string;
     deliveryLat: number | null;
     deliveryLng: number | null;
-    /** Aceptó el aviso de privacidad (Ley 81). Obligatorio para quien no lo aceptó antes en este aparato. */
+    /** Marcó la casilla del aviso de privacidad (Ley 81) en este pedido. Siempre obligatoria. */
     privacyConsent: boolean;
 }
 
@@ -68,33 +71,50 @@ export type CheckoutErrors = Partial<
     Record<"customerName" | "customerPhone" | "whatsappPhone" | "deliveryAddress" | "privacyConsent", string>
 >;
 
-/** Celulares que ya aceptaron el aviso en este navegador: a ellos no se les vuelve a preguntar. */
-const PRIVACY_STORAGE_KEY = "chunky-privacy-phones";
+/**
+ * Borrador del checkout en sessionStorage, para no perderlo al recargar. Solo nombre, celulares y
+ * forma de entrega: la dirección, las referencias, la ubicación, la nota y la casilla no se guardan.
+ */
+const CHECKOUT_DRAFT_STORAGE_KEY = "chunky-checkout";
 
-const readPrivacyPhones = (): string[] => {
+type CheckoutDraft = Pick<ICheckoutForm, "customerName" | "customerPhone" | "hasOtherWhatsapp" | "whatsappPhone" | "fulfillment">;
+
+export const readCheckoutDraft = (): Partial<CheckoutDraft> => {
     try {
-        const stored = JSON.parse(window.localStorage.getItem(PRIVACY_STORAGE_KEY) ?? "[]");
-        return Array.isArray(stored) ? stored.filter((one): one is string => typeof one === "string") : [];
+        const stored = JSON.parse(window.sessionStorage.getItem(CHECKOUT_DRAFT_STORAGE_KEY) ?? "{}");
+        if (!stored || typeof stored !== "object") return {};
+        const { customerName, customerPhone, hasOtherWhatsapp, whatsappPhone, fulfillment } = stored;
+        return {
+            ...(typeof customerName === "string" ? { customerName } : {}),
+            ...(typeof customerPhone === "string" ? { customerPhone } : {}),
+            ...(typeof hasOtherWhatsapp === "boolean" ? { hasOtherWhatsapp } : {}),
+            ...(typeof whatsappPhone === "string" ? { whatsappPhone } : {}),
+            ...(fulfillment === "pickup" || fulfillment === "delivery" ? { fulfillment } : {}),
+        };
     } catch {
-        return [];
+        return {};
     }
 };
 
-/**
- * Si este celular ya aceptó el aviso en este navegador. Un cliente ya registrado que pide desde
- * otro aparato lo verá una vez más; la API igual le suma el pedido aunque no lo marque.
- */
-export const hasAcceptedPrivacy = (phone: string) => {
-    const digits = getPhoneDigits(phone);
-    return digits.length === 8 && readPrivacyPhones().includes(digits);
+export const saveCheckoutDraft = (form: ICheckoutForm) => {
+    const draft: CheckoutDraft = {
+        customerName: form.customerName,
+        customerPhone: form.customerPhone,
+        hasOtherWhatsapp: form.hasOtherWhatsapp,
+        whatsappPhone: form.whatsappPhone,
+        fulfillment: form.fulfillment,
+    };
+    try {
+        window.sessionStorage.setItem(CHECKOUT_DRAFT_STORAGE_KEY, JSON.stringify(draft));
+    } catch {
+        return;
+    }
 };
 
-export const rememberPrivacyAccepted = (phone: string) => {
-    const digits = getPhoneDigits(phone);
-    if (digits.length !== 8) return;
+/** Al confirmarse el pago: el pedido ya salió y el borrador no hace falta. */
+export const clearCheckoutDraft = () => {
     try {
-        const phones = readPrivacyPhones().filter((one) => one !== digits);
-        window.localStorage.setItem(PRIVACY_STORAGE_KEY, JSON.stringify([digits, ...phones].slice(0, 5)));
+        window.sessionStorage.removeItem(CHECKOUT_DRAFT_STORAGE_KEY);
     } catch {
         return;
     }
@@ -135,7 +155,7 @@ export const getCheckoutErrors = (form: ICheckoutForm, requiresDelivery = false)
     if (form.hasOtherWhatsapp && !isPanamaMobile(form.whatsappPhone)) {
         errors.whatsappPhone = "Escribe un WhatsApp de 8 dígitos que empiece en 6.";
     }
-    if (!form.privacyConsent && !hasAcceptedPrivacy(form.customerPhone)) {
+    if (!form.privacyConsent) {
         errors.privacyConsent = "Para pedir, acepta el aviso de privacidad.";
     }
     return errors;
@@ -154,7 +174,8 @@ export const createOrder = (lines: ICartLine[], form: ICheckoutForm, requiresDel
         customerPhone: getPhoneDigits(form.customerPhone),
         whatsappPhone: form.hasOtherWhatsapp ? getPhoneDigits(form.whatsappPhone) : undefined,
         note: form.note.trim() || undefined,
-        privacyConsent: form.privacyConsent || hasAcceptedPrivacy(form.customerPhone),
+        privacyConsent: form.privacyConsent,
+        privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
     });
 
 const getDeliveryPayload = (form: ICheckoutForm) => ({
@@ -174,13 +195,68 @@ export const getDeliveryText = (form: Partial<Pick<ICheckoutForm, "deliveryAddre
     return `Entrega en: ${address}${details}${map}`;
 };
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** Lo mismo que el API deja consultar un pedido. */
+const ORDER_ACCESS_MS = 7 * DAY_MS;
+const MAX_STORED_ORDERS = 5;
+const ORDER_ACCESS_STORAGE_KEY = "chunky-order-access";
+
+type OrderAccess = Record<string, { token: string; expiresAt: number }>;
+
+/** Tokens de los pedidos hechos en este navegador, sin los vencidos. */
+const readOrderAccess = (): OrderAccess => {
+    try {
+        const stored = JSON.parse(window.localStorage.getItem(ORDER_ACCESS_STORAGE_KEY) ?? "{}");
+        if (!stored || typeof stored !== "object") return {};
+        const now = Date.now();
+        return Object.fromEntries(
+            Object.entries(stored).filter(
+                (entry): entry is [string, { token: string; expiresAt: number }] => {
+                    const value = entry[1] as { token?: unknown; expiresAt?: unknown } | null;
+                    return typeof value?.token === "string" && typeof value.expiresAt === "number" && value.expiresAt > now;
+                }
+            )
+        );
+    } catch {
+        return {};
+    }
+};
+
+/** Guarda la llave del pedido: con ella esta página y sus avisos pueden consultarlo por 7 días. */
+export const rememberOrderAccess = (orderId: string, token: string) => {
+    const recent = Object.entries(readOrderAccess())
+        .filter(([id]) => id !== orderId)
+        .sort(([, a], [, b]) => b.expiresAt - a.expiresAt)
+        .slice(0, MAX_STORED_ORDERS - 1);
+    try {
+        window.localStorage.setItem(
+            ORDER_ACCESS_STORAGE_KEY,
+            JSON.stringify(Object.fromEntries([[orderId, { token, expiresAt: Date.now() + ORDER_ACCESS_MS }], ...recent]))
+        );
+    } catch {
+        return;
+    }
+};
+
+/** Header con la llave del pedido, o nada si este navegador no lo hizo. */
+export const getOrderAccessHeaders = (orderId: string): Record<string, string> => {
+    const access = readOrderAccess()[orderId];
+    return access ? { "x-order-token": access.token } : {};
+};
+
 export const fetchOrder = (orderId: string, signal?: AbortSignal) =>
-    httpGet<IPublicOrder>(`/orders/${encodeURIComponent(orderId)}`, { signal });
+    httpGet<IPublicOrder>(`/orders/${encodeURIComponent(orderId)}`, { signal, headers: getOrderAccessHeaders(orderId) });
+
+/** El último pedido solo sirve para vaciar el carrito al confirmarse el pago: vence en un día. */
+const LAST_ORDER_MS = DAY_MS;
 
 /** Ultimo pedido iniciado en este navegador, para recuperarlo si se recarga la pagina. */
 export const getLastOrderId = () => {
     try {
-        return window.localStorage.getItem(LAST_ORDER_STORAGE_KEY);
+        const stored = JSON.parse(window.localStorage.getItem(LAST_ORDER_STORAGE_KEY) ?? "null");
+        return typeof stored?.id === "string" && typeof stored.expiresAt === "number" && stored.expiresAt > Date.now()
+            ? (stored.id as string)
+            : null;
     } catch {
         return null;
     }
@@ -188,8 +264,11 @@ export const getLastOrderId = () => {
 
 export const setLastOrderId = (orderId: string | null) => {
     try {
-        if (orderId) window.localStorage.setItem(LAST_ORDER_STORAGE_KEY, orderId);
-        else window.localStorage.removeItem(LAST_ORDER_STORAGE_KEY);
+        if (orderId) {
+            window.localStorage.setItem(LAST_ORDER_STORAGE_KEY, JSON.stringify({ id: orderId, expiresAt: Date.now() + LAST_ORDER_MS }));
+        } else {
+            window.localStorage.removeItem(LAST_ORDER_STORAGE_KEY);
+        }
     } catch {
         return;
     }

@@ -9,6 +9,7 @@ export * from "./modifiers";
 export * from "./pasta";
 export * from "./settings";
 export * from "./payment";
+export * from "./privacy";
 export * from "./kitchen";
 export * from "./push";
 export * from "./sound";

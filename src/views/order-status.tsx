@@ -8,6 +8,7 @@ import {
     HttpError,
     PAID_ORDER_STATUSES,
     buildPaymentHelpMessage,
+    clearCheckoutDraft,
     fetchOrder,
     formatPastaOptions,
     formatPrice,
@@ -131,7 +132,6 @@ const OrderTicket = ({ order }: { order: IPublicOrder }) => (
                 {order.delivery.details && <span>{order.delivery.details}</span>}
             </p>
         )}
-        {order.note && <p className="order-ticket__note">Nota: {order.note}</p>}
         <div className="order-ticket__perf" aria-hidden />
         <div className="order-ticket__foot">
             <span>Pagado con Yappy</span>
@@ -193,7 +193,8 @@ const FailedOrder = ({ order }: { order: IPublicOrder }) => {
         setIsOpen(true);
     };
 
-    const helpUrl = getWhatsAppUrl(buildPaymentHelpMessage(lines, { customerName: order.customerName, note: order.note ?? "" }, order.id));
+    // La nota ya no viaja a esta página: el mensaje lleva el pedido y su código
+    const helpUrl = getWhatsAppUrl(buildPaymentHelpMessage(lines, { customerName: order.customerName, note: "" }, order.id));
 
     return (
         <>
@@ -250,10 +251,11 @@ export const OrderStatusView = () => {
         };
     }, [alert, isDelivery]);
 
-    // El carrito se vacia una sola vez, cuando se confirma el pago del pedido que se inicio aqui
+    // El carrito y el borrador del checkout se vacian una sola vez, cuando se confirma el pago del pedido que se inicio aqui
     useEffect(() => {
         if (order && PAID_ORDER_STATUSES.includes(order.status) && getLastOrderId() === order.id) {
             clearCart();
+            clearCheckoutDraft();
             setLastOrderId(null);
         }
     }, [order, clearCart]);

@@ -1,4 +1,5 @@
 import { httpGet, httpPost } from "./getHttp";
+import { getOrderAccessHeaders } from "./payment";
 import { getExistingPushSubscription, getPushSubscription } from "./push";
 
 const ORDER_PUSH_STORAGE_PREFIX = "chunky-order-push:";
@@ -36,7 +37,9 @@ export const enableOrderPush = async (orderId: string): Promise<"granted" | "den
         const subscription = await getPushSubscription(publicKey);
         if (!subscription) return Notification.permission === "denied" ? "denied" : "error";
 
-        await httpPost(`/orders/${encodeURIComponent(orderId)}/push/subscribe`, subscription.toJSON());
+        await httpPost(`/orders/${encodeURIComponent(orderId)}/push/subscribe`, subscription.toJSON(), {
+            headers: getOrderAccessHeaders(orderId),
+        });
         writeFlag(orderId, true);
         return "granted";
     } catch (error) {
