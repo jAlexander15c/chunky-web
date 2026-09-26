@@ -6,6 +6,7 @@ import {
     QUOTE_STATUS_LABEL,
     QUOTE_STATUS_PLURAL,
     changeQuoteStatus,
+    downloadQuoteIcs,
     fetchQuote,
     fetchQuotes,
     formatPhone,
@@ -15,6 +16,8 @@ import {
     isDessertSelection,
 } from "@/helpers";
 import type { IQuote, IQuoteDetail, QuoteStatus } from "@/helpers";
+
+import { ManualQuoteForm } from "./manual-quote-form";
 
 import "./quotes-panel.css";
 
@@ -37,7 +40,7 @@ const NEXT_STEP: Partial<Record<QuoteStatus, { to: QuoteStatus; label: string }>
 const formatReceivedAt = (value: string) =>
     new Date(value).toLocaleString("es-PA", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true });
 
-const getClientWhatsAppUrl = (quote: IQuote) => {
+const getClientWhatsAppUrl = (quote: IQuote & { customerPhone: string }) => {
     const firstName = quote.customerName.split(" ")[0];
     const text = `Hola ${firstName}, te escribimos de Chunky Bites por tu cotización ${quote.code}.`;
     return `https://wa.me/507${quote.customerPhone}?text=${encodeURIComponent(text)}`;
@@ -61,9 +64,16 @@ const QuoteDetail = ({
             <div className="qp-detail__head">
                 <div>
                     <div className="qp-detail__code script">{quote.code}</div>
-                    <p>Recibida el {formatReceivedAt(quote.createdAt)}</p>
+                    <p>
+                        {quote.source === "manual"
+                            ? `Registrada ${quote.createdBy ? `por ${quote.createdBy} ` : ""}el ${formatReceivedAt(quote.createdAt)}`
+                            : `Recibida el ${formatReceivedAt(quote.createdAt)}`}
+                    </p>
                 </div>
-                <span className={`qp-pill qp-pill--${quote.status}`}>{QUOTE_STATUS_LABEL[quote.status]}</span>
+                <span className="qp-pills">
+                    {quote.source === "manual" ? <span className="qp-pill qp-pill--manual">Manual</span> : null}
+                    <span className={`qp-pill qp-pill--${quote.status}`}>{QUOTE_STATUS_LABEL[quote.status]}</span>
+                </span>
             </div>
 
             {/* Los postres enteros (flan, cheesecake…) se cotizan sin fotos */}
@@ -120,15 +130,18 @@ const QuoteDetail = ({
                     <h3 className="qp-h">Cliente</h3>
                     <dl className="qp-client">
                         <div><dt>Nombre</dt><dd>{quote.customerName}</dd></div>
-                        <div><dt>WhatsApp</dt><dd>{formatPhone(quote.customerPhone)}</dd></div>
-                        <div><dt>Fecha deseada</dt><dd>{formatQuoteDate(quote.desiredDate)}</dd></div>
+                        <div>
+                            <dt>WhatsApp</dt>
+                            <dd>{quote.customerPhone ? formatPhone(quote.customerPhone) : <span className="qp-muted">Sin celular</span>}</dd>
+                        </div>
+                        <div><dt>{quote.source === "manual" ? "Entrega" : "Fecha deseada"}</dt><dd>{formatQuoteDate(quote.desiredDate)}</dd></div>
                     </dl>
                 </section>
             </div>
 
             {quote.note ? (
                 <section>
-                    <h3 className="qp-h">Nota del cliente</h3>
+                    <h3 className="qp-h">{quote.source === "manual" ? "Nota" : "Nota del cliente"}</h3>
                     <p className="qp-note">{quote.note}</p>
                 </section>
             ) : null}
@@ -138,9 +151,25 @@ const QuoteDetail = ({
             ) : null}
 
             <div className="qp-actions">
-                <a className="qp-btn" href={getClientWhatsAppUrl(quote)} target="_blank" rel="noopener noreferrer">
-                    Abrir WhatsApp de {quote.customerName.split(" ")[0]}
-                </a>
+                {quote.status !== "cancelada" ? (
+                    <button type="button" className="qp-btn qp-btn--calendar" onClick={() => downloadQuoteIcs(quote)}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <rect x="3" y="5" width="18" height="16" rx="3" />
+                            <path d="M3 10h18M8 3v4M16 3v4M12 13v5M9.5 15.5h5" />
+                        </svg>
+                        Agregar al calendario
+                    </button>
+                ) : null}
+                {quote.customerPhone ? (
+                    <a
+                        className="qp-btn"
+                        href={getClientWhatsAppUrl({ ...quote, customerPhone: quote.customerPhone })}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        Abrir WhatsApp de {quote.customerName.split(" ")[0]}
+                    </a>
+                ) : null}
                 {next ? (
                     <button type="button" className="qp-btn qp-btn--solid" disabled={isChanging} onClick={() => onChangeStatus(next.to)}>
                         {isChanging ? "Guardando…" : next.label}
@@ -167,6 +196,7 @@ export const QuotesPanel = ({ token, onSessionExpired }: IQuotesPanelProps) => {
     const [isLoadingDetail, setIsLoadingDetail] = useState(false);
     const [isChanging, setIsChanging] = useState(false);
     const [error, setError] = useState("");
+    const [isRegistering, setIsRegistering] = useState(false);
 
     const handleError = useCallback(
         (requestError: unknown, fallback: string) => {
@@ -249,14 +279,40 @@ export const QuotesPanel = ({ token, onSessionExpired }: IQuotesPanelProps) => {
         }
     };
 
+    // Al guardar se abre la nueva en su filtro, como después de cambiar un estado
+    const handleSaved = (quote: IQuote) => {
+        setIsRegistering(false);
+        setSelectedId(quote.id);
+        if (quote.status === status) void loadList();
+        else setStatus(quote.status);
+    };
+
+    if (isRegistering) {
+        return (
+            <div className="qp">
+                <ManualQuoteForm
+                    token={token}
+                    onSaved={handleSaved}
+                    onCancel={() => setIsRegistering(false)}
+                    onSessionExpired={onSessionExpired}
+                />
+            </div>
+        );
+    }
+
     return (
         <div className="qp">
-            <div className="qp-filters" role="group" aria-label="Estado">
-                {QUOTE_STATUSES.map((one) => (
-                    <button key={one} type="button" aria-pressed={status === one} onClick={() => setStatus(one)}>
-                        {QUOTE_STATUS_PLURAL[one]} <span className="qp-filters__n">{counts[one]}</span>
-                    </button>
-                ))}
+            <div className="qp-bar">
+                <div className="qp-filters" role="group" aria-label="Estado">
+                    {QUOTE_STATUSES.map((one) => (
+                        <button key={one} type="button" aria-pressed={status === one} onClick={() => setStatus(one)}>
+                            {QUOTE_STATUS_PLURAL[one]} <span className="qp-filters__n">{counts[one]}</span>
+                        </button>
+                    ))}
+                </div>
+                <button type="button" className="qp-btn qp-btn--solid qp-bar__add" onClick={() => setIsRegistering(true)}>
+                    + Registrar cotización
+                </button>
             </div>
 
             {error ? <p className="qp-error" role="alert">{error}</p> : null}
@@ -278,7 +334,10 @@ export const QuotesPanel = ({ token, onSessionExpired }: IQuotesPanelProps) => {
                                         onClick={() => setSelectedId(quote.id)}
                                     >
                                         <span className="qp-row__main">
-                                            <b>{quote.customerName}</b>
+                                            <b>
+                                                {quote.customerName}
+                                                {quote.source === "manual" ? <span className="qp-tag">Manual</span> : null}
+                                            </b>
                                             <small>{getQuoteSizeLabel(quote.selection)}</small>
                                             <small>Para el {formatQuoteDate(quote.desiredDate)}</small>
                                         </span>

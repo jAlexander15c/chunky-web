@@ -1,5 +1,6 @@
 import { httpGet, httpPost } from "./getHttp";
-import { getPhoneDigits } from "./payment";
+import { formatPrice } from "./order";
+import { formatPhone, getPhoneDigits } from "./payment";
 
 /**
  * Cotizador de cakes. Estos precios son una copia de los de chunky-api
@@ -310,11 +311,15 @@ export interface IQuote {
     code: string;
     status: QuoteStatus;
     customerName: string;
-    customerPhone: string;
+    /** Las registradas a mano pueden venir sin celular. */
+    customerPhone: string | null;
     desiredDate: string;
     note: string | null;
     selection: ICakeSelection | IDessertSelection;
     total: number;
+    /** Web: la mandó el cliente desde /cotizador. Manual: la registró la pastelera. */
+    source: "web" | "manual";
+    createdBy: string | null;
     statusChangedBy: string | null;
     createdAt: string;
     updatedAt: string;
@@ -365,6 +370,186 @@ export const fetchQuote = (token: string, id: number, signal?: AbortSignal) =>
 
 export const changeQuoteStatus = (token: string, id: number, status: QuoteStatus) =>
     httpPost<{ quote: IQuoteDetail }>(`/gestion/quotes/${id}/status`, { status }, { headers: getQuoteHeaders(token) });
+
+/** Lo que la pastelera anota a mano: un cake del catálogo o un postre, sin fotos ni topper. */
+export interface IManualQuoteDraft {
+    kind: QuoteKind;
+    size: QuoteSize;
+    height: QuoteHeight;
+    doughId: string;
+    fillingIds: string[];
+    dessertId: string;
+    dessertSize: DessertSize;
+    customerName: string;
+    customerPhone: string;
+    desiredDate: string;
+    note: string;
+    status: "nueva" | "confirmada";
+}
+
+/** Lo que falta para guardar un registro manual. Vacío es listo. */
+export const getManualQuoteMissing = (draft: IManualQuoteDraft) => {
+    const missing: string[] = [];
+    if (draft.kind === "cake" && !draft.fillingIds.length) missing.push("Elige al menos un relleno");
+    if (draft.customerName.trim().length < 2) missing.push("Escribe el nombre del cliente");
+    const phone = getPhoneDigits(draft.customerPhone);
+    if (phone && !/^6\d{7}$/.test(phone)) missing.push("El celular tiene 8 dígitos y empieza en 6 (o déjalo vacío)");
+    if (!draft.desiredDate) missing.push("Elige la fecha de entrega");
+    return missing;
+};
+
+/** El precio lo pone el API: aquí solo se manda lo elegido. */
+export const createManualQuote = (token: string, draft: IManualQuoteDraft) => {
+    const customer = {
+        customerName: draft.customerName.trim(),
+        customerPhone: getPhoneDigits(draft.customerPhone) || null,
+        desiredDate: draft.desiredDate,
+        note: draft.note.trim() || null,
+        status: draft.status,
+    };
+    return httpPost<{ quote: IQuote }>(
+        "/gestion/quotes",
+        draft.kind === "postre"
+            ? { kind: "postre", dessertId: draft.dessertId, size: draft.dessertSize, ...customer }
+            : { kind: "cake", size: draft.size, height: draft.height, doughId: draft.doughId, fillingIds: draft.fillingIds, ...customer },
+        { headers: getQuoteHeaders(token) }
+    );
+};
+
+/* ============ Ingresos de la pastelera ============ */
+
+export interface IQuoteIncomeTotals {
+    count: number;
+    gross: number;
+    cost: number;
+    net: number;
+}
+
+export interface IQuoteSummary {
+    range: { from: string; to: string };
+    /** Entregadas en el rango, por fecha de entrega. */
+    delivered: IQuoteIncomeTotals;
+    /** Lo mismo en el período anterior del mismo largo. */
+    previous: IQuoteIncomeTotals;
+    /** Confirmadas que se entregan en el rango: lo que falta cobrar. */
+    pending: { count: number; gross: number };
+    series: { from: string; to: string; gross: number; net: number }[];
+    byProduct: (IQuoteIncomeTotals & { label: string })[];
+    bySource: Record<"web" | "manual", { count: number; gross: number }>;
+}
+
+export const fetchQuoteSummary = (token: string, from: string, to: string, signal?: AbortSignal) =>
+    httpGet<IQuoteSummary>(`/gestion/quotes/summary?from=${from}&to=${to}`, { signal, headers: getQuoteHeaders(token) });
+
+export type QuoteIncomePeriod = "mes" | "mes-anterior" | "30d";
+
+export const QUOTE_INCOME_PERIODS: { id: QuoteIncomePeriod; label: string }[] = [
+    { id: "mes", label: "Este mes" },
+    { id: "mes-anterior", label: "Mes pasado" },
+    { id: "30d", label: "Últimos 30 días" },
+];
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const addQuoteDays = (date: string, days: number) =>
+    new Date(Date.parse(`${date}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
+
+/**
+ * Primer y último día (incluidos). "Este mes" va hasta fin de mes y no hasta hoy: se cuenta por
+ * fecha de entrega, y lo confirmado para los próximos días es lo que falta cobrar.
+ */
+export const getQuoteIncomeRange = (period: QuoteIncomePeriod, today = getPanamaTodayText()) => {
+    const monthStart = `${today.slice(0, 7)}-01`;
+    switch (period) {
+        case "mes": {
+            const nextMonth = addQuoteDays(monthStart, 32).slice(0, 7);
+            return { from: monthStart, to: addQuoteDays(`${nextMonth}-01`, -1) };
+        }
+        case "mes-anterior": {
+            const lastDay = addQuoteDays(monthStart, -1);
+            return { from: `${lastDay.slice(0, 7)}-01`, to: lastDay };
+        }
+        case "30d":
+            return { from: addQuoteDays(today, -29), to: today };
+    }
+};
+
+/* ============ Calendario (iOS) ============ */
+
+/** Hoy en Panamá como AAAA-MM-DD. */
+export const getPanamaTodayText = () => new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+/** Texto de iCalendar: comas, puntos y comas, barras y saltos van escapados. */
+const escapeIcsText = (value: string) =>
+    value.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+
+/** Las líneas largas se doblan: la siguiente empieza con un espacio. */
+const foldIcsLine = (line: string) => {
+    const parts: string[] = [];
+    for (let index = 0; index < line.length; index += 60) parts.push(line.slice(index, index + 60));
+    return parts.join("\r\n ");
+};
+
+const getQuoteDetailLines = (quote: IQuote) => {
+    const { selection } = quote;
+    if (isDessertSelection(selection)) return [];
+    return [`Masa: ${selection.dough.name}`, `Relleno: ${selection.fillings.map((one) => one.name).join(" + ")}`];
+};
+
+/**
+ * Evento de todo el día en la fecha de entrega, con aviso el día anterior a las 9:00.
+ * El UID es el de la cotización: si se agrega otra vez, algunos calendarios lo reconocen.
+ */
+export const getQuoteIcs = (quote: IQuote, now = new Date()) => {
+    const day = quote.desiredDate.replace(/-/g, "");
+    const nextDay = addQuoteDays(quote.desiredDate, 1).replace(/-/g, "");
+    const stamp = now.toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z";
+    const title = `Entrega ${quote.code} · ${getQuoteSizeLabel(quote.selection)}`;
+    const description = [
+        `${quote.customerName}${quote.customerPhone ? ` · ${formatPhone(quote.customerPhone)}` : ""}`,
+        ...getQuoteDetailLines(quote),
+        `Total: ${formatPrice(quote.total)}`,
+        ...(quote.note ? [`Nota: ${quote.note}`] : []),
+    ].join("\n");
+
+    return [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Chunky Bites//Cotizaciones//ES",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH",
+        "BEGIN:VEVENT",
+        `UID:${quote.code.toLowerCase()}@chunkybites`,
+        `DTSTAMP:${stamp}`,
+        `DTSTART;VALUE=DATE:${day}`,
+        `DTEND;VALUE=DATE:${nextDay}`,
+        `SUMMARY:${escapeIcsText(title)}`,
+        `DESCRIPTION:${escapeIcsText(description)}`,
+        "BEGIN:VALARM",
+        // El evento empieza a medianoche: 15 horas antes son las 9:00 del día anterior
+        "TRIGGER:-PT15H",
+        "ACTION:DISPLAY",
+        `DESCRIPTION:${escapeIcsText(`Mañana se entrega ${quote.code}`)}`,
+        "END:VALARM",
+        "END:VEVENT",
+        "END:VCALENDAR",
+    ]
+        .map(foldIcsLine)
+        .join("\r\n");
+};
+
+/** Descarga el .ics: en el iPhone, Safari lo abre con "Agregar a Calendario". */
+export const downloadQuoteIcs = (quote: IQuote) => {
+    const url = URL.createObjectURL(new Blob([getQuoteIcs(quote)], { type: "text/calendar;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${quote.code}.ics`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    // Safari necesita el enlace vivo un momento después del clic
+    window.setTimeout(() => URL.revokeObjectURL(url), 30000);
+};
 
 /** "2026-10-03" -> "sáb 3 oct". La fecha es un día, no un instante: se arma sin zona horaria. */
 export const formatQuoteDate = (value: string) => {

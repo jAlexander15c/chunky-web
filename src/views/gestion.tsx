@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
-import { QuotesPanel } from "@/components";
+import { QuotesIncome, QuotesPanel } from "@/components";
 import {
     HttpError,
     ROLE_LABEL,
@@ -127,7 +127,7 @@ const GestionLogin = ({ onLogin }: IGestionLoginProps) => {
 
 /* ============ Armazón ============ */
 
-type Section = "caja" | "turno" | "creditos" | "cocina" | "inventario" | "cotizaciones";
+type Section = "caja" | "turno" | "creditos" | "cocina" | "inventario" | "cotizaciones" | "ingresos";
 
 interface ISectionInfo {
     id: Section;
@@ -202,11 +202,22 @@ const SECTIONS: ISectionInfo[] = [
         id: "cotizaciones",
         label: "Cotizaciones",
         role: "pastelera",
-        sub: "Cakes y postres que piden los clientes desde la web",
+        sub: "Cakes y postres de la web, y los que registras a mano",
         icon: (
             <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M4 21V11h16v10M2 11h20M12 11V7" />
                 <circle cx="12" cy="5" r="2" />
+            </svg>
+        ),
+    },
+    {
+        id: "ingresos",
+        label: "Ingresos",
+        role: "pastelera",
+        sub: "Bruto y neto de las cotizaciones entregadas",
+        icon: (
+            <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 19V10M10 19V5M16 19v-7M21 19H3" />
             </svg>
         ),
     },
@@ -310,6 +321,10 @@ const GestionShell = ({ token, name, roles, onLogout }: IGestionShellProps) => {
                     ) : current.id === "cotizaciones" ? (
                         <div className="ges-quotes">
                             <QuotesPanel token={token} onSessionExpired={onLogout} />
+                        </div>
+                    ) : current.id === "ingresos" ? (
+                        <div className="ges-quotes">
+                            <QuotesIncome token={token} onSessionExpired={onLogout} />
                         </div>
                     ) : (
                         <GestionInventario token={token} onSessionExpired={onLogout} />

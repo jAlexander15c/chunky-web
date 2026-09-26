@@ -1,0 +1,235 @@
+/* Registro manual de cotizaciones (/gestion, pastelera). Reusa .qp-spec, .qp-btn y .qp-error
+   de quotes-panel.css; aquí solo va lo propio del formulario. */
+
+.mq {
+    display: grid;
+    gap: 1.2rem;
+    min-width: 0;
+    padding: 1.3rem clamp(1rem, 2.5vw, 1.8rem);
+    border-radius: var(--radius-panel);
+    background: var(--qp-panel);
+    box-shadow: 0 18px 34px -26px rgb(var(--shadow-tint) / 0.7);
+}
+
+.mq-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.mq-title {
+    margin: 0;
+    font-size: 1.9rem;
+    line-height: 1;
+    color: var(--mora);
+}
+
+.mq-seg {
+    display: inline-flex;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    border-radius: var(--radius-pill);
+    background: var(--qp-panel-2);
+}
+
+.mq-seg button {
+    min-height: 38px;
+    padding: 0.4rem 0.9rem;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: transparent;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: var(--text-soft);
+    cursor: pointer;
+}
+
+.mq-seg button[aria-pressed="true"] {
+    background: var(--mora);
+    color: var(--crema);
+}
+
+.mq-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+}
+
+@media (max-width: 900px) {
+    .mq-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.mq-options,
+.mq-side {
+    display: grid;
+    gap: 1.1rem;
+    min-width: 0;
+}
+
+.mq-fs {
+    display: grid;
+    gap: 0.5rem;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.mq-fs legend {
+    margin-bottom: 0.5rem;
+    padding: 0;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-soft);
+}
+
+.mq-fs legend small {
+    margin-left: 0.4rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--text-soft);
+    opacity: 0.8;
+}
+
+.mq-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.mq-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 40px;
+    padding: 0.35rem 0.85rem;
+    border: 2px solid var(--qp-line);
+    border-radius: var(--radius-pill);
+    background: transparent;
+    font: inherit;
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: var(--ink);
+    cursor: pointer;
+    transition: background-color 150ms var(--ease-out), border-color 150ms var(--ease-out);
+}
+
+.mq-chip small {
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: var(--text-soft);
+    font-variant-numeric: tabular-nums;
+}
+
+.mq-chip[aria-pressed="true"] {
+    border-color: var(--mora);
+    background: var(--sky);
+    color: var(--mora);
+}
+
+.mq-chip:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .mq-chip:not(:disabled):not([aria-pressed="true"]):hover {
+        border-color: var(--mora);
+    }
+}
+
+.mq-hint {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-soft);
+}
+
+.mq-pair {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7rem;
+}
+
+@media (max-width: 420px) {
+    .mq-pair {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.mq-field {
+    display: grid;
+    gap: 0.3rem;
+    min-width: 0;
+}
+
+.mq-field label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-soft);
+}
+
+.mq-field label small {
+    font-weight: 600;
+    opacity: 0.8;
+}
+
+.mq-field input,
+.mq-field textarea {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: 0.55rem 0.75rem;
+    border: 2px solid var(--qp-line);
+    border-radius: 12px;
+    background: #fff;
+    font: inherit;
+    /* 16px: en el iPhone un campo más chico hace zoom al tocarlo */
+    font-size: 16px;
+    color: var(--ink);
+}
+
+.mq-field textarea {
+    min-height: 72px;
+    resize: vertical;
+}
+
+.mq-field input:focus-visible,
+.mq-field textarea:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 1px;
+}
+
+.mq-receipt {
+    display: grid;
+    gap: 0.75rem;
+    padding: 0.9rem 1rem;
+    border-radius: 16px;
+    background: var(--mantequilla);
+}
+
+.mq-receipt .qp-spec li {
+    border-bottom-color: rgb(38 48 92 / 0.18);
+}
+
+.mq-missing {
+    margin: 0;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--qp-warn);
+}
+
+.mq-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.6rem;
+}

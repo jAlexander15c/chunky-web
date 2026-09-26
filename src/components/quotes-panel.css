@@ -19,6 +19,14 @@
 
 /* ============ Filtros ============ */
 
+.qp-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.7rem 1rem;
+}
+
 .qp-filters {
     display: flex;
     flex-wrap: wrap;
@@ -213,6 +221,32 @@
 .qp-pill--confirmada { background: var(--sky); color: var(--mora); }
 .qp-pill--entregada { background: var(--qp-good-bg); color: var(--qp-good); }
 .qp-pill--cancelada { background: var(--qp-crit-bg); color: var(--qp-crit); }
+.qp-pill--manual { background: var(--lima); color: var(--ink); }
+
+.qp-pills {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+/* Registrada a mano por la pastelera, en la fila de la lista */
+.qp-tag {
+    display: inline-block;
+    margin-left: 0.35rem;
+    padding: 0.05rem 0.45rem;
+    border-radius: var(--radius-pill);
+    background: var(--lima);
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    vertical-align: 0.1em;
+}
+
+.qp-muted {
+    font-style: italic;
+    color: var(--text-soft);
+}
 
 .qp-photos {
     display: grid;
@@ -389,6 +423,18 @@
     color: var(--crema);
 }
 
+.qp-btn--calendar {
+    gap: 0.45rem;
+    background: var(--mantequilla);
+    border-color: var(--mantequilla);
+    color: var(--ink);
+}
+
+.qp-btn--calendar svg {
+    width: 18px;
+    height: 18px;
+}
+
 .qp-btn--danger {
     border-color: var(--qp-crit-bg);
     color: var(--qp-crit);
@@ -398,6 +444,7 @@
     .qp-btn:hover:not(:disabled) { background: var(--sky); }
     .qp-btn--solid:hover:not(:disabled) { background: var(--ink); }
     .qp-btn--danger:hover:not(:disabled) { background: var(--qp-crit-bg); }
+    .qp-btn--calendar:hover:not(:disabled) { background: var(--sky); border-color: var(--sky); }
 }
 
 @media (prefers-reduced-motion: reduce) {

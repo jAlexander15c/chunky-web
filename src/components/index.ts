@@ -20,4 +20,5 @@ export * from "./cart-checkout";
 export * from "./yappy-button";
 export * from "./order-notify-card";
 export * from "./quotes-panel";
+export * from "./quotes-income";
 export * from "./update-banner";

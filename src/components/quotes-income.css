@@ -1,0 +1,327 @@
+/* Ingresos de la pastelera (/gestion). Mismos tokens que quotes-panel.css. */
+
+.qi {
+    --qi-panel: #fffef6;
+    --qi-panel-2: #f6f2df;
+    --qi-line: #e4dec6;
+    --qi-good: #2f6f4c;
+    --qi-good-bg: #dfeee4;
+    --qi-crit: #a33a2a;
+    --qi-crit-bg: #f6ddd7;
+
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.1rem;
+    min-width: 0;
+}
+
+.qi-top {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.7rem 1rem;
+}
+
+.qi-range {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-soft);
+}
+
+.qi-range::first-letter {
+    text-transform: uppercase;
+}
+
+.qi-periods {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.qi-periods button {
+    min-height: 40px;
+    padding: 0.35rem 0.9rem;
+    border: 2px solid var(--qi-line);
+    border-radius: var(--radius-pill);
+    background: transparent;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-soft);
+    cursor: pointer;
+    transition: background-color 150ms var(--ease-out), color 150ms var(--ease-out);
+}
+
+.qi-periods button[aria-pressed="true"] {
+    border-color: var(--mora);
+    background: var(--mora);
+    color: var(--crema);
+}
+
+.qi-error {
+    margin: 0;
+    padding: 0.7rem 0.9rem;
+    border-radius: 12px;
+    background: var(--qi-crit-bg);
+    color: var(--qi-crit);
+    font-size: 0.88rem;
+    font-weight: 700;
+}
+
+.qi-empty {
+    margin: 0;
+    padding: 1.6rem 1rem;
+    border: 2px dashed var(--qi-line);
+    border-radius: 16px;
+    color: var(--text-soft);
+    text-align: center;
+}
+
+/* La tabla ancha se desplaza en su caja; el resto no debe estirarse con ella */
+.qi-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    min-width: 0;
+    transition: opacity 150ms var(--ease-out);
+}
+
+.qi-body.is-loading {
+    opacity: 0.55;
+}
+
+/* ============ Cifras ============ */
+
+.qi-tiles {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+@media (max-width: 900px) {
+    .qi-tiles {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.qi-tile {
+    display: grid;
+    align-content: start;
+    gap: 0.25rem;
+    min-width: 0;
+    padding: 0.9rem 1rem;
+    border: 2px solid var(--qi-line);
+    border-radius: 18px;
+    background: var(--qi-panel);
+}
+
+.qi-tile__label {
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-soft);
+}
+
+.qi-tile__value {
+    font-size: clamp(1.3rem, 2.4vw, 1.75rem);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.qi-tile__detail {
+    font-size: 0.78rem;
+    color: var(--text-soft);
+}
+
+.qi-tile--net {
+    border-color: var(--mora);
+    background: var(--mora);
+    color: var(--crema);
+}
+
+.qi-tile--net .qi-tile__label,
+.qi-tile--net .qi-tile__detail {
+    color: var(--sky);
+}
+
+.qi-tile--pending {
+    border-style: dashed;
+    background: var(--qi-panel-2);
+}
+
+.qi-delta {
+    display: inline-block;
+    margin-right: 0.3rem;
+    padding: 0.05rem 0.45rem;
+    border-radius: var(--radius-pill);
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
+.qi-delta.is-up { background: var(--qi-good-bg); color: var(--qi-good); }
+.qi-delta.is-down { background: var(--qi-crit-bg); color: var(--qi-crit); }
+.qi-delta.is-flat { background: var(--qi-panel-2); color: var(--text-soft); }
+.qi-tile--net .qi-delta { background: var(--lima); color: var(--ink); }
+
+/* ============ Tarjetas ============ */
+
+.qi-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    gap: 1rem;
+}
+
+@media (max-width: 900px) {
+    .qi-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.qi-card {
+    display: grid;
+    align-content: start;
+    gap: 0.7rem;
+    min-width: 0;
+    padding: 1rem 1.1rem;
+    border-radius: 18px;
+    background: var(--qi-panel);
+}
+
+.qi-card__head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.6rem;
+}
+
+.qi-h {
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-soft);
+}
+
+.qi-legend {
+    display: flex;
+    gap: 0.9rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-soft);
+}
+
+.qi-legend i {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 0.3rem;
+    border-radius: 3px;
+    vertical-align: -1px;
+}
+
+.qi-legend .is-gross { background: var(--sky); }
+.qi-legend .is-net { background: var(--mora); }
+
+.qi-chart {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.qi-chart__grid { stroke: var(--qi-line); stroke-width: 1; }
+.qi-chart__gross { fill: var(--sky); }
+.qi-chart__net { fill: var(--mora); }
+
+.qi-chart__label {
+    fill: var(--text-soft);
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.qi-bar {
+    display: flex;
+    height: 10px;
+    overflow: hidden;
+    border-radius: var(--radius-pill);
+    background: var(--qi-panel-2);
+}
+
+.qi-bar span { display: block; height: 100%; }
+.qi-bar .is-web { background: var(--mora); }
+.qi-bar .is-manual { background: var(--lima); }
+
+.qi-sources {
+    display: grid;
+    gap: 0.5rem;
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+.qi-sources div {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.6rem;
+}
+
+.qi-sources dd {
+    margin: 0;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.qi-note {
+    margin: 0;
+    font-size: 0.76rem;
+    color: var(--text-soft);
+}
+
+.qi-table-wrap {
+    overflow-x: auto;
+}
+
+.qi-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.qi-table thead th {
+    padding: 0 0.5rem 0.5rem 0;
+    border-bottom: 2px solid var(--qi-line);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-align: left;
+    text-transform: uppercase;
+    color: var(--text-soft);
+}
+
+.qi-table tbody th,
+.qi-table td {
+    padding: 0.55rem 0.5rem 0.55rem 0;
+    border-bottom: 1px dashed var(--qi-line);
+    text-align: left;
+    white-space: nowrap;
+}
+
+.qi-table tbody th { font-weight: 800; }
+
+.qi-table tfoot th,
+.qi-table tfoot td {
+    padding: 0.55rem 0.5rem 0 0;
+    font-weight: 800;
+    text-align: left;
+}
+
+.qi-table .is-num { text-align: right; }
