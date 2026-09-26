@@ -75,8 +75,8 @@ export const Privacidad = () => {
                     <p>Solo con los servicios que necesitamos para atenderte:</p>
                     <ul>
                         <li><b>Yappy</b> (Banco General), para cobrarte.</li>
-                        <li><b>Loyverse</b>, nuestro sistema de caja: el recibo de un pedido web lleva tu nombre y tu celular.</li>
-                        <li><b>Railway</b>, donde viven nuestro servidor y la base de datos, fuera de Panamá.</li>
+                        <li>Nuestro sistema de caja y facturación: el recibo de un pedido web lleva tu nombre y tu celular.</li>
+                        <li>Un servicio de alojamiento en la nube, fuera de Panamá, donde se guardan nuestros datos.</li>
                         <li><b>WhatsApp</b>, cuando nos escribes o te escribimos.</li>
                     </ul>
                     <p>
@@ -101,8 +101,8 @@ export const Privacidad = () => {
                         Escríbenos por WhatsApp: es gratis y respondemos en un máximo de 10 días hábiles.
                     </p>
                     <p>
-                        Si borramos tu registro, la venta queda en la contabilidad sin tu nombre, celular ni dirección. El recibo
-                        que ya está en Loyverse no se puede editar. Si no te respondemos a tiempo, puedes acudir a la Autoridad
+                        Si borramos tu registro, la venta queda en la contabilidad sin tu nombre, celular ni dirección. Un recibo
+                        ya emitido no se puede editar. Si no te respondemos a tiempo, puedes acudir a la Autoridad
                         Nacional de Transparencia y Acceso a la Información (ANTAI).
                     </p>
                 </section>
@@ -123,8 +123,8 @@ export const Privacidad = () => {
                 <section className="privacy__block">
                     <h2>Cómo los cuidamos</h2>
                     <p>
-                        Solo el equipo que atiende tu pedido ve tus datos, cada persona con su propia clave. En la caja
-                        únicamente se ven tu nombre y los últimos 4 dígitos de tu celular.
+                        Solo el personal que atiende tu pedido puede ver tus datos, y usamos medidas de seguridad para
+                        protegerlos.
                     </p>
                 </section>
             </div>
