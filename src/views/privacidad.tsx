@@ -54,7 +54,7 @@ export const Privacidad = () => {
                             en el local también podemos anotar tus compras a tu nombre.
                         </li>
                         <li>
-                            <b>Cuando cotizas un cake o postre:</b> tu nombre, tu WhatsApp, la fecha que quieres, tu nota y las fotos
+                            <b>Cuando cotizas un cake o postre:</b> tu nombre, tu WhatsApp, tu correo, la fecha que quieres, tu nota y las fotos
                             de referencia que subes.
                         </li>
                     </ul>
@@ -64,7 +64,7 @@ export const Privacidad = () => {
                     <h2>Para qué los usamos</h2>
                     <ul>
                         <li>Para preparar, cobrar y entregar tu pedido, y para darte el recibo.</li>
-                        <li>Para coordinar contigo tu cotización por WhatsApp.</li>
+                        <li>Para coordinar contigo tu cotización por WhatsApp y por correo: te escribimos cuando la recibimos, cuando la confirmamos y si no la podemos hacer.</li>
                         <li>Para llevar tu historial de compras y saber qué te gusta.</li>
                     </ul>
                     <p>No vendemos ni alquilamos tus datos.</p>
@@ -78,6 +78,7 @@ export const Privacidad = () => {
                         <li>Nuestro sistema de caja y facturación: el recibo de un pedido web lleva tu nombre y tu celular.</li>
                         <li>Un servicio de alojamiento en la nube, fuera de Panamá, donde se guardan nuestros datos.</li>
                         <li><b>WhatsApp</b>, cuando nos escribes o te escribimos.</li>
+                        <li><b>Resend</b>, el servicio que envía los correos de tu cotización.</li>
                     </ul>
                     <p>
                         Al aceptar este aviso aceptas que tus datos se guarden en esos servicios, aunque estén fuera de Panamá.
@@ -95,7 +96,7 @@ export const Privacidad = () => {
                         </li>
                         <li>
                             De una cotización, borramos las fotos de referencia a los 90 días de la fecha del evento, y tu nombre,
-                            WhatsApp y nota al año.
+                            WhatsApp, correo y notas al año.
                         </li>
                         <li>El enlace para ver el estado de tu pedido deja de funcionar a los 7 días.</li>
                         <li>Las visitas a la web, que no te identifican, se borran a los 180 días.</li>

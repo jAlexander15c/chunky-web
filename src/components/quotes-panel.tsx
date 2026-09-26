@@ -46,19 +46,108 @@ const getClientWhatsAppUrl = (quote: IQuote & { customerPhone: string }) => {
     return `https://wa.me/507${quote.customerPhone}?text=${encodeURIComponent(text)}`;
 };
 
+/** Confirmar o cancelar una que tiene correo le avisa al cliente: antes se puede escribir una nota. */
+const MAILED_STATUSES: QuoteStatus[] = ["confirmada", "cancelada"];
+
+/** Cómo salió el último cambio de estado: si el correo no salió, la pastelera le escribe por WhatsApp. */
+export interface IStatusNotice {
+    quoteId: number;
+    status: QuoteStatus;
+    emailSent: boolean | null;
+}
+
+const StatusNotice = ({ notice, quote }: { notice: IStatusNotice; quote: IQuoteDetail }) => {
+    if (notice.emailSent === null) return null;
+    const label = notice.status === "cancelada" ? "Cancelada" : "Confirmada";
+    const firstName = quote.customerName.split(" ")[0];
+
+    return notice.emailSent ? (
+        <p className="qp-notice" role="status">
+            <b>{label}.</b> Le mandamos el correo a {firstName}.
+        </p>
+    ) : (
+        <p className="qp-notice qp-notice--error" role="alert">
+            <b>{label}, pero el correo no salió.</b> Escríbele por WhatsApp para avisarle.
+        </p>
+    );
+};
+
+interface IStatusComposerProps {
+    quote: IQuoteDetail & { customerEmail: string };
+    status: QuoteStatus;
+    isChanging: boolean;
+    onSubmit: (note: string) => void;
+    onBack: () => void;
+}
+
+/** La nota va en el correo que le llega al cliente. Es opcional. */
+const StatusComposer = ({ quote, status, isChanging, onSubmit, onBack }: IStatusComposerProps) => {
+    const [note, setNote] = useState("");
+    const isCancel = status === "cancelada";
+    const firstName = quote.customerName.split(" ")[0];
+
+    return (
+        <form
+            className="qp-compose"
+            onSubmit={(event) => {
+                event.preventDefault();
+                onSubmit(note);
+            }}
+        >
+            <h3 className="qp-compose__title">
+                {isCancel ? "Cancelar" : "Confirmar"} {quote.code}
+            </h3>
+            <p className="qp-compose__lead">
+                {isCancel
+                    ? `Le avisamos por correo a ${quote.customerEmail} que esta vez no la pueden hacer.`
+                    : `Le mandamos un correo a ${quote.customerEmail} con el detalle y el total de ${formatPrice(quote.total)}.`}
+            </p>
+            <div className="qp-field">
+                <label htmlFor="qp-status-note">
+                    Nota para {firstName} <small>(opcional)</small>
+                </label>
+                <textarea
+                    id="qp-status-note"
+                    maxLength={500}
+                    placeholder={isCancel ? "Por qué no se puede, o qué otra fecha le sirve…" : "Hora de entrega, abono, algún detalle del diseño…"}
+                    value={note}
+                    onChange={(event) => setNote(event.target.value)}
+                />
+            </div>
+            <div className="qp-compose__actions">
+                <button type="submit" className={`qp-btn ${isCancel ? "qp-btn--danger" : "qp-btn--solid"}`} disabled={isChanging}>
+                    {isChanging ? "Guardando…" : isCancel ? "Cancelar y avisarle" : "Confirmar y mandar correo"}
+                </button>
+                <button type="button" className="qp-btn" disabled={isChanging} onClick={onBack}>
+                    Volver
+                </button>
+            </div>
+        </form>
+    );
+};
+
 const QuoteDetail = ({
     quote,
     isChanging,
+    notice,
     onChangeStatus,
 }: {
     quote: IQuoteDetail;
     isChanging: boolean;
-    onChangeStatus: (status: QuoteStatus) => void;
+    notice: IStatusNotice | null;
+    onChangeStatus: (status: QuoteStatus, note?: string) => void;
 }) => {
     const { selection } = quote;
     const next = NEXT_STEP[quote.status];
     const canCancel = quote.status === "nueva" || quote.status === "confirmada";
     const isShared = quote.ownerId === null;
+    const [composing, setComposing] = useState<QuoteStatus | null>(null);
+
+    // Con correo, confirmar o cancelar pide antes la nota; sin correo se guarda directo como siempre
+    const requestStatus = (to: QuoteStatus) => {
+        if (quote.customerEmail && MAILED_STATUSES.includes(to)) setComposing(to);
+        else onChangeStatus(to);
+    };
 
     return (
         <article className="qp-detail" aria-label={`Cotización ${quote.code}`}>
@@ -77,6 +166,8 @@ const QuoteDetail = ({
                     <span className={`qp-pill qp-pill--${quote.status}`}>{QUOTE_STATUS_LABEL[quote.status]}</span>
                 </span>
             </div>
+
+            {notice && notice.quoteId === quote.id ? <StatusNotice notice={notice} quote={quote} /> : null}
 
             {isShared ? (
                 <p className="qp-shared">
@@ -143,6 +234,14 @@ const QuoteDetail = ({
                             <dt>WhatsApp</dt>
                             <dd>{quote.customerPhone ? formatPhone(quote.customerPhone) : <span className="qp-muted">Sin celular</span>}</dd>
                         </div>
+                        {quote.customerEmail ? (
+                            <div>
+                                <dt>Correo</dt>
+                                <dd className="qp-client__email">
+                                    <a href={`mailto:${quote.customerEmail}`}>{quote.customerEmail}</a>
+                                </dd>
+                            </div>
+                        ) : null}
                         <div><dt>{quote.source === "manual" ? "Entrega" : "Fecha deseada"}</dt><dd>{formatQuoteDate(quote.desiredDate)}</dd></div>
                     </dl>
                 </section>
@@ -155,41 +254,58 @@ const QuoteDetail = ({
                 </section>
             ) : null}
 
+            {quote.statusNote ? (
+                <section>
+                    <h3 className="qp-h">Nota que le mandaste</h3>
+                    <p className="qp-note qp-note--sent">{quote.statusNote}</p>
+                </section>
+            ) : null}
+
             {quote.statusChangedBy ? (
                 <p className="qp-changed">Último cambio: {quote.statusChangedBy}</p>
             ) : null}
 
-            <div className="qp-actions">
-                {quote.status !== "cancelada" ? (
-                    <button type="button" className="qp-btn qp-btn--calendar" onClick={() => downloadQuoteIcs(quote)}>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                            <rect x="3" y="5" width="18" height="16" rx="3" />
-                            <path d="M3 10h18M8 3v4M16 3v4M12 13v5M9.5 15.5h5" />
-                        </svg>
-                        Agregar al calendario
-                    </button>
-                ) : null}
-                {quote.customerPhone ? (
-                    <a
-                        className="qp-btn"
-                        href={getClientWhatsAppUrl({ ...quote, customerPhone: quote.customerPhone })}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                    >
-                        Abrir WhatsApp de {quote.customerName.split(" ")[0]}
-                    </a>
-                ) : null}
-                {next ? (
-                    <button type="button" className="qp-btn qp-btn--solid" disabled={isChanging} onClick={() => onChangeStatus(next.to)}>
-                        {isChanging ? "Guardando…" : isShared ? "Confirmar y quedármela" : next.label}
-                    </button>
-                ) : null}
-                {canCancel ? (
-                    <button type="button" className="qp-btn qp-btn--danger qp-actions__end" disabled={isChanging} onClick={() => onChangeStatus("cancelada")}>
-                        Cancelar
-                    </button>
-                ) : null}
-            </div>
+            {composing && quote.customerEmail ? (
+                <StatusComposer
+                    quote={{ ...quote, customerEmail: quote.customerEmail }}
+                    status={composing}
+                    isChanging={isChanging}
+                    onSubmit={(note) => onChangeStatus(composing, note)}
+                    onBack={() => setComposing(null)}
+                />
+            ) : (
+                <div className="qp-actions">
+                    {quote.status !== "cancelada" ? (
+                        <button type="button" className="qp-btn qp-btn--calendar" onClick={() => downloadQuoteIcs(quote)}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <rect x="3" y="5" width="18" height="16" rx="3" />
+                                <path d="M3 10h18M8 3v4M16 3v4M12 13v5M9.5 15.5h5" />
+                            </svg>
+                            Agregar al calendario
+                        </button>
+                    ) : null}
+                    {quote.customerPhone ? (
+                        <a
+                            className="qp-btn"
+                            href={getClientWhatsAppUrl({ ...quote, customerPhone: quote.customerPhone })}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            Abrir WhatsApp de {quote.customerName.split(" ")[0]}
+                        </a>
+                    ) : null}
+                    {next ? (
+                        <button type="button" className="qp-btn qp-btn--solid" disabled={isChanging} onClick={() => requestStatus(next.to)}>
+                            {isChanging ? "Guardando…" : isShared ? "Confirmar y quedármela" : next.label}
+                        </button>
+                    ) : null}
+                    {canCancel ? (
+                        <button type="button" className="qp-btn qp-btn--danger qp-actions__end" disabled={isChanging} onClick={() => requestStatus("cancelada")}>
+                            Cancelar
+                        </button>
+                    ) : null}
+                </div>
+            )}
         </article>
     );
 };
@@ -206,6 +322,7 @@ export const QuotesPanel = ({ token, onSessionExpired }: IQuotesPanelProps) => {
     const [isChanging, setIsChanging] = useState(false);
     const [error, setError] = useState("");
     const [isRegistering, setIsRegistering] = useState(false);
+    const [notice, setNotice] = useState<IStatusNotice | null>(null);
 
     const handleError = useCallback(
         (requestError: unknown, fallback: string) => {
@@ -271,12 +388,14 @@ export const QuotesPanel = ({ token, onSessionExpired }: IQuotesPanelProps) => {
         return () => controller.abort();
     }, [token, selectedId, detail?.id, handleError]);
 
-    const changeStatus = async (to: QuoteStatus) => {
+    const changeStatus = async (to: QuoteStatus, note?: string) => {
         if (!detail) return;
         setIsChanging(true);
+        setNotice(null);
         try {
-            const { quote } = await changeQuoteStatus(token, detail.id, to);
+            const { quote, emailSent } = await changeQuoteStatus(token, detail.id, to, note);
             setDetail(quote);
+            setNotice({ quoteId: quote.id, status: to, emailSent });
             // Se va al filtro nuevo para que quien la movió la siga viendo
             setSelectedId(quote.id);
             setStatus(to);
@@ -363,7 +482,13 @@ export const QuotesPanel = ({ token, onSessionExpired }: IQuotesPanelProps) => {
                 </div>
 
                 {detail && detail.id === selectedId ? (
-                    <QuoteDetail quote={detail} isChanging={isChanging} onChangeStatus={changeStatus} />
+                    <QuoteDetail
+                        key={`${detail.id}-${detail.status}`}
+                        quote={detail}
+                        isChanging={isChanging}
+                        notice={notice}
+                        onChangeStatus={changeStatus}
+                    />
                 ) : (
                     <div className="qp-detail qp-detail--empty">
                         {isLoadingDetail ? "Abriendo la cotización…" : "Elige una cotización de la lista."}

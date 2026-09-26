@@ -47,6 +47,7 @@ const INITIAL_DRAFT: IQuoteDraft = {
     dessertSize: "8",
     customerName: "",
     customerPhone: "",
+    customerEmail: "",
     desiredDate: "",
     note: "",
     cakeImage: null,
@@ -68,6 +69,7 @@ const QUOTE_STEP_BY_FIELD: Partial<Record<keyof IQuoteDraft, string>> = {
     dessertSize: "tamano",
     customerName: "datos",
     customerPhone: "datos",
+    customerEmail: "datos",
     desiredDate: "datos",
     note: "datos",
 };
@@ -188,6 +190,25 @@ const CustomerStep = ({ step, draft, update }: ICustomerStepProps) => (
                 />
             </div>
             <div className="quote-field">
+                <label htmlFor="quote-email">Correo</label>
+                <input
+                    id="quote-email"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    maxLength={254}
+                    placeholder="tu@correo.com"
+                    aria-describedby="quote-email-hint"
+                    value={draft.customerEmail}
+                    onChange={(event) => update("customerEmail", event.target.value)}
+                />
+                <small id="quote-email-hint" className="quote-field__hint">
+                    Te mandamos ahí el resumen y la confirmación.
+                </small>
+            </div>
+            <div className="quote-field">
                 <label htmlFor="quote-date">Fecha deseada</label>
                 <input
                     id="quote-date"
@@ -221,7 +242,7 @@ const CustomerStep = ({ step, draft, update }: ICustomerStepProps) => (
                     />
                     <span>
                         Acepto el <a href="/privacidad" target="_blank" rel="noopener">aviso de privacidad</a>: usan
-                        mi nombre y WhatsApp para cotizar y coordinar mi pedido.
+                        mi nombre, WhatsApp y correo para cotizar y coordinar mi pedido.
                     </span>
                 </label>
             </div>
@@ -327,9 +348,10 @@ const QuoteSent = ({ quote, onRestart }: { quote: IQuote; onRestart: () => void 
             <h2>Recibimos tu cotización, {quote.customerName.split(" ")[0]}</h2>
             <p className="quote-sent__code script">{quote.code}</p>
             <p>
-                Guardamos tu selección{hasPhotos ? " y tus fotos" : ""}. Falta un paso: escríbenos por WhatsApp con este código y te
-                respondemos con el total final.
+                Guardamos tu selección{hasPhotos ? " y tus fotos" : ""}. Te mandamos el resumen a <b>{quote.customerEmail}</b>. La
+                pastelera la revisa y te llega otro correo cuando la confirme.
             </p>
+            <p>Si quieres adelantar algo, escríbenos por WhatsApp con este código.</p>
             <a className="quote-button" href={getWhatsAppUrl(message)} target="_blank" rel="noopener noreferrer" onClick={() => trackEvent("whatsapp_click", "cotizador")}>
                 <PiWhatsappLogoBold aria-hidden /> Continuar en WhatsApp
             </a>
@@ -427,7 +449,7 @@ export const Cotizador = () => {
                     {draft.kind === "postre"
                         ? "Elige el postre y el tamaño y envíanos la cotización."
                         : "Elige tamaño, masa y rellenos, sube tu foto de referencia y envíanos la cotización."}{" "}
-                    La confirmamos contigo por WhatsApp.
+                    Te la confirmamos por correo.
                 </p>
             </section>
 
@@ -727,7 +749,7 @@ export const Cotizador = () => {
                                 <AnimatedPrice value={total} className="quote-total__value" />
                             </div>
                             <p className="quote-summary__fine">
-                                Precio estimado. Lo confirmamos contigo por WhatsApp antes de preparar nada.
+                                Precio estimado. Te lo confirmamos por correo antes de preparar nada.
                             </p>
                             {missing.length ? (
                                 <ul className="quote-missing" aria-live="polite">

@@ -14,6 +14,7 @@ const DRAFT: IQuoteDraft = {
     dessertSize: "7",
     customerName: "Mariana Ortega",
     customerPhone: "6123-4567",
+    customerEmail: "mariana.ortega@gmail.com",
     desiredDate: getEarliestQuoteDate(),
     note: "",
     cakeImage: null,
@@ -24,6 +25,12 @@ const DRAFT: IQuoteDraft = {
 describe("lo que falta para cotizar", () => {
     test("un postre con sus datos y la casilla está listo", () => {
         expect(getQuoteMissing(DRAFT)).toEqual([]);
+    });
+
+    test("el correo se pide y tiene que tener forma de correo", () => {
+        expect(getQuoteMissing({ ...DRAFT, customerEmail: "" })).toContain("Escribe tu correo");
+        expect(getQuoteMissing({ ...DRAFT, customerEmail: "mariana@gmail" })).toContain("Escribe tu correo");
+        expect(getQuoteMissing({ ...DRAFT, customerEmail: " Mariana@Gmail.com " })).toEqual([]);
     });
 
     test("la casilla del aviso se pide siempre", () => {

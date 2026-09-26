@@ -158,6 +158,7 @@ export interface IQuoteDraft {
     dessertSize: DessertSize;
     customerName: string;
     customerPhone: string;
+    customerEmail: string;
     desiredDate: string;
     note: string;
     cakeImage: string | null;
@@ -199,6 +200,9 @@ export const QUOTE_LEAD_DAYS = 4;
 export const getEarliestQuoteDate = () =>
     new Date(Date.now() - 5 * 60 * 60 * 1000 + QUOTE_LEAD_DAYS * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
+/** Un correo con forma de correo: el API lo valida igual y ahí le llegan el acuse y la confirmación. */
+export const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value.trim()) && value.trim().length <= 254;
+
 /** Lo que falta para poder enviar, en palabras del cliente. Vacío es listo. Un postre solo pide los datos. */
 export const getQuoteMissing = (draft: IQuoteDraft) => {
     const missing: string[] = [];
@@ -209,6 +213,7 @@ export const getQuoteMissing = (draft: IQuoteDraft) => {
     }
     if (draft.customerName.trim().length < 2) missing.push("Escribe tu nombre");
     if (!/^6\d{7}$/.test(getPhoneDigits(draft.customerPhone))) missing.push("Escribe tu WhatsApp (8 dígitos, empieza en 6)");
+    if (!isValidEmail(draft.customerEmail)) missing.push("Escribe tu correo");
     if (!draft.desiredDate) missing.push("Elige la fecha deseada");
     else if (draft.desiredDate < getEarliestQuoteDate())
         missing.push(`La fecha tiene que ser con ${QUOTE_LEAD_DAYS} días de anticipación o más`);
@@ -317,6 +322,8 @@ export interface IQuote {
     customerName: string;
     /** Las registradas a mano pueden venir sin celular. */
     customerPhone: string | null;
+    /** Obligatorio en las de la web; las manuales no lo traen. */
+    customerEmail: string | null;
     desiredDate: string;
     note: string | null;
     selection: ICakeSelection | IDessertSelection;
@@ -327,6 +334,8 @@ export interface IQuote {
     /** La pastelera dueña. Null: llegó de la web y está en la bandeja común hasta que alguien la confirme. */
     ownerId: number | null;
     statusChangedBy: string | null;
+    /** Lo que la pastelera le escribió al cliente al confirmarla o cancelarla. */
+    statusNote: string | null;
     createdAt: string;
     updatedAt: string;
 }
@@ -339,6 +348,7 @@ export interface IQuoteDetail extends IQuote {
 const getCustomerBody = (draft: IQuoteDraft) => ({
     customerName: draft.customerName.trim(),
     customerPhone: getPhoneDigits(draft.customerPhone),
+    customerEmail: draft.customerEmail.trim().toLowerCase(),
     desiredDate: draft.desiredDate,
     note: draft.note.trim() || null,
     privacyConsent: draft.privacyConsent,
@@ -376,8 +386,16 @@ export const fetchQuotes = (token: string, status: QuoteStatus, signal?: AbortSi
 export const fetchQuote = (token: string, id: number, signal?: AbortSignal) =>
     httpGet<{ quote: IQuoteDetail }>(`/gestion/quotes/${id}`, { signal, headers: getQuoteHeaders(token) });
 
-export const changeQuoteStatus = (token: string, id: number, status: QuoteStatus) =>
-    httpPost<{ quote: IQuoteDetail }>(`/gestion/quotes/${id}/status`, { status }, { headers: getQuoteHeaders(token) });
+/**
+ * Al confirmarla o cancelarla al cliente le llega un correo con la nota, si hay.
+ * `emailSent`: null si ese cambio no manda correo; false si no salió.
+ */
+export const changeQuoteStatus = (token: string, id: number, status: QuoteStatus, note?: string) =>
+    httpPost<{ quote: IQuoteDetail; emailSent: boolean | null }>(
+        `/gestion/quotes/${id}/status`,
+        { status, note: note?.trim() || null },
+        { headers: getQuoteHeaders(token) }
+    );
 
 /** Lo que la pastelera anota a mano: un cake del catálogo o un postre, sin fotos ni topper. */
 export interface IManualQuoteDraft {

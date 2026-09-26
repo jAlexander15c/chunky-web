@@ -467,3 +467,98 @@
         transition: none !important;
     }
 }
+
+/* ============ Correo al cliente ============ */
+
+.qp-client__email {
+    overflow-wrap: anywhere;
+}
+
+.qp-client__email a {
+    color: var(--mora);
+    font-weight: 700;
+    text-underline-offset: 3px;
+}
+
+.qp-note--sent {
+    background: rgb(225 168 229 / 0.22);
+}
+
+.qp-notice {
+    margin: 0;
+    padding: 0.7rem 0.9rem;
+    border-radius: 12px;
+    background: var(--qp-good-bg);
+    color: var(--qp-good);
+    font-size: 0.88rem;
+}
+
+.qp-notice--error {
+    background: var(--qp-crit-bg);
+    color: var(--qp-crit);
+}
+
+.qp-compose {
+    display: grid;
+    gap: 0.8rem;
+    padding: 1rem;
+    border: 2px solid var(--mora);
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 16px 30px -22px rgb(var(--shadow-tint) / 0.6);
+}
+
+.qp-compose__title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 800;
+}
+
+.qp-compose__lead {
+    margin: 0;
+    font-size: 0.88rem;
+    color: var(--text-soft);
+    overflow-wrap: anywhere;
+}
+
+.qp-field {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.qp-field label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-soft);
+}
+
+.qp-field label small {
+    font-weight: 600;
+    opacity: 0.8;
+}
+
+.qp-field textarea {
+    width: 100%;
+    min-width: 0;
+    min-height: 88px;
+    padding: 0.55rem 0.75rem;
+    border: 2px solid var(--qp-line);
+    border-radius: 12px;
+    background: #fff;
+    font: inherit;
+    /* 16px: en el iPhone un campo más chico hace zoom al tocarlo */
+    font-size: 16px;
+    color: var(--ink);
+    resize: vertical;
+}
+
+.qp-field textarea:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 1px;
+}
+
+.qp-compose__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
