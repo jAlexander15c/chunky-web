@@ -1147,6 +1147,63 @@
 
 .ges-btn--credit { border-style: dashed; border-color: var(--orquidea); color: var(--mora); background: #fbf1fc; }
 
+/* Cliente de la cuenta: sugerencia arriba del cobro que no frena nada */
+.ges-suggest { display: grid; gap: 0.45rem; background: var(--sky); border-radius: 16px; padding: 0.65rem 0.75rem; }
+.ges-suggest__q { margin: 0; font-size: 0.8rem; font-weight: 700; color: var(--mora); }
+.ges-suggest__row { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+
+.ges-suggest__chip {
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--ink);
+    background: var(--ges-panel);
+    border: 2px solid var(--mora);
+    border-radius: var(--radius-pill);
+    padding: 0.35rem 0.8rem;
+    min-height: 40px;
+    cursor: pointer;
+    transition: background-color 150ms ease, transform 120ms var(--ease-out);
+}
+
+.ges-suggest__chip small { margin-left: 0.3rem; font-weight: 600; color: var(--ges-text-3); font-variant-numeric: tabular-nums; }
+.ges-suggest__chip:active { transform: scale(0.97); }
+.ges-suggest__chip:disabled { opacity: 0.6; cursor: default; }
+
+.ges-suggest--linked {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    background: var(--ges-good-bg);
+    color: var(--ges-good);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.ges-suggest__undo {
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: var(--ges-good);
+    background: none;
+    border: 0;
+    text-decoration: underline;
+    padding: 0.4rem 0.2rem;
+    cursor: pointer;
+}
+
+.ges-suggest__error { margin: 0; font-size: 0.78rem; font-weight: 700; color: var(--ges-crit); }
+
+@media (hover: hover) and (pointer: fine) {
+    .ges-suggest__chip:hover:not(:disabled) { background: var(--crema); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ges-suggest__chip { transition: none; }
+    .ges-suggest__chip:active { transform: none; }
+}
+
 .ges-pays--three { grid-template-columns: repeat(3, 1fr); }
 
 .ges-credits { display: grid; gap: 0.5rem; }

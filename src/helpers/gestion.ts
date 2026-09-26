@@ -92,6 +92,20 @@ export interface ITicket {
     /** Cuándo se dejó a crédito y quién. Siguen puestos después de cobrarla. */
     creditAt: string | null;
     creditByName: string | null;
+    /** El cliente registrado al que se le atribuye la venta. Opcional: lo asigna el cajero al cobrar. */
+    customer?: ITicketCustomer | null;
+}
+
+/** Lo que ve el cajero de un cliente: nombre y los últimos 4 dígitos, nunca lo que gasta. */
+export interface ITicketCustomer {
+    id: number;
+    name: string;
+    phoneLast4: string | null;
+}
+
+/** Un cliente registrado parecido al nombre de la cuenta. */
+export interface ICustomerMatch extends ITicketCustomer {
+    lastPurchaseAt: string | null;
 }
 
 /** Una cuenta a crédito por cobrar, a nombre de quien la debe. */
@@ -353,6 +367,21 @@ export const renameTicket = (token: string, ticketId: number, customerName: stri
     httpPost<{ ticket: ITicket }>(
         `/gestion/caja/cuentas/${ticketId}/nombre`,
         { customerName: customerName || null },
+        { headers: getGestionHeaders(token) }
+    );
+
+/** Clientes registrados parecidos al nombre de la cuenta (hasta 4, los más recientes primero). */
+export const fetchCustomerMatches = (token: string, name: string, signal?: AbortSignal) =>
+    httpGet<{ matches: ICustomerMatch[] }>(`/gestion/caja/clientes?nombre=${encodeURIComponent(name)}`, {
+        signal,
+        headers: getGestionHeaders(token),
+    });
+
+/** Pega la cuenta abierta a un cliente ya registrado, o la suelta con null. */
+export const assignTicketCustomer = (token: string, ticketId: number, customerId: number | null) =>
+    httpPost<{ customer: ITicketCustomer | null }>(
+        `/gestion/caja/cuentas/${ticketId}/cliente`,
+        { customerId },
         { headers: getGestionHeaders(token) }
     );
 

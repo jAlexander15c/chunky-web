@@ -1853,6 +1853,40 @@ main {
   accent-color: var(--mora);
 }
 
+/* Aviso de privacidad y promociones: texto largo, así que la casilla va arriba y no centrada */
+.checkout__privacy {
+  display: grid;
+  gap: 0.5rem;
+  padding-top: 0.2rem;
+}
+
+.checkout__consent {
+  align-items: flex-start;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.checkout__consent input {
+  flex: none;
+  margin-top: 0.05rem;
+}
+
+.checkout__consent a,
+.checkout__legal a {
+  color: var(--mora);
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.checkout__legal {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--text-soft);
+}
+
 .checkout__notice {
   display: grid;
   gap: 0.2rem;
@@ -3302,4 +3336,58 @@ main {
 .soon-note__mascot {
   flex: none;
   width: 72px;
+}
+
+/* ============ Aviso de privacidad ============ */
+
+.privacy__inner {
+  max-width: 68ch;
+  margin: 0 auto;
+}
+
+.privacy__block {
+  padding: 1.4rem 0;
+  border-top: 1px solid var(--sky);
+}
+
+.privacy__block h2 {
+  margin: 0 0 0.6rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--mora);
+}
+
+.privacy__block p,
+.privacy__block li {
+  line-height: 1.65;
+  color: var(--text-soft);
+}
+
+.privacy__block p {
+  margin: 0 0 0.7rem;
+}
+
+.privacy__block ul {
+  margin: 0 0 0.7rem;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.privacy__block b {
+  color: var(--ink);
+}
+
+.privacy__block a,
+.site-footer__legal a {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.privacy__block a {
+  color: var(--mora);
 }

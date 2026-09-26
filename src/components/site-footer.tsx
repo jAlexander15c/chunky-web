@@ -36,7 +36,9 @@ export const SiteFooter = () => {
                     <Link className="site-footer__link" to="/menu">Ver el menú</Link>
                 </div>
             </div>
-            <p className="site-footer__legal">© {new Date().getFullYear()} Chunky Bites Bakery</p>
+            <p className="site-footer__legal">
+                © {new Date().getFullYear()} Chunky Bites Bakery · <Link to="/privacidad">Aviso de privacidad</Link>
+            </p>
         </footer>
     );
 };

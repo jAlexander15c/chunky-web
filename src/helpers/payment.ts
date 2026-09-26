@@ -60,9 +60,47 @@ export interface ICheckoutForm {
     deliveryDetails: string;
     deliveryLat: number | null;
     deliveryLng: number | null;
+    /** Aceptó el aviso de privacidad (Ley 81). Obligatorio para quien no lo aceptó antes en este aparato. */
+    privacyConsent: boolean;
+    /** Quiere novedades y promociones por WhatsApp. Opcional y desmarcado. */
+    promoConsent: boolean;
 }
 
-export type CheckoutErrors = Partial<Record<"customerName" | "customerPhone" | "whatsappPhone" | "deliveryAddress", string>>;
+export type CheckoutErrors = Partial<
+    Record<"customerName" | "customerPhone" | "whatsappPhone" | "deliveryAddress" | "privacyConsent", string>
+>;
+
+/** Celulares que ya aceptaron el aviso en este navegador: a ellos no se les vuelve a preguntar. */
+const PRIVACY_STORAGE_KEY = "chunky-privacy-phones";
+
+const readPrivacyPhones = (): string[] => {
+    try {
+        const stored = JSON.parse(window.localStorage.getItem(PRIVACY_STORAGE_KEY) ?? "[]");
+        return Array.isArray(stored) ? stored.filter((one): one is string => typeof one === "string") : [];
+    } catch {
+        return [];
+    }
+};
+
+/**
+ * Si este celular ya aceptó el aviso en este navegador. Un cliente ya registrado que pide desde
+ * otro aparato lo verá una vez más; la API igual le suma el pedido aunque no lo marque.
+ */
+export const hasAcceptedPrivacy = (phone: string) => {
+    const digits = getPhoneDigits(phone);
+    return digits.length === 8 && readPrivacyPhones().includes(digits);
+};
+
+export const rememberPrivacyAccepted = (phone: string) => {
+    const digits = getPhoneDigits(phone);
+    if (digits.length !== 8) return;
+    try {
+        const phones = readPrivacyPhones().filter((one) => one !== digits);
+        window.localStorage.setItem(PRIVACY_STORAGE_KEY, JSON.stringify([digits, ...phones].slice(0, 5)));
+    } catch {
+        return;
+    }
+};
 
 const MIN_ADDRESS_LENGTH = 5;
 
@@ -99,6 +137,9 @@ export const getCheckoutErrors = (form: ICheckoutForm, requiresDelivery = false)
     if (form.hasOtherWhatsapp && !isPanamaMobile(form.whatsappPhone)) {
         errors.whatsappPhone = "Escribe un WhatsApp de 8 dígitos que empiece en 6.";
     }
+    if (!form.privacyConsent && !hasAcceptedPrivacy(form.customerPhone)) {
+        errors.privacyConsent = "Para pedir, acepta el aviso de privacidad.";
+    }
     return errors;
 };
 
@@ -115,6 +156,8 @@ export const createOrder = (lines: ICartLine[], form: ICheckoutForm, requiresDel
         customerPhone: getPhoneDigits(form.customerPhone),
         whatsappPhone: form.hasOtherWhatsapp ? getPhoneDigits(form.whatsappPhone) : undefined,
         note: form.note.trim() || undefined,
+        privacyConsent: form.privacyConsent || hasAcceptedPrivacy(form.customerPhone),
+        promoConsent: form.promoConsent || undefined,
     });
 
 const getDeliveryPayload = (form: ICheckoutForm) => ({

@@ -882,3 +882,38 @@
         transition: none !important;
     }
 }
+
+/* Aviso de privacidad: la casilla no hereda el tamaño de los campos de texto */
+.quote-consent {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    line-height: 1.4;
+    cursor: pointer;
+}
+
+.quote-field .quote-consent input {
+    flex: none;
+    width: 20px;
+    min-height: 0;
+    height: 20px;
+    margin-top: 0.1rem;
+    padding: 0;
+    accent-color: var(--mora);
+}
+
+.quote-consent a {
+    color: var(--mora);
+    font-weight: 800;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.quote-legal {
+    margin: 0;
+    font-size: 0.82rem;
+    line-height: 1.4;
+    color: var(--text-soft);
+}

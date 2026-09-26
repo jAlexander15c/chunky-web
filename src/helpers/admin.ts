@@ -791,3 +791,105 @@ export const formatRange = (from: string, to: string) => {
     const withYear = from.slice(0, 4) !== to.slice(0, 4) || from.slice(0, 4) !== getPanamaToday().slice(0, 4);
     return from === to ? formatShortDate(from, withYear) : `${formatShortDate(from, withYear)} – ${formatShortDate(to, withYear)}`;
 };
+
+/* ============ Clientes ============ */
+
+/** Los atajos de la sección Clientes: sin rango es todo el historial. */
+export type CustomerPeriod = "30d" | "90d" | "anio" | "todo";
+
+export const CUSTOMER_PERIODS: { id: CustomerPeriod; label: string }[] = [
+    { id: "30d", label: "30 días" },
+    { id: "90d", label: "90 días" },
+    { id: "anio", label: "Este año" },
+    { id: "todo", label: "Todo" },
+];
+
+export type CustomerSegment = "frequent" | "new" | "cooled" | "owes";
+
+export interface ICustomerRow {
+    id: number;
+    name: string;
+    phone: string | null;
+    promoConsentAt: string | null;
+    /** Compras de cada canal dentro del período. */
+    webCount: number;
+    localCount: number;
+    /** Lo pagado en el período. Un crédito suma cuando se cobra. */
+    spent: number;
+    totalPurchases: number;
+    firstPurchaseAt: string | null;
+    lastPurchaseAt: string | null;
+    owes: number;
+    segments: Record<CustomerSegment, boolean>;
+}
+
+export interface ICustomerReport {
+    summary: {
+        buyers: number;
+        returning: number;
+        onlyWeb: number;
+        onlyLocal: number;
+        both: number;
+        averageSpent: number;
+        cooled: number;
+        /** Qué parte de lo cobrado en caja tiene cliente. null sin ventas en la caja. */
+        localIdentifiedShare: number | null;
+    };
+    segments: Record<CustomerSegment | "all", number>;
+    customers: ICustomerRow[];
+    rules: { frequentPurchases: number; cooledDays: number; retentionDays: number };
+}
+
+export interface ICustomerPurchase {
+    channel: "web" | "local";
+    saleId: string;
+    at: string;
+    total: number;
+    isCredit: boolean;
+    description: string;
+    isDelivery: boolean;
+}
+
+export interface ICustomerDetail {
+    customer: {
+        id: number;
+        name: string;
+        phone: string | null;
+        /** Cuándo aceptó el aviso de privacidad. */
+        consentAt: string | null;
+        promoConsentAt: string | null;
+        createdAt: string;
+    };
+    stats: { purchases: number; spent: number; average: number; owes: number };
+    topItems: { name: string; quantity: number }[];
+    purchases: ICustomerPurchase[];
+}
+
+export const fetchCustomers = (token: string, period: CustomerPeriod, signal?: AbortSignal) => {
+    const range = period === "todo" ? "" : (() => {
+        const { from, to } = getPeriodRange(period);
+        return `?from=${from}&to=${to}`;
+    })();
+    return httpGet<ICustomerReport>(`/admin/customers${range}`, { signal, headers: getAdminHeaders(token) });
+};
+
+export const fetchCustomerDetail = (token: string, id: number, signal?: AbortSignal) =>
+    httpGet<ICustomerDetail>(`/admin/customers/${id}`, { signal, headers: getAdminHeaders(token) });
+
+/** Corregir datos y dar o retirar el permiso de promociones. */
+export const updateCustomer = (token: string, id: number, data: { name: string; phone: string | null; promoConsent: boolean }) =>
+    httpPut<{ customer: ICustomerDetail["customer"] }>(`/admin/customers/${id}`, data, { headers: getAdminHeaders(token) });
+
+/** Pasa todo lo de `id` a `intoId` y borra `id`: son la misma persona. */
+export const mergeCustomer = (token: string, id: number, intoId: number) =>
+    httpPost<{ customer: ICustomerDetail["customer"] }>(`/admin/customers/${id}/merge`, { intoId }, { headers: getAdminHeaders(token) });
+
+export const unlinkCustomerSale = (token: string, id: number, channel: "web" | "local", saleId: string) =>
+    httpPost<{ ok: true }>(`/admin/customers/${id}/unlink`, { channel, saleId }, { headers: getAdminHeaders(token) });
+
+/** Todo lo que guardamos del cliente, para entregárselo si lo pide. */
+export const exportCustomer = (token: string, id: number) =>
+    httpGet<Record<string, unknown>>(`/admin/customers/${id}/export`, { headers: getAdminHeaders(token) });
+
+export const deleteCustomer = (token: string, id: number) =>
+    httpDelete<{ ok: true }>(`/admin/customers/${id}`, { headers: getAdminHeaders(token) });

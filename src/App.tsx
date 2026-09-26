@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router";
 
 import { Cart, CartButton, CartProvider, PastaBuilder, PastaBuilderProvider, SiteFooter, SiteHeader, UpdateBanner, useCart, usePastaBuilder } from "@/components";
-import { AdminView, Cotizador, GestionView, Home, Items, Mantenimiento, Menu, OrderStatusView, StaffView } from "@/views";
+import { AdminView, Cotizador, GestionView, Home, Items, Mantenimiento, Menu, OrderStatusView, Privacidad, StaffView } from "@/views";
 import { getTrackedPath, isAppReloading, trackEvent, useAppUpdate, useSettings } from "@/helpers";
 import { useOperationalAutoUpdate } from "@/hooks/useOperationalAutoUpdate";
 import { useSilentSiteUpdate } from "@/hooks/useSilentSiteUpdate";
@@ -116,6 +116,8 @@ const App = () => {
           <Route path="/pedido/:orderId" element={<OrderStatusView />} />
           {/* Cotizador de cakes: no es carrito, se guarda en el API y se sigue por WhatsApp */}
           <Route path="/cotizador" element={<Cotizador />} />
+          {/* Ley 81 de 2019: qué datos se guardan y cómo pedir verlos, corregirlos o borrarlos */}
+          <Route path="/privacidad" element={<Privacidad />} />
           <Route path="*" element={<Home />} />
         </Route>
       </Routes>

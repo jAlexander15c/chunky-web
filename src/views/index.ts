@@ -7,3 +7,4 @@ export * from "./admin";
 export * from "./gestion";
 export * from "./cotizador";
 export * from "./staff";
+export * from "./privacidad";

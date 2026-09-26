@@ -17,7 +17,9 @@ import {
     getMapsUrl,
     getOrderingStatusLabel,
     getWhatsAppUrl,
+    hasAcceptedPrivacy,
     isAcceptingOrders,
+    rememberPrivacyAccepted,
     setLastOrderId,
     useSettings,
     trackEvent,
@@ -37,6 +39,8 @@ const EMPTY_FORM: ICheckoutForm = {
     deliveryDetails: "",
     deliveryLat: null,
     deliveryLng: null,
+    privacyConsent: false,
+    promoConsent: false,
 };
 
 /** Campos de texto del formulario (los demas son un casillero o coordenadas). */
@@ -117,6 +121,11 @@ export const CartCheckout = () => {
         setErrors((current) => ({ ...current, deliveryAddress: undefined }));
     };
 
+    const toggleConsent = (field: "privacyConsent" | "promoConsent") => (event: ChangeEvent<HTMLInputElement>) => {
+        setForm((current) => ({ ...current, [field]: event.target.checked }));
+        if (field === "privacyConsent") setErrors((current) => ({ ...current, privacyConsent: undefined }));
+    };
+
     const toggleOtherWhatsapp =(event: ChangeEvent<HTMLInputElement>) => {
         setForm((current) => ({ ...current, hasOtherWhatsapp: event.target.checked }));
         setErrors((current) => ({ ...current, whatsappPhone: undefined }));
@@ -162,6 +171,8 @@ export const CartCheckout = () => {
 
         try {
             const session = await createOrder(lines, form, requiresDelivery);
+            // Ya aceptó el aviso con este celular: en este navegador no se le vuelve a preguntar
+            rememberPrivacyAccepted(form.customerPhone);
             orderIdRef.current = session.orderId;
             setLastOrderId(session.orderId);
             return session;
@@ -356,6 +367,49 @@ export const CartCheckout = () => {
                         value={form.note}
                         onChange={updateField("note")}
                     />
+                </div>
+
+                <div className="checkout__privacy">
+                    {hasAcceptedPrivacy(form.customerPhone) ? (
+                        <p className="checkout__legal">
+                            Usamos tu nombre y celular para preparar y entregar tu pedido y guardar tu historial de compras.{" "}
+                            <a href="/privacidad" target="_blank" rel="noopener">Aviso de privacidad</a>
+                        </p>
+                    ) : (
+                        <>
+                            <label className="field__check checkout__consent" htmlFor="checkout-privacy">
+                                <input
+                                    id="checkout-privacy"
+                                    type="checkbox"
+                                    checked={form.privacyConsent}
+                                    onChange={toggleConsent("privacyConsent")}
+                                    aria-invalid={Boolean(errors.privacyConsent)}
+                                    aria-describedby={errors.privacyConsent ? "checkout-privacy-error" : undefined}
+                                />
+                                <span>
+                                    Acepto el{" "}
+                                    <a href="/privacidad" target="_blank" rel="noopener">aviso de privacidad</a>: usan mi
+                                    nombre y celular para preparar y entregar mi pedido y guardar mis compras.
+                                </span>
+                            </label>
+                            {errors.privacyConsent && (
+                                <span id="checkout-privacy-error" className="field__error" role="alert">{errors.privacyConsent}</span>
+                            )}
+                        </>
+                    )}
+
+                    <label className="field__check checkout__consent" htmlFor="checkout-promo">
+                        <input
+                            id="checkout-promo"
+                            type="checkbox"
+                            checked={form.promoConsent}
+                            onChange={toggleConsent("promoConsent")}
+                        />
+                        <span>
+                            Quiero recibir novedades y promociones por WhatsApp.{" "}
+                            <span className="field__optional">(opcional)</span>
+                        </span>
+                    </label>
                 </div>
             </div>
 

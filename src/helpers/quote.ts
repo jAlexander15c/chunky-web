@@ -1,6 +1,6 @@
 import { httpGet, httpPost } from "./getHttp";
 import { formatPrice } from "./order";
-import { formatPhone, getPhoneDigits } from "./payment";
+import { formatPhone, getPhoneDigits, hasAcceptedPrivacy } from "./payment";
 
 /**
  * Cotizador de cakes. Estos precios son una copia de los de chunky-api
@@ -161,6 +161,8 @@ export interface IQuoteDraft {
     note: string;
     cakeImage: string | null;
     topperImage: string | null;
+    /** Aceptó el aviso de privacidad antes de mandar sus datos (Ley 81). */
+    privacyConsent: boolean;
 }
 
 interface IQuoteBreakdownLine {
@@ -209,6 +211,7 @@ export const getQuoteMissing = (draft: IQuoteDraft) => {
     if (!draft.desiredDate) missing.push("Elige la fecha deseada");
     else if (draft.desiredDate < getEarliestQuoteDate())
         missing.push(`La fecha tiene que ser con ${QUOTE_LEAD_DAYS} días de anticipación o más`);
+    if (!draft.privacyConsent && !hasAcceptedPrivacy(draft.customerPhone)) missing.push("Acepta el aviso de privacidad");
     return missing;
 };
 
@@ -337,6 +340,7 @@ const getCustomerBody = (draft: IQuoteDraft) => ({
     customerPhone: getPhoneDigits(draft.customerPhone),
     desiredDate: draft.desiredDate,
     note: draft.note.trim() || null,
+    privacyConsent: draft.privacyConsent || hasAcceptedPrivacy(draft.customerPhone),
 });
 
 /** Un postre manda solo postre y tamaño; un cake, todo lo que armó con sus fotos. */

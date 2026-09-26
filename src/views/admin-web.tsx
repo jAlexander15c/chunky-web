@@ -77,6 +77,7 @@ const PAGE_LABEL: Record<string, string> = {
     "/menu": "Menú",
     "/items": "Productos",
     "/cotizador": "Cotizador",
+    "/privacidad": "Aviso de privacidad",
     "/pedido": "Estado del pedido",
 };
 

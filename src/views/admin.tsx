@@ -26,6 +26,7 @@ import { AdminIncidents } from "./admin-incidents";
 import { AdminInventory } from "./admin-inventory";
 import { AdminMenu } from "./admin-menu";
 import { AdminWeb } from "./admin-web";
+import { AdminCustomers } from "./admin-customers";
 
 import "./admin.css";
 
@@ -298,7 +299,7 @@ const PastaModePanel = ({ token, onSessionExpired }: { token: string; onSessionE
 
 /* ============ Menú ============ */
 
-type AdminSection = "tablero" | "web" | "inventario" | "menu" | "caja" | "local" | "colaboradores";
+type AdminSection = "tablero" | "web" | "clientes" | "inventario" | "menu" | "caja" | "local" | "colaboradores";
 
 const ADMIN_SECTIONS: { id: AdminSection; label: string; icon: ReactNode }[] = [
     {
@@ -311,6 +312,17 @@ const ADMIN_SECTIONS: { id: AdminSection; label: string; icon: ReactNode }[] = [
         id: "web",
         label: "Web",
         icon: <path d="M4 4l7 17 2.5-7.5L21 11z" />,
+    },
+    {
+        // Quién compra en la web y en el local
+        id: "clientes",
+        label: "Clientes",
+        icon: (
+            <>
+                <circle cx="12" cy="8" r="4" />
+                <path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" />
+            </>
+        ),
     },
     {
         id: "inventario",
@@ -499,6 +511,10 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
                 <main className="adm-wrap">
                     <ClientUpdateNoticePanel token={token} onSessionExpired={onLogout} />
                     <AdminWeb token={token} onSessionExpired={onLogout} refreshKey={refreshKey} />
+                </main>
+            ) : section === "clientes" ? (
+                <main className="adm-wrap">
+                    <AdminCustomers token={token} onSessionExpired={onLogout} refreshKey={refreshKey} />
                 </main>
             ) : section === "caja" ? (
                 <main className="adm-wrap">

@@ -27,8 +27,10 @@ import {
     getDessertPrice,
     getQuoteDessert,
     getWhatsAppUrl,
+    hasAcceptedPrivacy,
     isDessertSelection,
     isQuoteSizeAvailable,
+    rememberPrivacyAccepted,
     submitQuote,
     trackEvent,
 } from "@/helpers";
@@ -51,6 +53,7 @@ const INITIAL_DRAFT: IQuoteDraft = {
     note: "",
     cakeImage: null,
     topperImage: null,
+    privacyConsent: false,
 };
 
 /**
@@ -209,6 +212,27 @@ const CustomerStep = ({ step, draft, update }: ICustomerStepProps) => (
                     value={draft.note}
                     onChange={(event) => update("note", event.target.value)}
                 />
+            </div>
+            <div className="quote-field quote-field--wide">
+                {hasAcceptedPrivacy(draft.customerPhone) ? (
+                    <p className="quote-legal">
+                        Usamos tu nombre y WhatsApp para cotizar y coordinar tu pedido.{" "}
+                        <a href="/privacidad" target="_blank" rel="noopener">Aviso de privacidad</a>
+                    </p>
+                ) : (
+                    <label className="quote-consent" htmlFor="quote-privacy">
+                        <input
+                            id="quote-privacy"
+                            type="checkbox"
+                            checked={draft.privacyConsent}
+                            onChange={(event) => update("privacyConsent", event.target.checked)}
+                        />
+                        <span>
+                            Acepto el <a href="/privacidad" target="_blank" rel="noopener">aviso de privacidad</a>: usan
+                            mi nombre y WhatsApp para cotizar y coordinar mi pedido.
+                        </span>
+                    </label>
+                )}
             </div>
         </div>
     </fieldset>
@@ -378,6 +402,8 @@ export const Cotizador = () => {
         setSendError("");
         try {
             const { quote } = await submitQuote(draft);
+            // Ya aceptó el aviso con este celular: en este navegador no se le vuelve a preguntar
+            rememberPrivacyAccepted(draft.customerPhone);
             trackEvent("quote_submit", draft.kind, getQuoteTrackLabel(draft, dessert), quote.total);
             setSent(quote);
             document.getElementById("resumen")?.scrollIntoView({ block: "start" });
