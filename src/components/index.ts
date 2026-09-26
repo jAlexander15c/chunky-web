@@ -1,6 +1,5 @@
 export * from "./amount-dialog";
 export * from "./animated-price";
-export * from "./cached-image";
 export * from "./cart";
 export * from "./cart-button";
 export * from "./cart-context";
