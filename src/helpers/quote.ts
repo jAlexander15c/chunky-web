@@ -320,6 +320,8 @@ export interface IQuote {
     /** Web: la mandó el cliente desde /cotizador. Manual: la registró la pastelera. */
     source: "web" | "manual";
     createdBy: string | null;
+    /** La pastelera dueña. Null: llegó de la web y está en la bandeja común hasta que alguien la confirme. */
+    ownerId: number | null;
     statusChangedBy: string | null;
     createdAt: string;
     updatedAt: string;

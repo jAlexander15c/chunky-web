@@ -158,7 +158,10 @@ const IncomeBody = ({ summary }: { summary: IQuoteSummary }) => {
                             <dd>{bySource.manual.count} · {formatPrice(bySource.manual.gross)}</dd>
                         </div>
                     </dl>
-                    <p className="qi-note">Cuentan las entregadas con fecha de entrega en el rango. Las canceladas no cuentan.</p>
+                    <p className="qi-note">
+                        Solo tus cotizaciones: las de otras pasteleras y las ventas de Chunky no entran aquí. Cuentan las entregadas
+                        con fecha de entrega en el rango; las canceladas no.
+                    </p>
                 </section>
             </div>
 
@@ -210,7 +213,7 @@ const IncomeBody = ({ summary }: { summary: IQuoteSummary }) => {
     );
 };
 
-/** Ingreso bruto y neto de las cotizaciones entregadas. Solo lo ve la pastelera en /gestion. */
+/** Ingreso bruto y neto de las cotizaciones entregadas de esta pastelera: no se mezcla con otras ni con Chunky. */
 export const QuotesIncome = ({ token, onSessionExpired }: IQuotesIncomeProps) => {
     const [period, setPeriod] = useState<QuoteIncomePeriod>("mes");
     const [summary, setSummary] = useState<IQuoteSummary | null>(null);
@@ -240,7 +243,7 @@ export const QuotesIncome = ({ token, onSessionExpired }: IQuotesIncomeProps) =>
     return (
         <div className="qi">
             <div className="qi-top">
-                <p className="qi-range">Por fecha de entrega · {formatRangeLabel(range.from, range.to)}</p>
+                <p className="qi-range">Tus entregas · {formatRangeLabel(range.from, range.to)}</p>
                 <div className="qi-periods" role="group" aria-label="Período">
                     {QUOTE_INCOME_PERIODS.map((one) => (
                         <button key={one.id} type="button" aria-pressed={period === one.id} onClick={() => setPeriod(one.id)}>

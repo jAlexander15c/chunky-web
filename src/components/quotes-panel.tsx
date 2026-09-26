@@ -58,6 +58,7 @@ const QuoteDetail = ({
     const { selection } = quote;
     const next = NEXT_STEP[quote.status];
     const canCancel = quote.status === "nueva" || quote.status === "confirmada";
+    const isShared = quote.ownerId === null;
 
     return (
         <article className="qp-detail" aria-label={`Cotización ${quote.code}`}>
@@ -71,10 +72,18 @@ const QuoteDetail = ({
                     </p>
                 </div>
                 <span className="qp-pills">
+                    {isShared ? <span className="qp-pill qp-pill--shared">Bandeja común</span> : null}
                     {quote.source === "manual" ? <span className="qp-pill qp-pill--manual">Manual</span> : null}
                     <span className={`qp-pill qp-pill--${quote.status}`}>{QUOTE_STATUS_LABEL[quote.status]}</span>
                 </span>
             </div>
+
+            {isShared ? (
+                <p className="qp-shared">
+                    Llegó por la web y la ven todas las pasteleras. La que la confirme se la queda: desde ahí solo ella la ve y
+                    cuenta en sus ingresos.
+                </p>
+            ) : null}
 
             {/* Los postres enteros (flan, cheesecake…) se cotizan sin fotos */}
             {quote.cakeImage ? (
@@ -172,7 +181,7 @@ const QuoteDetail = ({
                 ) : null}
                 {next ? (
                     <button type="button" className="qp-btn qp-btn--solid" disabled={isChanging} onClick={() => onChangeStatus(next.to)}>
-                        {isChanging ? "Guardando…" : next.label}
+                        {isChanging ? "Guardando…" : isShared ? "Confirmar y quedármela" : next.label}
                     </button>
                 ) : null}
                 {canCancel ? (
@@ -337,6 +346,7 @@ export const QuotesPanel = ({ token, onSessionExpired }: IQuotesPanelProps) => {
                                             <b>
                                                 {quote.customerName}
                                                 {quote.source === "manual" ? <span className="qp-tag">Manual</span> : null}
+                                                {quote.ownerId === null ? <span className="qp-tag qp-tag--shared">Común</span> : null}
                                             </b>
                                             <small>{getQuoteSizeLabel(quote.selection)}</small>
                                             <small>Para el {formatQuoteDate(quote.desiredDate)}</small>

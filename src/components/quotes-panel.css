@@ -222,6 +222,16 @@
 .qp-pill--entregada { background: var(--qp-good-bg); color: var(--qp-good); }
 .qp-pill--cancelada { background: var(--qp-crit-bg); color: var(--qp-crit); }
 .qp-pill--manual { background: var(--lima); color: var(--ink); }
+.qp-pill--shared { background: var(--orquidea); color: var(--ink); }
+
+/* Las nuevas de la web que todavía no son de nadie */
+.qp-shared {
+    margin: 0;
+    padding: 0.7rem 0.9rem;
+    border-radius: 12px;
+    background: rgb(225 168 229 / 0.25);
+    font-size: 0.86rem;
+}
 
 .qp-pills {
     display: inline-flex;
@@ -241,6 +251,10 @@
     letter-spacing: 0.06em;
     text-transform: uppercase;
     vertical-align: 0.1em;
+}
+
+.qp-tag--shared {
+    background: var(--orquidea);
 }
 
 .qp-muted {

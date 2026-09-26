@@ -202,7 +202,7 @@ const SECTIONS: ISectionInfo[] = [
         id: "pasteleria",
         label: "Pastelería",
         role: "pastelera",
-        sub: "Cotizaciones de cakes y postres, y lo que dejan",
+        sub: "Tus cotizaciones de cakes y postres, y lo que te dejan",
         icon: (
             <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M4 21V11h16v10M2 11h20M12 11V7" />
