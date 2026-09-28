@@ -467,6 +467,10 @@ export const setTablesCount = (token: string, tables: number) =>
 export const fetchAdminShift = (token: string, signal?: AbortSignal) =>
     httpGet<{ shift: IShiftDetail | null; canClose: boolean }>("/admin/shift", { signal, headers: getAdminHeaders(token) });
 
+/** Un turno del historial con sus cuentas cobradas y los pedidos web de su horario. */
+export const fetchAdminShiftDetail = (token: string, id: number, signal?: AbortSignal) =>
+    httpGet<{ shift: IShiftDetail }>(`/admin/shifts/${id}`, { signal, headers: getAdminHeaders(token) });
+
 export const closeAdminShift = (token: string, countedCash: number) =>
     httpPost<{ shift: IShiftDetail }>("/admin/shift/close", { countedCash }, { headers: getAdminHeaders(token) });
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 
 import {
@@ -8,12 +8,15 @@ import {
     fetchAdminCredits,
     fetchAdminFund,
     fetchAdminShift,
+    fetchAdminShiftDetail,
     fetchShifts,
     formatClock,
     formatCreditDay,
     formatMoney,
     getCreditAge,
     getPageSlice,
+    getPaymentsSummary,
+    getShiftEntries,
     getSafePage,
     registerAdminFundMovement,
     setTablesCount,
@@ -159,6 +162,48 @@ const getDifferenceTone = (difference: number | null) => {
     return Math.abs(difference) < 1 ? "warn" : "crit";
 };
 
+/** Las cuentas cobradas del turno y los pedidos web, la más reciente arriba. Lo web va marcado. */
+const ShiftTicketsList = ({ shift }: { shift: IShiftDetail }) => {
+    const entries = getShiftEntries(shift);
+    if (entries.length === 0) return <p className="adm-note">Ninguna cuenta cobrada ni pedido web en este turno.</p>;
+
+    return (
+        <ul className="adm-shift-tickets">
+            {entries.map((entry) => {
+                if (entry.kind === "web") {
+                    const order = entry.order;
+                    return (
+                        <li className="is-web" key={`web-${order.id}`}>
+                            <span className="adm-name">
+                                <span className="adm-pill is-web">Web</span> {order.customerName} · #{order.id}
+                                <em>Yappy · {order.isDelivery ? "delivery" : "retiro"} · {formatClock(order.paidAt)}</em>
+                            </span>
+                            <b>{formatMoney(order.total)}</b>
+                        </li>
+                    );
+                }
+
+                const ticket = entry.ticket;
+                const isRefunded = ticket.status === "reembolsada";
+                return (
+                    <li className={isRefunded ? "is-refunded" : ""} key={ticket.id}>
+                        <span className="adm-name">
+                            {isRefunded ? <span className="adm-pill is-crit">Reembolsada</span> : null} {ticket.label}
+                            <em>
+                                {getPaymentsSummary(ticket.payments)} ·{" "}
+                                {isRefunded
+                                    ? `reembolsada por ${ticket.refundedByName}${ticket.refundedAt ? ` · ${formatClock(ticket.refundedAt)}` : ""}`
+                                    : `${ticket.closedByName}${ticket.closedAt ? ` · ${formatClock(ticket.closedAt)}` : ""}`}
+                            </em>
+                        </span>
+                        <b>{formatMoney(ticket.total)}</b>
+                    </li>
+                );
+            })}
+        </ul>
+    );
+};
+
 /**
  * Cierres de caja del local y cuántas mesas tiene. La caja es nuestra, no de Loyverse:
  * su API no deja abrir ni cerrar turnos, así que este es el único lugar donde se cuadra.
@@ -180,6 +225,10 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
     const [shiftPage, setShiftPage] = useState(1);
     const [creditPage, setCreditPage] = useState(1);
     const [fundPage, setFundPage] = useState(1);
+    // La fila del historial que está abierta y los turnos ya pedidos, para no volver a pedirlos
+    const [expandedShiftId, setExpandedShiftId] = useState<number | null>(null);
+    const [shiftDetails, setShiftDetails] = useState<Record<number, IShiftDetail>>({});
+    const [detailError, setDetailError] = useState("");
 
     const load = useCallback(
         async (signal?: AbortSignal) => {
@@ -231,6 +280,21 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
         }
     };
 
+    const toggleShift = async (id: number) => {
+        if (expandedShiftId === id) return setExpandedShiftId(null);
+        setExpandedShiftId(id);
+        setDetailError("");
+        if (shiftDetails[id] || openShift?.id === id) return;
+
+        try {
+            const data = await fetchAdminShiftDetail(token, id);
+            setShiftDetails((current) => ({ ...current, [id]: data.shift }));
+        } catch (requestError) {
+            if (requestError instanceof HttpError && requestError.status === 401) return onSessionExpired();
+            setDetailError(requestError instanceof HttpError ? requestError.message : "No pudimos cargar las cuentas del turno.");
+        }
+    };
+
     const countedValue = counted.trim() === "" ? NaN : Number(counted.replace(",", "."));
     const hasCounted = Number.isFinite(countedValue) && countedValue >= 0;
 
@@ -245,6 +309,7 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
         try {
             await closeAdminShift(token, roundMoney(countedValue));
             setCounted("");
+            setShiftDetails({});
             await load();
         } catch (requestError) {
             if (requestError instanceof HttpError && requestError.status === 401) return onSessionExpired();
@@ -309,6 +374,8 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
                             Lo contado pasa al fondo aparte y el cierre queda firmado como Admin.
                         </p>
                     ) : null}
+                    <h4 className="adm-shift-tickets__title">Cuentas cobradas</h4>
+                    <ShiftTicketsList shift={openShift} />
                 </div>
             ) : null}
 
@@ -363,40 +430,67 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
                                 </tr>
                             </thead>
                             <tbody>
-                                {getPageSlice(shifts, currentShiftPage, CAJA_PAGE_SIZE).map((shift) => (
-                                    <tr key={shift.id}>
-                                        <td className="adm-name">
-                                            {shift.openedByName}
-                                            <em>{formatMoment(shift.openedAt)}</em>
-                                        </td>
-                                        <td className="adm-name">
-                                            {shift.closedAt ? (
-                                                <>
-                                                    {shift.closedByName}
-                                                    <em>{formatMoment(shift.closedAt)}</em>
-                                                </>
-                                            ) : (
-                                                <span className="adm-pill is-warn">En curso</span>
-                                            )}
-                                        </td>
-                                        <td className="num">{formatMoney(shift.startingCash)}</td>
-                                        <td className="num">{formatOptionalMoney(shift.salesCash)}</td>
-                                        <td className="num">{formatOptionalMoney(shift.salesCard)}</td>
-                                        <td className="num">{formatOptionalMoney(shift.salesYappy)}</td>
-                                        <td className="num">{shift.expectedCash === null ? "—" : formatMoney(shift.expectedCash)}</td>
-                                        <td className="num">{shift.countedCash === null ? "—" : formatMoney(shift.countedCash)}</td>
-                                        <td className="num">
-                                            {shift.difference === null ? (
-                                                "—"
-                                            ) : (
-                                                <span className={`adm-pill is-${getDifferenceTone(shift.difference)}`}>
-                                                    {shift.difference > 0 ? "+" : ""}
-                                                    {formatMoney(shift.difference)}
-                                                </span>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
+                                {getPageSlice(shifts, currentShiftPage, CAJA_PAGE_SIZE).map((shift) => {
+                                    const isExpanded = expandedShiftId === shift.id;
+                                    const detail = openShift?.id === shift.id ? openShift : shiftDetails[shift.id];
+                                    return (
+                                        <Fragment key={shift.id}>
+                                            <tr className={isExpanded ? "is-expanded" : ""}>
+                                                <td className="adm-name">
+                                                    <button
+                                                        type="button"
+                                                        className="adm-shift-toggle"
+                                                        aria-expanded={isExpanded}
+                                                        onClick={() => void toggleShift(shift.id)}
+                                                    >
+                                                        <span className="adm-shift-toggle__chev" aria-hidden="true">›</span>
+                                                        {shift.openedByName}
+                                                    </button>
+                                                    <em>{formatMoment(shift.openedAt)}</em>
+                                                </td>
+                                                <td className="adm-name">
+                                                    {shift.closedAt ? (
+                                                        <>
+                                                            {shift.closedByName}
+                                                            <em>{formatMoment(shift.closedAt)}</em>
+                                                        </>
+                                                    ) : (
+                                                        <span className="adm-pill is-warn">En curso</span>
+                                                    )}
+                                                </td>
+                                                <td className="num">{formatMoney(shift.startingCash)}</td>
+                                                <td className="num">{formatOptionalMoney(shift.salesCash)}</td>
+                                                <td className="num">{formatOptionalMoney(shift.salesCard)}</td>
+                                                <td className="num">{formatOptionalMoney(shift.salesYappy)}</td>
+                                                <td className="num">{shift.expectedCash === null ? "—" : formatMoney(shift.expectedCash)}</td>
+                                                <td className="num">{shift.countedCash === null ? "—" : formatMoney(shift.countedCash)}</td>
+                                                <td className="num">
+                                                    {shift.difference === null ? (
+                                                        "—"
+                                                    ) : (
+                                                        <span className={`adm-pill is-${getDifferenceTone(shift.difference)}`}>
+                                                            {shift.difference > 0 ? "+" : ""}
+                                                            {formatMoney(shift.difference)}
+                                                        </span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                            {isExpanded ? (
+                                                <tr className="adm-shift-detail">
+                                                    <td colSpan={9}>
+                                                        {detail ? (
+                                                            <ShiftTicketsList shift={detail} />
+                                                        ) : detailError ? (
+                                                            <p className="adm-error">{detailError}</p>
+                                                        ) : (
+                                                            <p className="adm-note">Cargando cuentas…</p>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ) : null}
+                                        </Fragment>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>

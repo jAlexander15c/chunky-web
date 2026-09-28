@@ -604,6 +604,7 @@
 .adm-pill.is-warn { background: var(--adm-warn-bg); color: var(--adm-warn); }
 .adm-pill.is-crit { background: var(--adm-crit-bg); color: var(--adm-crit); }
 .adm-pill.is-idle { background: var(--adm-panel-2); color: var(--adm-text-2); }
+.adm-pill.is-web { background: color-mix(in srgb, var(--adm-web) 18%, transparent); color: var(--adm-web); }
 
 /* ============ Gráfico ============ */
 
@@ -2088,3 +2089,21 @@ a.adm-btn { display: inline-flex; align-items: center; text-decoration: none; }
 @media (max-width: 980px) {
     .adm-cust-card { position: static; }
 }
+
+/* ============ Caja: cuentas cobradas del turno ============ */
+
+.adm-shift-tickets__title { margin: 1rem 0 0.4rem; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--adm-text-3); }
+.adm-shift-tickets { list-style: none; margin: 0; padding: 0; display: grid; }
+.adm-shift-tickets li { display: flex; justify-content: space-between; align-items: center; gap: 0.8rem; padding: 0.45rem 0; border-bottom: 1px dotted var(--adm-line); font-size: 0.82rem; }
+.adm-shift-tickets li:last-child { border-bottom: 0; }
+.adm-shift-tickets b { font-variant-numeric: tabular-nums; font-weight: 800; white-space: nowrap; }
+/* Lo de la web se pagó por Yappy en la página: fondo y borde con el color web del tablero */
+.adm-shift-tickets li.is-web { background: color-mix(in srgb, var(--adm-web) 9%, transparent); box-shadow: inset 3px 0 0 var(--adm-web); border-bottom-color: transparent; border-radius: 8px; padding-inline: 0.7rem; margin-block: 0.15rem; }
+.adm-shift-tickets li.is-refunded b { text-decoration: line-through; color: var(--adm-text-3); }
+
+.adm-shift-toggle { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 600; }
+.adm-shift-toggle:focus-visible { outline: 2px solid var(--orquidea); outline-offset: 2px; border-radius: 4px; }
+.adm-shift-toggle__chev { display: inline-block; width: 1rem; text-align: center; font-weight: 800; transition: transform 0.2s var(--ease-out); }
+.adm-shift-toggle[aria-expanded="true"] .adm-shift-toggle__chev { transform: rotate(90deg); }
+.adm-table tbody tr.adm-shift-detail td { background: var(--adm-panel-2); padding: 0.4rem 1rem 0.8rem; }
+@media (prefers-reduced-motion: reduce) { .adm-shift-toggle__chev { transition: none; } }

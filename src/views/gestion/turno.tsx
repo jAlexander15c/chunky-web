@@ -13,6 +13,8 @@ import {
     formatClock,
     formatDayClock,
     formatQuantity,
+    getPaymentsSummary,
+    getShiftEntries,
     getTicketLineTotal,
     openShift,
     refundTicket,
@@ -218,15 +220,6 @@ const FundCard = ({ fund, onMove }: IFundCardProps) => (
 /** Cuántas cuentas cobradas se ven de entrada; el resto se abre con "Ver todas". */
 const SHIFT_TICKETS_SHOWN = 8;
 
-/** "Tarjeta" o "Efectivo 6.00 + Yappy 8.00": cómo se pagó, dicho corto. */
-const getPaymentsSummary = (payments: ITicketPayment[] | null) => {
-    if (!payments?.length) return "Sin pago registrado";
-    if (payments.length === 1) return PAYMENT_LABEL[payments[0].method];
-    return payments
-        .map((one) => `${PAYMENT_LABEL[one.method]} ${one.amount.toFixed(2)}${one.payerName ? ` (${one.payerName})` : ""}`)
-        .join(" + ");
-};
-
 const REFUND_CHANNEL: Record<PaymentMethod, string> = {
     efectivo: "en efectivo del cajón",
     tarjeta: "por tarjeta",
@@ -347,26 +340,49 @@ const RefundDialog = ({ token, ticket, onRefunded, onClose, onSessionExpired }: 
 };
 
 interface IShiftTicketsCardProps {
-    tickets: IShiftTicket[];
+    shift: IShiftDetail;
     onRefund: (ticket: IShiftTicket) => void;
 }
 
-/** Las cuentas cobradas del turno, la más reciente arriba, con su reembolso a mano. */
-const ShiftTicketsCard = ({ tickets, onRefund }: IShiftTicketsCardProps) => {
+/** Las cuentas cobradas del turno y los pedidos web, la más reciente arriba, con su reembolso a mano. */
+const ShiftTicketsCard = ({ shift, onRefund }: IShiftTicketsCardProps) => {
     const [showAll, setShowAll] = useState(false);
-    const shown = showAll ? tickets : tickets.slice(0, SHIFT_TICKETS_SHOWN);
+    const entries = getShiftEntries(shift);
+    const shown = showAll ? entries : entries.slice(0, SHIFT_TICKETS_SHOWN);
 
     return (
         <section className="ges-card">
             <h2>Cuentas cobradas</h2>
-            <p className="ges-field__hint">Las de este turno. Si una se cobró por error, se reembolsa completa.</p>
+            <p className="ges-field__hint">
+                Las de este turno y los pedidos web. Si una del local se cobró por error, se reembolsa completa; lo de la web
+                se pagó por Yappy y no pasa por el cajón.
+            </p>
 
             <div className="ges-rows">
-                {tickets.length === 0 ? (
+                {entries.length === 0 ? (
                     <p className="ges-empty">Ninguna todavía.</p>
                 ) : (
-                    shown.map((one) =>
-                        one.status === "reembolsada" ? (
+                    shown.map((entry) => {
+                        if (entry.kind === "web") {
+                            const order = entry.order;
+                            return (
+                                <div className="ges-r is-ticket is-web" key={`web-${order.id}`}>
+                                    <span>
+                                        <span className="ges-tag is-web">Web</span>
+                                        {order.customerName} · #{order.id}{" "}
+                                        <em>
+                                            Yappy · {order.isDelivery ? "delivery" : "retiro"} · {formatClock(order.paidAt)}
+                                        </em>
+                                    </span>
+                                    <span className="ges-r__end">
+                                        <b>{formatCash(order.total)}</b>
+                                    </span>
+                                </div>
+                            );
+                        }
+
+                        const one = entry.ticket;
+                        return one.status === "reembolsada" ? (
                             <div className="ges-r is-ticket is-refunded" key={one.id}>
                                 <span>
                                     {one.label}{" "}
@@ -397,14 +413,14 @@ const ShiftTicketsCard = ({ tickets, onRefund }: IShiftTicketsCardProps) => {
                                     </button>
                                 </span>
                             </div>
-                        )
-                    )
+                        );
+                    })
                 )}
             </div>
 
-            {tickets.length > SHIFT_TICKETS_SHOWN ? (
+            {entries.length > SHIFT_TICKETS_SHOWN ? (
                 <button type="button" className="ges-btn" onClick={() => setShowAll(!showAll)}>
-                    {showAll ? "Ver menos" : `Ver todas (${tickets.length})`}
+                    {showAll ? "Ver menos" : `Ver todas (${entries.length})`}
                 </button>
             ) : null}
         </section>
@@ -667,7 +683,7 @@ export const GestionTurno = ({ token, onSessionExpired, onShiftChange }: IGestio
                 </section>
 
                 <div className="ges-stack">
-                    <ShiftTicketsCard tickets={shift.tickets} onRefund={setRefunding} />
+                    <ShiftTicketsCard shift={shift} onRefund={setRefunding} />
 
                     <section className="ges-card">
                         <h2>Movimientos de efectivo</h2>

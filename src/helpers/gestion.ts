@@ -187,6 +187,15 @@ export interface IShiftTicket {
     refundPending: boolean;
 }
 
+/** Un pedido web pagado mientras el turno estaba abierto. Se pagó por Yappy: no toca el cajón. */
+export interface IShiftWebOrder {
+    id: string;
+    customerName: string;
+    total: number;
+    paidAt: string;
+    isDelivery: boolean;
+}
+
 /** El turno en curso con todo lo que hace falta para cuadrarlo. */
 export interface IShiftDetail extends IShift {
     movements: ICashMovement[];
@@ -202,6 +211,9 @@ export interface IShiftDetail extends IShift {
     refundsCount: number;
     /** Las cuentas cobradas y reembolsadas del turno, la más reciente primero. */
     tickets: IShiftTicket[];
+    /** Pedidos web del turno: solo se listan. Opcional mientras la API vieja siga en línea. */
+    webOrders?: IShiftWebOrder[];
+    webTotal?: number;
     cashIn: number;
     cashOut: number;
     expected: number;
@@ -529,3 +541,22 @@ export const getCreditAge = (value: string) => {
     const label = days <= 0 ? "hoy" : days === 1 ? "ayer" : `hace ${days} días`;
     return { label, isOld: days >= CREDIT_OLD_DAYS };
 };
+
+/** "Tarjeta" o "Efectivo 6.00 + Yappy 8.00": cómo se pagó, dicho corto. */
+export const getPaymentsSummary = (payments: ITicketPayment[] | null) => {
+    if (!payments?.length) return "Sin pago registrado";
+    if (payments.length === 1) return PAYMENT_LABEL[payments[0].method];
+    return payments
+        .map((one) => `${PAYMENT_LABEL[one.method]} ${one.amount.toFixed(2)}${one.payerName ? ` (${one.payerName})` : ""}`)
+        .join(" + ");
+};
+
+/** Una fila de "Cuentas cobradas": una cuenta del local o un pedido web. */
+export type ShiftEntry = { kind: "local"; ticket: IShiftTicket; at: string } | { kind: "web"; order: IShiftWebOrder; at: string };
+
+/** Las cuentas del local y los pedidos web del turno en una sola lista, la más reciente arriba. */
+export const getShiftEntries = (shift: Pick<IShiftDetail, "tickets" | "webOrders">): ShiftEntry[] =>
+    [
+        ...shift.tickets.map((ticket): ShiftEntry => ({ kind: "local", ticket, at: ticket.closedAt ?? ticket.refundedAt ?? "" })),
+        ...(shift.webOrders ?? []).map((order): ShiftEntry => ({ kind: "web", order, at: order.paidAt })),
+    ].sort((a, b) => Date.parse(b.at || "0") - Date.parse(a.at || "0"));
