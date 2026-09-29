@@ -75,7 +75,7 @@ export const ManualQuoteForm = ({ token, onSaved, onCancel, onSessionExpired }: 
 
     const update = (changes: Partial<IManualQuoteDraft>) => setDraft((current) => ({ ...current, ...changes }));
 
-    // El 4.5" solo va en doble altura: al elegirlo se sube la altura
+    // Conserva la altura elegida cuando está disponible para el tamaño.
     const changeSize = (size: QuoteSize) =>
         update({ size, height: isQuoteSizeAvailable(size, draft.height) ? draft.height : 2 });
 

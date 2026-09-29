@@ -380,7 +380,7 @@ export const Cotizador = () => {
         setDraft((current) => ({ ...current, [key]: value }));
     };
 
-    // El 4.5" solo viene en doble altura: elegirlo en 1 altura pasa solo a doble
+    // Conserva la altura elegida cuando está disponible para el tamaño.
     const selectSize = (size: QuoteSize) => {
         markStep(draft.kind, "size");
         setDraft((current) => ({
@@ -576,9 +576,6 @@ export const Cotizador = () => {
                                     </label>
                                 ))}
                             </div>
-                            {draft.size === "4.5" ? (
-                                <p className="quote-step__hint">El 4.5" solo lo hacemos en doble altura.</p>
-                            ) : null}
                         </fieldset>
 
                         <fieldset className="quote-step">
