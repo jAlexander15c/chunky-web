@@ -66,14 +66,15 @@ export interface IMovement {
 }
 
 /** Una persona puede tener varios: quien cuenta insumos también puede estar en caja. */
-export type CollaboratorRole = "inventario" | "caja" | "pastelera";
+export type CollaboratorRole = "inventario" | "caja" | "pastelera" | "repartidor";
 
-export const COLLABORATOR_ROLES: CollaboratorRole[] = ["inventario", "caja", "pastelera"];
+export const COLLABORATOR_ROLES: CollaboratorRole[] = ["inventario", "caja", "pastelera", "repartidor"];
 
 export const ROLE_LABEL: Record<CollaboratorRole, string> = {
     inventario: "Inventario",
     caja: "Caja",
     pastelera: "Pastelera",
+    repartidor: "Repartidor",
 };
 
 export interface ICollaborator {
@@ -282,6 +283,8 @@ interface IWebTotals {
     /** Pestañas distintas que abrieron la web. */
     sessions: number;
     paidOrders: number;
+    /** Sesiones que dejaron un pedido para coordinar por WhatsApp (no cuentan como pagadas). Opcional con el API viejo. */
+    whatsappOrders?: number;
     /** Pedidos pagados sobre sesiones, de 0 a 1. */
     conversion: number;
     /** Llegaron al checkout y no tocaron pagar. */

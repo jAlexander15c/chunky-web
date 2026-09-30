@@ -187,14 +187,30 @@ export interface IShiftTicket {
     refundPending: boolean;
 }
 
-/** Un pedido web pagado mientras el turno estaba abierto. Se pagó por Yappy: no toca el cajón. */
+/**
+ * Un pedido web pagado mientras el turno estaba abierto. Lo de Yappy no toca el cajón; lo de
+ * WhatsApp se cobró al entregar y, si fue en efectivo, sí (ver webCash).
+ */
 export interface IShiftWebOrder {
     id: string;
     customerName: string;
     total: number;
     paidAt: string;
     isDelivery: boolean;
+    // Opcionales mientras la API vieja siga en línea
+    paymentMethod?: "yappy" | "whatsapp";
+    collectedMethod?: PaymentMethod | null;
+    collectedByName?: string | null;
 }
+
+/** "Yappy" o "WhatsApp · efectivo (Carlos)": cómo se pagó un pedido web del turno. */
+export const getWebOrderPaymentLabel = (order: IShiftWebOrder) => {
+    if (order.paymentMethod !== "whatsapp") return "Yappy";
+    const method = !order.collectedMethod
+        ? "sin cobrar"
+        : order.collectedMethod === "yappy" ? "Yappy" : PAYMENT_LABEL[order.collectedMethod].toLowerCase();
+    return `WhatsApp · ${method}${order.collectedByName ? ` (${order.collectedByName})` : ""}`;
+};
 
 /** El turno en curso con todo lo que hace falta para cuadrarlo. */
 export interface IShiftDetail extends IShift {
@@ -214,6 +230,8 @@ export interface IShiftDetail extends IShift {
     /** Pedidos web del turno: solo se listan. Opcional mientras la API vieja siga en línea. */
     webOrders?: IShiftWebOrder[];
     webTotal?: number;
+    /** Efectivo de pedidos de WhatsApp cobrados al entregar: suma al esperado. */
+    webCash?: number;
     cashIn: number;
     cashOut: number;
     expected: number;

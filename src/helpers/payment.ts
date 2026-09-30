@@ -1,23 +1,55 @@
 import { httpGet, httpPost } from "./getHttp";
-import { formatCartLine, formatPrice, getCartTotal } from "./order";
+import { formatCartLine, formatPrice, getCartTotal, getWhatsAppUrl } from "./order";
 import type { ICartLine } from "./order";
 import type { IPastaOptions } from "./pasta";
 import { PRIVACY_NOTICE_VERSION } from "./privacy";
 
 export type OrderStatus =
     | "PENDING_PAYMENT"
+    // Por WhatsApp: guardado, falta confirmarlo con el cliente · confirmado, se cobra al entregar
+    | "PENDING_CONFIRMATION"
+    | "CONFIRMED"
     | "PAID"
     | "IN_PREPARATION"
     | "READY"
+    | "ON_THE_WAY"
     | "DELIVERED"
     | "REJECTED"
     | "CANCELLED"
     | "EXPIRED"
     | "FAILED";
 
+/** Como paga el cliente de la web: Yappy en la página, o lo coordina por WhatsApp y paga al recibir. */
+export type OrderPaymentMethod = "yappy" | "whatsapp";
+
+/** Con qué se cobró al entregar un pedido de WhatsApp. */
+export type CollectedMethod = "efectivo" | "tarjeta" | "yappy";
+
+export const COLLECTED_LABEL: Record<CollectedMethod, string> = {
+    efectivo: "efectivo",
+    tarjeta: "tarjeta",
+    yappy: "Yappy",
+};
+
+export interface ICourierPosition {
+    lat: number;
+    lng: number;
+    /** Metros de margen que reporta el teléfono del repartidor. */
+    accuracy: number | null;
+    at: string;
+}
+
 export interface IPublicOrder {
     id: string;
     status: OrderStatus;
+    // Opcionales mientras el API viejo siga en producción
+    paymentMethod?: OrderPaymentMethod;
+    collectedMethod?: CollectedMethod | null;
+    confirmedAt?: string | null;
+    outAt?: string | null;
+    deliveredAt?: string | null;
+    /** Solo en camino: quién lo lleva (nombre de pila) y su última posición. */
+    courier?: { name: string; position: ICourierPosition | null } | null;
     /** Solo el nombre de pila. */
     customerName: string;
     lines: {
@@ -28,8 +60,8 @@ export interface IPublicOrder {
         options?: IPastaOptions;
         modifiers?: { name: string; option: string; price: number }[];
     }[];
-    // Solo el dia de pasta: la direccion escrita por el cliente (sin coordenadas)
-    delivery: { address: string; details: string | null } | null;
+    // La dirección escrita; el punto exacto (lat/lng) solo llega mientras va en camino, para el mapa
+    delivery: { address: string; details: string | null; lat?: number | null; lng?: number | null } | null;
     total: number;
     yappyConfirmation: string | null;
     // Los marca la cocina en /gestion
@@ -37,6 +69,13 @@ export interface IPublicOrder {
     readyAt: string | null;
     createdAt: string;
     paidAt: string | null;
+}
+
+/** Pedido guardado para coordinar por WhatsApp: no hay pago en la página. */
+export interface IWhatsappOrderSession {
+    orderId: string;
+    accessToken: string;
+    paymentMethod: "whatsapp";
 }
 
 export interface IYappyPaymentSession {
@@ -132,7 +171,16 @@ export const YAPPY_BUTTON_SCRIPT_URL = (import.meta.env.VITE_YAPPY_CDN_URL
 const LAST_ORDER_STORAGE_KEY = "chunky-last-order";
 
 export const FAILED_ORDER_STATUSES: OrderStatus[] = ["REJECTED", "CANCELLED", "EXPIRED", "FAILED"];
-export const PAID_ORDER_STATUSES: OrderStatus[] = ["PAID", "IN_PREPARATION", "READY", "DELIVERED"];
+/** El pedido ya salió: pagado con Yappy, o guardado para coordinar por WhatsApp. El carrito se vacía. */
+export const PLACED_ORDER_STATUSES: OrderStatus[] = [
+    "PENDING_CONFIRMATION",
+    "CONFIRMED",
+    "PAID",
+    "IN_PREPARATION",
+    "READY",
+    "ON_THE_WAY",
+    "DELIVERED",
+];
 
 /** Solo digitos: "6123-4567" -> "61234567". */
 export const getPhoneDigits = (value: string) => value.replace(/\D/g, "").slice(0, 8);
@@ -167,8 +215,7 @@ export const createIdempotencyKey = () =>
         ? crypto.randomUUID()
         : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 14)}-${Math.random().toString(36).slice(2, 14)}`;
 
-export const createOrder = (lines: ICartLine[], form: ICheckoutForm, requiresDelivery = false, idempotencyKey?: string) =>
-    httpPost<IYappyPaymentSession>("/orders", {
+const getOrderBody = (lines: ICartLine[], form: ICheckoutForm, requiresDelivery: boolean) => ({
         lines: lines.map((line) => ({
             variantId: line.item.variants[0].variant_id,
             quantity: line.quantity,
@@ -182,7 +229,21 @@ export const createOrder = (lines: ICartLine[], form: ICheckoutForm, requiresDel
         note: form.note.trim() || undefined,
         privacyConsent: form.privacyConsent,
         privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
-    }, idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : undefined);
+});
+
+const getIdempotencyOptions = (idempotencyKey?: string) =>
+    idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : undefined;
+
+export const createOrder = (lines: ICartLine[], form: ICheckoutForm, requiresDelivery = false, idempotencyKey?: string) =>
+    httpPost<IYappyPaymentSession>("/orders", getOrderBody(lines, form, requiresDelivery), getIdempotencyOptions(idempotencyKey));
+
+/** Guarda el pedido sin cobrar: se confirma por WhatsApp y se paga al recibirlo. */
+export const createWhatsappOrder = (lines: ICartLine[], form: ICheckoutForm, requiresDelivery = false, idempotencyKey?: string) =>
+    httpPost<IWhatsappOrderSession>(
+        "/orders",
+        { ...getOrderBody(lines, form, requiresDelivery), paymentMethod: "whatsapp" },
+        getIdempotencyOptions(idempotencyKey)
+    );
 
 const getDeliveryPayload = (form: ICheckoutForm) => ({
     address: form.deliveryAddress.trim(),
@@ -295,8 +356,36 @@ export const buildPaymentHelpMessage = (
     return `¡Hola! ${who}Tuve un problema pagando con Yappy en la web${reference}. Mi pedido es:\n\n${detail}\n\nTotal: ${formatPrice(getCartTotal(lines))}${address}${note}`;
 };
 
-/** Texto del motivo cuando el pago no se completo. */
-export const getFailedOrderReason = (status: OrderStatus) => {
+/** Mensaje que abre WhatsApp al guardar un pedido para coordinar: el código, lo pedido y la entrega. */
+export const buildWhatsappOrderMessage = (
+    lines: ICartLine[],
+    form: Pick<ICheckoutForm, "customerName" | "note"> & Partial<Pick<ICheckoutForm, "deliveryAddress" | "deliveryDetails" | "deliveryLat" | "deliveryLng">>,
+    orderId: string,
+    orderUrl: string
+) => {
+    const detail = lines.map(formatCartLine).join("\n");
+    const delivery = getDeliveryText(form);
+    const who = form.customerName.trim() ? `Soy ${form.customerName.trim()}. ` : "";
+    const note = form.note.trim() ? `\n\nNota: ${form.note.trim()}` : "";
+    const fulfillment = delivery ? `\n\n${delivery}` : "\n\nPaso a retirarlo.";
+    return `¡Hola! ${who}Quiero coordinar mi pedido ${orderId}:\n\n${detail}\n\nTotal: ${formatPrice(getCartTotal(lines))}${fulfillment}${note}\n\nVer pedido: ${orderUrl}`;
+};
+
+/** Para volver a abrir el chat desde /pedido: el código y lo pedido, sin la dirección. */
+export const getWhatsappOrderChatUrl = (order: IPublicOrder) => {
+    const detail = order.lines.map((line) => `- ${line.name} x${line.quantity}`).join("\n");
+    return getWhatsAppUrl(
+        `¡Hola! Soy ${order.customerName}. Quiero coordinar mi pedido ${order.id}:\n\n${detail}\n\nTotal: ${formatPrice(order.total)}`
+    );
+};
+
+/** Texto del motivo cuando el pedido no siguió. */
+export const getFailedOrderReason = (status: OrderStatus, paymentMethod: OrderPaymentMethod = "yappy") => {
+    if (paymentMethod === "whatsapp") {
+        return status === "EXPIRED"
+            ? "No alcanzamos a confirmarlo por WhatsApp a tiempo."
+            : "Se canceló al coordinarlo por WhatsApp.";
+    }
     switch (status) {
         case "CANCELLED":
             return "Cancelaste el pago en la app de Yappy.";

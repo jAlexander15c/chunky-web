@@ -338,8 +338,8 @@ const WebBody = ({ report }: { report: IWebReport }) => {
                     label="Conversión"
                     value={formatPercent(totals.conversion)}
                     detail={`${formatCount(totals.paidOrders)} ${totals.paidOrders === 1 ? "pedido pagado" : "pedidos pagados"} por la web${
-                        canCompare && previous.sessions > 0 ? ` · antes ${formatPercent(previous.conversion)}` : ""
-                    }`}
+                        totals.whatsappOrders ? ` · ${formatCount(totals.whatsappOrders)} por WhatsApp` : ""
+                    }${canCompare && previous.sessions > 0 ? ` · antes ${formatPercent(previous.conversion)}` : ""}`}
                 />
                 <StatTile
                     label="Checkouts sin pagar"

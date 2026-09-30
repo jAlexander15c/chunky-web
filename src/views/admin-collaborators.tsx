@@ -35,6 +35,7 @@ const ROLE_HINT: Record<CollaboratorRole, string> = {
     inventario: "Compras, conteos y mermas",
     caja: "Mesas, cobrar y cerrar la caja",
     pastelera: "Pastelería: cotizaciones de cakes con sus fotos, registro a mano e ingresos",
+    repartidor: "Delivery: toma los pedidos listos, comparte su ubicación y cobra al entregar",
 };
 
 interface ICollaboratorDialogProps {

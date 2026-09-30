@@ -314,6 +314,12 @@
   vertical-align: middle;
 }
 
+/* Pedido por WhatsApp: se prepara igual, pero se cobra al entregarlo */
+.kitchen-ticket__badge--due {
+  background: #f8e9c9;
+  color: #8d5d0c;
+}
+
 .kitchen-ticket__options {
   grid-column: 2;
   display: block;

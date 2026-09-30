@@ -13,6 +13,8 @@ type TrackEventName =
     | "checkout_start"
     | "pay_click"
     | "whatsapp_click"
+    // Pedido guardado para coordinar por WhatsApp: su llegada a /pedido no cuenta como pago
+    | "whatsapp_order"
     | "quote_step"
     | "quote_submit"
     | "pasta_open"

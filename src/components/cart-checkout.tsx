@@ -9,9 +9,10 @@ import { YappyButton } from "./yappy-button";
 import {
     HttpError,
     buildOrderMessage,
-    buildPaymentHelpMessage,
+    buildWhatsappOrderMessage,
     createIdempotencyKey,
     createOrder,
+    createWhatsappOrder,
     formatPhone,
     getCheckoutErrors,
     getDeliveryText,
@@ -26,7 +27,7 @@ import {
     useSettings,
     trackEvent,
 } from "@/helpers";
-import type { CheckoutErrors, Fulfillment, ICheckoutForm } from "@/helpers";
+import type { CheckoutErrors, Fulfillment, ICheckoutForm, OrderPaymentMethod } from "@/helpers";
 
 const EMPTY_FORM: ICheckoutForm = {
     customerName: "",
@@ -64,13 +65,18 @@ const FULFILLMENT_OPTIONS: { value: Fulfillment; label: string; detail: string }
     { value: "delivery", label: "Delivery", detail: "Envío gratis" },
 ];
 
+const PAYMENT_OPTIONS: { value: OrderPaymentMethod; label: string; detail: string }[] = [
+    { value: "yappy", label: "Yappy", detail: "Pagas ahora" },
+    { value: "whatsapp", label: "Coordinar por WhatsApp", detail: "Pagas al recibir" },
+];
+
 /** source dice desde donde se pidio por WhatsApp (bar cerrado, ayuda con el pago). */
 const openWhatsApp = (message: string, source: string) => {
     trackEvent("whatsapp_click", source);
     window.open(getWhatsAppUrl(message), "_blank", "noopener");
 };
 
-/** Pie del carrito: datos del cliente, pago con Yappy y WhatsApp como alternativa. */
+/** Pie del carrito: datos del cliente y el pago, con Yappy o coordinado por WhatsApp. */
 export const CartCheckout = () => {
     const { lines, setIsOpen } = useCart();
     const navigate = useNavigate();
@@ -85,6 +91,8 @@ export const CartCheckout = () => {
     const [errors, setErrors] = useState<CheckoutErrors>({});
     const [paymentError, setPaymentError] = useState<string | null>(null);
     const [isYappyOnline, setIsYappyOnline] = useState(true);
+    const [paymentMethod, setPaymentMethod] = useState<OrderPaymentMethod>("yappy");
+    const [isSendingWhatsapp, setIsSendingWhatsapp] = useState(false);
     const [isLocating, setIsLocating] = useState(false);
     const [locationError, setLocationError] = useState<string | null>(null);
     const orderIdRef = useRef<string | null>(null);
@@ -190,7 +198,56 @@ export const CartCheckout = () => {
         navigate(`/pedido/${orderIdRef.current}`);
     };
 
-    const sendHelpMessage = () => openWhatsApp(buildPaymentHelpMessage(lines, requiresDelivery ? form : { ...form, deliveryAddress: "" }, orderIdRef.current), "ayuda-pago");
+    const choosePaymentMethod = (method: OrderPaymentMethod) => {
+        setPaymentMethod(method);
+        setPaymentError(null);
+    };
+
+    // Sin Yappy queda WhatsApp: el pedido se guarda igual y se paga al recibir
+    const changeYappyOnline = (isOnline: boolean) => {
+        setIsYappyOnline(isOnline);
+        if (!isOnline) setPaymentMethod("whatsapp");
+    };
+
+    /**
+     * Guarda el pedido para coordinar por WhatsApp y abre el chat con el resumen y el código.
+     * El chat se abre antes de esperar al API: iOS bloquea las ventanas que no salen directo del toque.
+     * Si igual se bloquea, /pedido tiene el botón para abrirlo.
+     */
+    const sendWhatsappOrder = async () => {
+        markCheckoutStart();
+        trackEvent("pay_click", "whatsapp");
+        setPaymentError(null);
+        const formErrors = getCheckoutErrors(form, requiresDelivery);
+        setErrors(formErrors);
+        if (Object.keys(formErrors).length > 0) return;
+
+        const chat = window.open("", "_blank");
+        if (chat) chat.opener = null;
+        setIsSendingWhatsapp(true);
+        try {
+            idempotencyKeyRef.current ??= createIdempotencyKey();
+            const session = await createWhatsappOrder(lines, form, requiresDelivery, idempotencyKeyRef.current);
+            idempotencyKeyRef.current = null;
+            rememberOrderAccess(session.orderId, session.accessToken);
+            setLastOrderId(session.orderId);
+            trackEvent("whatsapp_order");
+
+            const orderUrl = `${window.location.origin}/pedido/${session.orderId}`;
+            const message = buildWhatsappOrderMessage(lines, requiresDelivery ? form : { ...form, deliveryAddress: "" }, session.orderId, orderUrl);
+            if (chat) chat.location.href = getWhatsAppUrl(message);
+
+            orderIdRef.current = session.orderId;
+            goToOrder();
+        } catch (error) {
+            chat?.close();
+            setPaymentError(error instanceof HttpError && error.status < 500
+                ? error.message
+                : "No pudimos guardar tu pedido. Revisa tu conexión e intenta de nuevo.");
+        } finally {
+            setIsSendingWhatsapp(false);
+        }
+    };
 
     if (!isBarOpen) {
         return (
@@ -282,10 +339,27 @@ export const CartCheckout = () => {
                             </button>
                         )}
                         {locationError && <span className="field__error" role="alert">{locationError}</span>}
-
-                        <p className="checkout__section">Contacto</p>
                     </>
                 )}
+
+                <p className="checkout__section">¿Cómo quieres pagar?</p>
+                <div className="checkout__fulfillment checkout__payment" role="radiogroup" aria-label="Cómo quieres pagar">
+                    {PAYMENT_OPTIONS.map((option) => (
+                        <label key={option.value} className="checkout__fulfillment-option">
+                            <input
+                                type="radio"
+                                name="checkout-payment"
+                                value={option.value}
+                                checked={paymentMethod === option.value}
+                                onChange={() => choosePaymentMethod(option.value)}
+                            />
+                            <span className="checkout__fulfillment-label">{option.label}</span>
+                            <span className="checkout__fulfillment-detail">{option.detail}</span>
+                        </label>
+                    ))}
+                </div>
+
+                <p className="checkout__section">Contacto</p>
 
                 <div className="field">
                     <label htmlFor="checkout-name" className="field__label">Tu nombre</label>
@@ -303,7 +377,9 @@ export const CartCheckout = () => {
                 </div>
 
                 <div className="field">
-                    <label htmlFor="checkout-phone" className="field__label">Celular con Yappy</label>
+                    <label htmlFor="checkout-phone" className="field__label">
+                        {paymentMethod === "yappy" ? "Celular con Yappy" : "Tu celular"}
+                    </label>
                     <div className="field__phone">
                         <span className="field__prefix" aria-hidden>+507</span>
                         <input
@@ -320,7 +396,9 @@ export const CartCheckout = () => {
                         />
                     </div>
                     <span id="checkout-phone-help" className={errors.customerPhone ? "field__error" : "field__help"}>
-                        {errors.customerPhone ?? "A este número te llega la solicitud de pago."}
+                        {errors.customerPhone ?? (paymentMethod === "yappy"
+                            ? "A este número te llega la solicitud de pago."
+                            : "Te escribimos a este número para confirmar el pedido.")}
                     </span>
                 </div>
 
@@ -390,10 +468,10 @@ export const CartCheckout = () => {
                 </div>
             </div>
 
-            {!isYappyOnline && (
+            {!isYappyOnline && paymentMethod === "yappy" && (
                 <div className="checkout__notice">
                     <strong>Yappy no está disponible en este momento.</strong>
-                    <span>Envía tu pedido por WhatsApp y lo coordinamos por ahí.</span>
+                    <span>Elige coordinar por WhatsApp: guardamos tu pedido y pagas al recibir.</span>
                 </div>
             )}
 
@@ -404,26 +482,43 @@ export const CartCheckout = () => {
                 </div>
             )}
 
-            <div className={isYappyOnline ? "checkout__yappy" : "checkout__yappy checkout__yappy--off"}>
+            {/* El botón de Yappy sigue montado con WhatsApp elegido: así se sabe si vuelve a estar en línea */}
+            <div
+                className={`checkout__yappy${isYappyOnline ? "" : " checkout__yappy--off"}${paymentMethod === "yappy" ? "" : " checkout__yappy--hidden"}`}
+                aria-hidden={paymentMethod !== "yappy"}
+            >
                 <YappyButton
                     onCreatePayment={createPayment}
                     onSuccess={goToOrder}
                     onError={() => setPaymentError("El pago con Yappy no se completó. No se hizo ningún cobro.")}
-                    onOnlineChange={setIsYappyOnline}
+                    onOnlineChange={changeYappyOnline}
                 />
             </div>
 
-            {isYappyOnline ? (
+            {paymentMethod === "yappy" ? (
+                isYappyOnline ? (
+                    <>
+                        <p className="carrito__hint">Aprueba el pago en tu app de Yappy. Tienes 5 minutos.</p>
+                        <button type="button" className="checkout__help" onClick={() => choosePaymentMethod("whatsapp")}>
+                            <PiWhatsappLogoBold aria-hidden /> ¿Problemas para pagar? Coordínalo por WhatsApp
+                        </button>
+                    </>
+                ) : null
+            ) : (
                 <>
-                    <p className="carrito__hint">Aprueba el pago en tu app de Yappy. Tienes 5 minutos.</p>
-                    <button type="button" className="checkout__help" onClick={sendHelpMessage}>
-                        <PiWhatsappLogoBold aria-hidden /> ¿Problemas para pagar? Pide por WhatsApp
+                    <p className="carrito__hint">
+                        Guardamos tu pedido y se abre WhatsApp con el resumen. Te confirmamos por ahí y pagas al recibir:
+                        efectivo, tarjeta o Yappy.
+                    </p>
+                    <button
+                        type="button"
+                        className="button button--whatsapp button--block"
+                        onClick={() => void sendWhatsappOrder()}
+                        disabled={isSendingWhatsapp}
+                    >
+                        <PiWhatsappLogoBold aria-hidden /> {isSendingWhatsapp ? "Guardando tu pedido…" : "Enviar pedido por WhatsApp"}
                     </button>
                 </>
-            ) : (
-                <button type="button" className="button button--whatsapp button--block" onClick={sendHelpMessage}>
-                    <PiWhatsappLogoBold aria-hidden /> Enviar pedido por WhatsApp
-                </button>
             )}
         </div>
     );

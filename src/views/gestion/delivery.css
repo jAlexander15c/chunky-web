@@ -1,0 +1,120 @@
+/* ============ Delivery y pedidos por WhatsApp ============ */
+
+.dlv { --dlv-wa: #1f7a4d; --dlv-wa-bg: #dff3e6; }
+
+.dlv-list { display: grid; gap: 0.5rem; }
+
+.dlv-row {
+    font: inherit;
+    text-align: left;
+    display: grid;
+    gap: 0.2rem;
+    width: 100%;
+    padding: 0.7rem 0.8rem;
+    border-radius: 14px;
+    border: 2px solid var(--ges-line);
+    background: #fff;
+    color: var(--text);
+    cursor: pointer;
+    transition: transform 120ms var(--ease-out), border-color 160ms var(--ease-out);
+}
+
+.dlv-row:active { transform: scale(0.98); }
+.dlv-row:focus-visible { outline: 3px solid var(--mora); outline-offset: 2px; }
+.dlv-row.is-new { border-color: var(--dlv-wa); box-shadow: 0 0 0 3px var(--dlv-wa-bg); }
+
+.dlv-row__top { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+.dlv-row__top b { font-size: 0.98rem; font-weight: 800; }
+.dlv-row__meta { font-size: 0.75rem; color: var(--ges-text-2); font-variant-numeric: tabular-nums; min-width: 0; overflow-wrap: anywhere; }
+
+/* Aviso del repartidor: su ubicación sale mientras la pantalla esté abierta */
+.dlv-sharing {
+    display: grid;
+    gap: 0.25rem;
+    padding: 0.85rem 1rem;
+    border-radius: 16px;
+    background: var(--ink);
+    color: var(--crema);
+    font-size: 0.8rem;
+}
+
+.dlv-sharing b { display: flex; align-items: center; gap: 0.5rem; font-size: 0.92rem; }
+.dlv-sharing i { width: 9px; height: 9px; border-radius: 50%; background: #5fd08f; animation: dlv-live 1.6s ease-in-out infinite; }
+.dlv-sharing span { color: var(--sky); }
+.dlv-sharing.is-off { background: var(--ges-crit); }
+.dlv-sharing.is-off i { background: var(--crema); animation: none; }
+
+@keyframes dlv-live { 50% { opacity: 0.3; } }
+
+/* Ficha */
+.dlv-dialog { width: min(480px, 100%); }
+.dlv-dialog__head { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; }
+.dlv-dialog__meta { margin: -0.4rem 0 0; font-size: 0.75rem; color: var(--ges-text-2); }
+.dlv-dialog .ges-field input { font-size: 0.95rem; font-weight: 600; }
+
+/* Enlaces con forma de botón (WhatsApp, Maps, enviar el enlace) */
+.dlv-dialog a.ges-btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+
+.dlv-wa { justify-self: start; border-color: var(--dlv-wa, #1f7a4d); color: var(--dlv-wa, #1f7a4d); text-decoration: none; }
+
+.dlv-seg {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 4px;
+    border-radius: 999px;
+    background: var(--sky);
+}
+
+.dlv-seg button {
+    font: inherit;
+    font-weight: 800;
+    font-size: 0.82rem;
+    border: 0;
+    border-radius: 999px;
+    padding: 0.5rem;
+    background: transparent;
+    color: var(--mora);
+    cursor: pointer;
+}
+
+.dlv-seg button[aria-pressed="true"] { background: var(--ink); color: var(--crema); }
+.dlv-seg button:focus-visible { outline: 3px solid var(--mora); outline-offset: 2px; }
+
+.dlv-link { display: grid; grid-template-columns: 1fr auto; gap: 0.4rem; align-items: stretch; }
+.dlv-link input { min-width: 0; }
+
+.dlv-point {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.7rem;
+    border-radius: 12px;
+    background: var(--ges-good-bg);
+    color: var(--ges-good);
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.dlv-point code { font-family: ui-monospace, Consolas, monospace; color: var(--ink); font-weight: 600; }
+.dlv-point a, .dlv-point button { font: inherit; font-size: 0.75rem; color: var(--mora); background: none; border: 0; padding: 0; text-decoration: underline; cursor: pointer; }
+
+.dlv-dest { display: grid; gap: 0.1rem; padding: 0.6rem 0.8rem; border-radius: 12px; background: var(--ges-panel-2); font-size: 0.85rem; }
+.dlv-dest b { font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ges-text-3); }
+
+.dlv-track { display: grid; gap: 0.4rem; padding: 0.7rem; border-radius: 14px; background: var(--sky); }
+.dlv-track code { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; overflow-wrap: anywhere; }
+.dlv-track .ges-acts { grid-template-columns: 1fr 1.6fr; }
+.dlv-track a { text-decoration: none; text-align: center; }
+
+.dlv-acts:has(> :only-child) { grid-template-columns: 1fr; }
+
+.dlv-minor { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: space-between; align-items: center; }
+.dlv-minor:empty { display: none; }
+.dlv-cancel { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; font-size: 0.78rem; font-weight: 700; }
+
+@media (prefers-reduced-motion: reduce) {
+    .dlv-row { transition: none; }
+    .dlv-sharing i { animation: none; }
+}

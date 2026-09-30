@@ -18,6 +18,7 @@ import {
     getPaymentsSummary,
     getShiftEntries,
     getSafePage,
+    getWebOrderPaymentLabel,
     registerAdminFundMovement,
     setTablesCount,
 } from "@/helpers";
@@ -176,7 +177,7 @@ const ShiftTicketsList = ({ shift }: { shift: IShiftDetail }) => {
                         <li className="is-web" key={`web-${order.id}`}>
                             <span className="adm-name">
                                 <span className="adm-pill is-web">Web</span> {order.customerName} · #{order.id}
-                                <em>Yappy · {order.isDelivery ? "delivery" : "retiro"} · {formatClock(order.paidAt)}</em>
+                                <em>{getWebOrderPaymentLabel(order)} · {order.isDelivery ? "delivery" : "retiro"} · {formatClock(order.paidAt)}</em>
                             </span>
                             <b>{formatMoney(order.total)}</b>
                         </li>

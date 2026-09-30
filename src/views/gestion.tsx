@@ -12,11 +12,14 @@ import {
     setGestionToken,
 } from "@/helpers";
 import type { CollaboratorRole, IGestionSession, IShiftDetail } from "@/helpers";
+import { useCourierTracking } from "@/hooks/useCourierTracking";
+import { useDeliveryFeed } from "@/hooks/useDeliveryFeed";
 import { useKitchenFeed } from "@/hooks/useKitchenFeed";
 
 import { GestionCaja } from "./gestion/caja";
 import { GestionCocina, KitchenToast } from "./gestion/cocina";
 import { GestionCreditos } from "./gestion/creditos";
+import { GestionDelivery } from "./gestion/delivery";
 import { GestionInventario } from "./gestion/inventario";
 import { GestionPasteleria } from "./gestion/pasteleria";
 import { GestionTurno } from "./gestion/turno";
@@ -127,12 +130,13 @@ const GestionLogin = ({ onLogin }: IGestionLoginProps) => {
 
 /* ============ Armazón ============ */
 
-type Section = "caja" | "turno" | "creditos" | "cocina" | "inventario" | "pasteleria";
+type Section = "caja" | "turno" | "creditos" | "cocina" | "delivery" | "inventario" | "pasteleria";
 
 interface ISectionInfo {
     id: Section;
     label: string;
-    role: CollaboratorRole;
+    /** Se ve con cualquiera de estos roles. */
+    roles: CollaboratorRole[];
     sub: string;
     icon: ReactNode;
 }
@@ -141,7 +145,7 @@ const SECTIONS: ISectionInfo[] = [
     {
         id: "caja",
         label: "Caja",
-        role: "caja",
+        roles: ["caja"],
         sub: "Toma las mesas, envía a cocina y cobra",
         icon: (
             <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -153,7 +157,7 @@ const SECTIONS: ISectionInfo[] = [
     {
         id: "turno",
         label: "Turno",
-        role: "caja",
+        roles: ["caja"],
         sub: "Fondo inicial, movimientos de efectivo y cierre",
         icon: (
             <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -165,7 +169,7 @@ const SECTIONS: ISectionInfo[] = [
     {
         id: "creditos",
         label: "Créditos",
-        role: "caja",
+        roles: ["caja"],
         sub: "Cuentas que se pagan después: quién debe y desde cuándo",
         icon: (
             <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -177,8 +181,8 @@ const SECTIONS: ISectionInfo[] = [
     {
         id: "cocina",
         label: "Cocina",
-        role: "caja",
-        sub: "Pedidos pagados en la web: acéptalos, márcalos listos y entrégalos",
+        roles: ["caja"],
+        sub: "Pedidos de la web: acéptalos, márcalos listos y entrega lo que se retira",
         icon: (
             <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M6 13.9A4 4 0 0 1 7 6a5 5 0 0 1 10 0 4 4 0 0 1 1 7.9V20H6z" />
@@ -187,9 +191,22 @@ const SECTIONS: ISectionInfo[] = [
         ),
     },
     {
+        id: "delivery",
+        label: "Delivery",
+        roles: ["caja", "repartidor"],
+        sub: "Pedidos por WhatsApp y a domicilio: confírmalos, manda el enlace y llévalos",
+        icon: (
+            <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="6" cy="17" r="3" />
+                <circle cx="18" cy="17" r="3" />
+                <path d="M9 17h6l-2-7H9M13 10h3l2 7M5 10h4" />
+            </svg>
+        ),
+    },
+    {
         id: "inventario",
         label: "Inventario",
-        role: "inventario",
+        roles: ["inventario"],
         sub: "Compras, conteos, mermas y disponibilidad",
         icon: (
             <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -201,7 +218,7 @@ const SECTIONS: ISectionInfo[] = [
     {
         id: "pasteleria",
         label: "Pastelería",
-        role: "pastelera",
+        roles: ["pastelera"],
         sub: "Tus cotizaciones de cakes y postres, y lo que te dejan",
         icon: (
             <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -214,16 +231,17 @@ const SECTIONS: ISectionInfo[] = [
 
 interface IGestionShellProps {
     token: string;
+    meId: number;
     name: string;
     roles: CollaboratorRole[];
     onLogout: () => void;
 }
 
-const GestionShell = ({ token, name, roles, onLogout }: IGestionShellProps) => {
+const GestionShell = ({ token, meId, name, roles, onLogout }: IGestionShellProps) => {
     const [shift, setShift] = useState<IShiftDetail | null>(null);
 
     // Solo se ofrece lo que esta persona puede hacer
-    const available = useMemo(() => SECTIONS.filter((one) => roles.includes(one.role)), [roles]);
+    const available = useMemo(() => SECTIONS.filter((one) => one.roles.some((role) => roles.includes(role))), [roles]);
     const [section, setSection] = useState<Section>(() => available[0]?.id ?? "inventario");
 
     const current = available.find((one) => one.id === section) ?? available[0];
@@ -231,13 +249,21 @@ const GestionShell = ({ token, name, roles, onLogout }: IGestionShellProps) => {
     // Los pedidos de la web se siguen en cualquier seccion: quien cobra tambien atiende la cocina
     const kitchen = useKitchenFeed(token, roles.includes("caja"), onLogout);
 
+    // Delivery tambien: suena el pedido nuevo por WhatsApp y el repartidor sigue compartiendo
+    // su ubicacion aunque cambie de seccion
+    const canDeliver = roles.includes("caja") || roles.includes("repartidor");
+    const delivery = useDeliveryFeed(token, canDeliver, onLogout, roles.includes("caja"));
+    const myOutOrderIds = delivery.orders.filter((order) => order.outAt && order.courierId === meId).map((order) => order.id);
+    const tracking = useCourierTracking(token, myOutOrderIds, onLogout);
+    const deliveryBadge = roles.includes("caja") ? delivery.pendingCount : delivery.readyToGoCount;
+
     if (!current) {
         return (
             <div className="ges ges-gate">
                 <div className="ges-gate__panel">
                     <span className="ges-gate__mark script">Gestión</span>
                     <h1>Sin permisos</h1>
-                    <p>Tu PIN funciona, pero todavía no tiene ninguna sección asignada. Pídele al administrador que te dé caja, inventario o pastelería.</p>
+                    <p>Tu PIN funciona, pero todavía no tiene ninguna sección asignada. Pídele al administrador que te dé caja, inventario, pastelería o repartidor.</p>
                     <button type="button" className="ges-btn ges-btn--block" onClick={onLogout}>Salir</button>
                 </div>
             </div>
@@ -260,6 +286,14 @@ const GestionShell = ({ token, name, roles, onLogout }: IGestionShellProps) => {
                         {one.label}
                         {one.id === "cocina" && kitchen.newCount > 0 ? (
                             <span className="ges-nav__badge" aria-label={`${kitchen.newCount} pedidos nuevos`}>{kitchen.newCount}</span>
+                        ) : null}
+                        {one.id === "delivery" && deliveryBadge > 0 ? (
+                            <span
+                                className="ges-nav__badge"
+                                aria-label={roles.includes("caja") ? `${deliveryBadge} por coordinar` : `${deliveryBadge} listos para salir`}
+                            >
+                                {deliveryBadge}
+                            </span>
                         ) : null}
                     </button>
                 ))}
@@ -288,6 +322,15 @@ const GestionShell = ({ token, name, roles, onLogout }: IGestionShellProps) => {
                                 </span>
                             </>
                         ) : null}
+                        {tracking.status !== "off" ? (
+                            <span
+                                className={`ges-chip${tracking.status === "sharing" ? "" : " is-off"}`}
+                                role="status"
+                            >
+                                <i aria-hidden="true" />
+                                {tracking.status === "sharing" ? "Compartiendo ubicación" : "Ubicación sin compartir"}
+                            </span>
+                        ) : null}
                         {roles.includes("caja") ? (
                             <span className={`ges-chip${shift ? "" : " is-off"}`} role="status">
                                 <i aria-hidden="true" />
@@ -306,7 +349,16 @@ const GestionShell = ({ token, name, roles, onLogout }: IGestionShellProps) => {
                     ) : current.id === "creditos" ? (
                         <GestionCreditos token={token} onSessionExpired={onLogout} onShiftChange={setShift} />
                     ) : current.id === "cocina" ? (
-                        <GestionCocina feed={kitchen} onSessionExpired={onLogout} />
+                        <GestionCocina feed={kitchen} onSessionExpired={onLogout} onOpenDelivery={() => setSection("delivery")} />
+                    ) : current.id === "delivery" ? (
+                        <GestionDelivery
+                            token={token}
+                            meId={meId}
+                            roles={roles}
+                            feed={delivery}
+                            tracking={tracking}
+                            onSessionExpired={onLogout}
+                        />
                     ) : current.id === "pasteleria" ? (
                         <GestionPasteleria token={token} onSessionExpired={onLogout} />
                     ) : (
@@ -381,5 +433,5 @@ export const GestionView = () => {
         };
         return <GestionSessionCheck error={sessionError} onRetry={retry} />;
     }
-    return <GestionShell token={token} name={session.name} roles={session.roles} onLogout={logout} />;
+    return <GestionShell token={token} meId={session.id} name={session.name} roles={session.roles} onLogout={logout} />;
 };

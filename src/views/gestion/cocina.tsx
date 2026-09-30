@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { HttpError, KITCHEN_LATE_MINUTES, formatPastaOptions, formatPhone, formatPrice, getMinutesSince } from "@/helpers";
+import { HttpError, KITCHEN_LATE_MINUTES, formatPastaOptions, formatPhone, formatPrice, getMinutesSince, isUnpaidOrder } from "@/helpers";
 import type { IKitchenOrder, KitchenStep } from "@/helpers";
 import type { IKitchenFeed } from "@/hooks/useKitchenFeed";
 
@@ -49,10 +49,26 @@ const STEP_ACTION: Record<KitchenStep, string> = {
     deliver: "Entregado",
 };
 
-const KitchenTicket = ({ order, now, onStep }: { order: IKitchenOrder; now: number; onStep: (order: IKitchenOrder, step: KitchenStep) => void }) => {
+/** "#CB… · $10.75 Yappy", "#CB… · $10.75 por cobrar (WhatsApp)" o "Caja" para las comandas del local. */
+const getTicketOrigin = (order: IKitchenOrder) => {
+    if (order.channel === "mesa") return "Caja";
+    const payment = isUnpaidOrder(order) ? "por cobrar (WhatsApp)" : order.paymentMethod === "whatsapp" ? "WhatsApp" : "Yappy";
+    return `${order.id} · ${formatPrice(order.total)} ${payment}`;
+};
+
+interface IKitchenTicketProps {
+    order: IKitchenOrder;
+    now: number;
+    onStep: (order: IKitchenOrder, step: KitchenStep) => void;
+    onOpenDelivery?: () => void;
+}
+
+const KitchenTicket = ({ order, now, onStep, onOpenDelivery }: IKitchenTicketProps) => {
     const isNew = !order.acceptedAt;
     const isReady = Boolean(order.readyAt);
     const step: KitchenStep = isNew ? "accept" : isReady ? "deliver" : "ready";
+    // Lo que va a domicilio o se cobra al entregar no se cierra aquí: lo cierra Delivery
+    const isHandledByDelivery = isReady && order.channel !== "mesa" && (Boolean(order.delivery) || isUnpaidOrder(order));
 
     // Nuevo: desde el pago · Preparando: desde que se acepto · Listo: desde que se marco
     const minutes = getMinutesSince(isReady ? order.readyAt : isNew ? order.paidAt : order.acceptedAt, now);
@@ -69,6 +85,7 @@ const KitchenTicket = ({ order, now, onStep }: { order: IKitchenOrder; now: numb
                 <span className="kitchen-ticket__name">
                     {order.customerName}
                     {order.delivery && <span className="kitchen-ticket__badge">Delivery</span>}
+                    {isUnpaidOrder(order) && <span className="kitchen-ticket__badge kitchen-ticket__badge--due">Por cobrar</span>}
                 </span>
                 <span className={`kitchen-ticket__time ${isLate ? "kitchen-ticket__time--late" : ""}`}>
                     {timeLabel} <b>{minutes}</b> min
@@ -100,34 +117,37 @@ const KitchenTicket = ({ order, now, onStep }: { order: IKitchenOrder; now: numb
             )}
             {order.note && <p className="kitchen-ticket__note">Nota: {order.note}</p>}
             <div className="kitchen-ticket__meta">
-                <span>
-                    {order.channel === "mesa"
-                        ? `Caja · ${formatClock(order.paidAt)}`
-                        : `${order.id} · ${formatPrice(order.total)} Yappy · ${formatClock(order.paidAt)}`}
-                </span>
+                <span>{getTicketOrigin(order)} · {formatClock(order.paidAt)}</span>
                 {contactPhone ? <span>{contactPhone}</span> : null}
             </div>
-            <button type="button" className={`kitchen-ticket__action kitchen-ticket__action--${step}`} onClick={() => onStep(order, step)}>
-                {STEP_ACTION[step]}
-            </button>
+            {isHandledByDelivery ? (
+                <button type="button" className="kitchen-ticket__action kitchen-ticket__action--deliver" onClick={onOpenDelivery} disabled={!onOpenDelivery}>
+                    {order.outAt ? `En camino con ${order.courierName ?? "el repartidor"}` : "Ver en Delivery"}
+                </button>
+            ) : (
+                <button type="button" className={`kitchen-ticket__action kitchen-ticket__action--${step}`} onClick={() => onStep(order, step)}>
+                    {STEP_ACTION[step]}
+                </button>
+            )}
         </article>
     );
 };
 
-const KitchenColumn = ({ title, orders, empty, isNew, now, onStep }: {
+const KitchenColumn = ({ title, orders, empty, isNew, now, onStep, onOpenDelivery }: {
     title: string;
     orders: IKitchenOrder[];
     empty: string;
     isNew?: boolean;
     now: number;
     onStep: (order: IKitchenOrder, step: KitchenStep) => void;
+    onOpenDelivery?: () => void;
 }) => (
     <section className={`kitchen-col ${isNew ? "kitchen-col--new" : ""}`} aria-label={title}>
         <h2 className="kitchen-col__head">{title} <span className="kitchen-count">{orders.length}</span></h2>
         <div className="kitchen-col__list">
             {orders.length === 0
                 ? <p className="kitchen-empty">{empty}</p>
-                : orders.map((order) => <KitchenTicket key={order.id} order={order} now={now} onStep={onStep} />)}
+                : orders.map((order) => <KitchenTicket key={order.id} order={order} now={now} onStep={onStep} onOpenDelivery={onOpenDelivery} />)}
         </div>
     </section>
 );
@@ -135,9 +155,11 @@ const KitchenColumn = ({ title, orders, empty, isNew, now, onStep }: {
 interface IGestionCocinaProps {
     feed: IKitchenFeed;
     onSessionExpired: () => void;
+    /** Lleva a la pestaña Delivery (cobro al entregar y pedidos a domicilio). */
+    onOpenDelivery?: () => void;
 }
 
-export const GestionCocina = ({ feed, onSessionExpired }: IGestionCocinaProps) => {
+export const GestionCocina = ({ feed, onSessionExpired, onOpenDelivery }: IGestionCocinaProps) => {
     const [now, setNow] = useState(() => Date.now());
     const [stepError, setStepError] = useState<string | null>(null);
     useWakeLock();
@@ -182,7 +204,7 @@ export const GestionCocina = ({ feed, onSessionExpired }: IGestionCocinaProps) =
             <div className="kitchen-board">
                 <KitchenColumn title="Nuevos" orders={newOrders} empty="Sin pedidos nuevos" isNew now={now} onStep={runStep} />
                 <KitchenColumn title="Preparando" orders={preparingOrders} empty="Nada en preparación" now={now} onStep={runStep} />
-                <KitchenColumn title="Listos para retirar o enviar" orders={readyOrders} empty="Nada por entregar" now={now} onStep={runStep} />
+                <KitchenColumn title="Listos para retirar o enviar" orders={readyOrders} empty="Nada por entregar" now={now} onStep={runStep} onOpenDelivery={onOpenDelivery} />
             </div>
         </div>
     );

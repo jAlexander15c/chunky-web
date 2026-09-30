@@ -1912,6 +1912,11 @@ main {
   pointer-events: none;
 }
 
+/* Con WhatsApp elegido tampoco se ve, pero sigue montado por lo mismo */
+.checkout__yappy--hidden {
+  display: none;
+}
+
 .checkout__help {
   display: inline-flex;
   align-items: center;
@@ -2286,6 +2291,136 @@ main {
 @media (prefers-reduced-motion: reduce) {
   .order-page__spinner,
   .order-step--now .order-step__dot {
+    animation: none;
+  }
+}
+
+/* ============ Pedido por WhatsApp y delivery en camino ============ */
+.order-callout {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 16px;
+  background: #dff3e6;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.order-callout b {
+  font-size: 0.95rem;
+}
+
+.order-track {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.order-track__map {
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 2px solid var(--ink);
+}
+
+.delivery-map {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-height: 60vh;
+  background: #ece8dc;
+}
+
+.delivery-map--loading {
+  animation: order-map-wait 1.4s ease-in-out infinite;
+}
+
+@keyframes order-map-wait {
+  50% { opacity: 0.6; }
+}
+
+.order-track__fresh {
+  position: absolute;
+  left: 0.6rem;
+  bottom: 0.6rem;
+  z-index: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-pill);
+  background: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  box-shadow: 0 6px 14px -10px rgb(var(--shadow-tint) / 0.8);
+}
+
+.order-track__fresh i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #1f7a4d;
+  animation: order-live 1.6s ease-in-out infinite;
+}
+
+.order-track__fresh.is-stale i {
+  background: #b7791f;
+  animation: none;
+}
+
+@keyframes order-live {
+  50% { opacity: 0.3; }
+}
+
+.order-track__courier {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: 0.7rem;
+  align-items: center;
+  padding: 0.6rem 0.8rem;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.order-track__courier b {
+  display: block;
+}
+
+.order-track__courier small {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+
+.order-track__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--orquidea);
+  font-weight: 900;
+}
+
+/* Pines del mapa (Leaflet los pone dentro de .leaflet-marker-icon) */
+.map-pin span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+.map-pin--home span {
+  background: var(--orquidea);
+  border: 3px solid var(--ink);
+}
+
+.map-pin--courier span {
+  background: #1f7a4d;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 6px rgb(31 122 77 / 0.25);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .delivery-map--loading,
+  .order-track__fresh i {
     animation: none;
   }
 }

@@ -16,6 +16,7 @@ import {
     getPaymentsSummary,
     getShiftEntries,
     getTicketLineTotal,
+    getWebOrderPaymentLabel,
     openShift,
     refundTicket,
     registerCashMovement,
@@ -354,8 +355,8 @@ const ShiftTicketsCard = ({ shift, onRefund }: IShiftTicketsCardProps) => {
         <section className="ges-card">
             <h2>Cuentas cobradas</h2>
             <p className="ges-field__hint">
-                Las de este turno y los pedidos web. Si una del local se cobró por error, se reembolsa completa; lo de la web
-                se pagó por Yappy y no pasa por el cajón.
+                Las de este turno y los pedidos web. Si una del local se cobró por error, se reembolsa completa. Lo de la web
+                pagado por Yappy no pasa por el cajón; lo de WhatsApp cobrado en efectivo, sí.
             </p>
 
             <div className="ges-rows">
@@ -371,7 +372,7 @@ const ShiftTicketsCard = ({ shift, onRefund }: IShiftTicketsCardProps) => {
                                         <span className="ges-tag is-web">Web</span>
                                         {order.customerName} · #{order.id}{" "}
                                         <em>
-                                            Yappy · {order.isDelivery ? "delivery" : "retiro"} · {formatClock(order.paidAt)}
+                                            {getWebOrderPaymentLabel(order)} · {order.isDelivery ? "delivery" : "retiro"} · {formatClock(order.paidAt)}
                                         </em>
                                     </span>
                                     <span className="ges-r__end">
@@ -675,6 +676,9 @@ export const GestionTurno = ({ token, onSessionExpired, onShiftChange }: IGestio
                     <div className="ges-rows">
                         <div className="ges-r"><span>Fondo inicial</span><b>{formatCash(shift.startingCash)}</b></div>
                         <div className="ges-r"><span>Ventas en efectivo</span><b>{formatCash(shift.salesCash)}</b></div>
+                        {shift.webCash ? (
+                            <div className="ges-r"><span>Pedidos WhatsApp en efectivo</span><b>{formatCash(shift.webCash)}</b></div>
+                        ) : null}
                         <div className="ges-r"><span>Entradas</span><b>{formatCash(shift.cashIn)}</b></div>
                         <div className="ges-r"><span>Salidas</span><b>−{formatCash(shift.cashOut)}</b></div>
                         <div className="ges-r is-big"><span>Efectivo esperado</span><b>{formatCash(shift.expected)}</b></div>
