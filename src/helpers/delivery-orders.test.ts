@@ -1,8 +1,9 @@
 import { describe, expect, test } from "vitest";
 
-import { getDeliveryStage, getDistanceMeters } from "./delivery-orders";
+import { getChangeToCarry, getDeliveryStage } from "./delivery-orders";
+import { getDeliveryReach, getDistanceMeters } from "./settings";
 import type { IDeliveryOrder } from "./delivery-orders";
-import { buildWhatsappOrderMessage, getFailedOrderReason } from "./payment";
+import { buildWhatsappOrderMessage, getCashSuggestions, getFailedOrderReason, parseMoney } from "./payment";
 import type { ICartLine } from "./order";
 import type { IItem } from "@/interfaces";
 
@@ -65,5 +66,38 @@ describe("pestaña Delivery", () => {
         // Una milésima de grado de latitud son ~111 m
         expect(Math.round(getDistanceMeters({ lat: 8.247, lng: -80.55 }, { lat: 8.248, lng: -80.55 }))).toBe(111);
         expect(getDistanceMeters({ lat: 8.2, lng: -80.5 }, { lat: 8.2, lng: -80.5 })).toBe(0);
+    });
+});
+
+describe("vuelto y distancia", () => {
+    test("lee montos escritos de distintas formas", () => {
+        expect(parseMoney("20")).toBe(20);
+        expect(parseMoney("$20,50")).toBe(20.5);
+        expect(parseMoney("veinte")).toBeNull();
+        expect(parseMoney("")).toBeNull();
+    });
+
+    test("montos rápidos: el total justo y los billetes que alcanzan", () => {
+        expect(getCashSuggestions(7)).toEqual([7, 10, 20, 50]);
+        expect(getCashSuggestions(23.5)).toEqual([23.5, 50, 100]);
+    });
+
+    test("el vuelto a llevar sale de lo que dijo el cliente", () => {
+        expect(getChangeToCarry({ cashTendered: 20, total: 7 })).toBe(13);
+        expect(getChangeToCarry({ cashTendered: 7, total: 7 })).toBe(0);
+        expect(getChangeToCarry({ cashTendered: null, total: 7 })).toBe(0);
+    });
+
+    test("distancia desde el local: normal, lejos y fuera de alcance", () => {
+        const store = { location: { lat: 8.246417, lng: -80.538833 }, deliveryMaxKm: 20, deliveryFarKm: 15 };
+        expect(getDeliveryReach(store, { lat: 8.2471, lng: -80.5496 })).toEqual({ km: 1.2, reach: "ok" });
+        expect(getDeliveryReach(store, { lat: 8.4, lng: -80.54 })?.reach).toBe("far");
+        expect(getDeliveryReach(store, { lat: 8.5186, lng: -80.3574 })?.reach).toBe("out");
+        expect(getDeliveryReach(null, { lat: 8.2, lng: -80.5 })).toBeNull();
+    });
+
+    test("el mensaje de WhatsApp dice con cuánto paga", () => {
+        const message = buildWhatsappOrderMessage([line], { customerName: "Ana", note: "" }, "CB1", "https://x/pedido/CB1", 20);
+        expect(message).toContain("Total: $7.00\nPago en efectivo con $20.00");
     });
 });

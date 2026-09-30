@@ -50,6 +50,13 @@ export interface IPublicOrder {
     deliveredAt?: string | null;
     /** Solo en camino: quién lo lleva (nombre de pila) y su última posición. */
     courier?: { name: string; position: ICourierPosition | null } | null;
+    /** Cuando el repartidor llegó a menos de 300 m de la casa. */
+    nearAt?: string | null;
+    /** El local, para pintarlo en el mapa (solo en camino). */
+    storeLocation?: { lat: number; lng: number } | null;
+    /** Efectivo: con cuánto dijo que paga y con cuánto pagó al recibir. */
+    cashTendered?: number | null;
+    cashReceived?: number | null;
     /** Solo el nombre de pila. */
     customerName: string;
     lines: {
@@ -238,12 +245,30 @@ export const createOrder = (lines: ICartLine[], form: ICheckoutForm, requiresDel
     httpPost<IYappyPaymentSession>("/orders", getOrderBody(lines, form, requiresDelivery), getIdempotencyOptions(idempotencyKey));
 
 /** Guarda el pedido sin cobrar: se confirma por WhatsApp y se paga al recibirlo. */
-export const createWhatsappOrder = (lines: ICartLine[], form: ICheckoutForm, requiresDelivery = false, idempotencyKey?: string) =>
+export const createWhatsappOrder = (
+    lines: ICartLine[],
+    form: ICheckoutForm,
+    requiresDelivery = false,
+    idempotencyKey?: string,
+    cashTendered?: number | null
+) =>
     httpPost<IWhatsappOrderSession>(
         "/orders",
-        { ...getOrderBody(lines, form, requiresDelivery), paymentMethod: "whatsapp" },
+        { ...getOrderBody(lines, form, requiresDelivery), paymentMethod: "whatsapp", cashTendered: cashTendered ?? undefined },
         getIdempotencyOptions(idempotencyKey)
     );
+
+/** "20", "20.5", "$20,50" → 20.5. Null si no es un monto. */
+export const parseMoney = (value: string) => {
+    const cleaned = value.replace(/[$\s]/g, "").replace(",", ".");
+    if (!cleaned) return null;
+    const amount = Number(cleaned);
+    return Number.isFinite(amount) && amount > 0 ? Math.round(amount * 100) / 100 : null;
+};
+
+/** Billetes con los que se suele pagar: el total justo y los que alcanzan. */
+export const getCashSuggestions = (total: number) =>
+    [total, ...[5, 10, 20, 50, 100].filter((bill) => bill > total + 0.005)].slice(0, 4);
 
 const getDeliveryPayload = (form: ICheckoutForm) => ({
     address: form.deliveryAddress.trim(),
@@ -361,14 +386,16 @@ export const buildWhatsappOrderMessage = (
     lines: ICartLine[],
     form: Pick<ICheckoutForm, "customerName" | "note"> & Partial<Pick<ICheckoutForm, "deliveryAddress" | "deliveryDetails" | "deliveryLat" | "deliveryLng">>,
     orderId: string,
-    orderUrl: string
+    orderUrl: string,
+    cashTendered?: number | null
 ) => {
     const detail = lines.map(formatCartLine).join("\n");
     const delivery = getDeliveryText(form);
     const who = form.customerName.trim() ? `Soy ${form.customerName.trim()}. ` : "";
     const note = form.note.trim() ? `\n\nNota: ${form.note.trim()}` : "";
     const fulfillment = delivery ? `\n\n${delivery}` : "\n\nPaso a retirarlo.";
-    return `¡Hola! ${who}Quiero coordinar mi pedido ${orderId}:\n\n${detail}\n\nTotal: ${formatPrice(getCartTotal(lines))}${fulfillment}${note}\n\nVer pedido: ${orderUrl}`;
+    const cash = cashTendered ? `\nPago en efectivo con ${formatPrice(cashTendered)}` : "";
+    return `¡Hola! ${who}Quiero coordinar mi pedido ${orderId}:\n\n${detail}\n\nTotal: ${formatPrice(getCartTotal(lines))}${cash}${fulfillment}${note}\n\nVer pedido: ${orderUrl}`;
 };
 
 /** Para volver a abrir el chat desde /pedido: el código y lo pedido, sin la dirección. */

@@ -243,6 +243,8 @@ const GestionShell = ({ token, meId, name, roles, onLogout }: IGestionShellProps
     // Solo se ofrece lo que esta persona puede hacer
     const available = useMemo(() => SECTIONS.filter((one) => one.roles.some((role) => roles.includes(role))), [roles]);
     const [section, setSection] = useState<Section>(() => available[0]?.id ?? "inventario");
+    // Pedido que se abre al llegar a Delivery desde Cocina (Confirmar / Ver en Delivery)
+    const [deliveryOpenId, setDeliveryOpenId] = useState<string | null>(null);
 
     const current = available.find((one) => one.id === section) ?? available[0];
 
@@ -280,7 +282,10 @@ const GestionShell = ({ token, meId, name, roles, onLogout }: IGestionShellProps
                         type="button"
                         className="ges-nav__item"
                         aria-current={current.id === one.id}
-                        onClick={() => setSection(one.id)}
+                        onClick={() => {
+                            setSection(one.id);
+                            setDeliveryOpenId(null);
+                        }}
                     >
                         {one.icon}
                         {one.label}
@@ -349,7 +354,10 @@ const GestionShell = ({ token, meId, name, roles, onLogout }: IGestionShellProps
                     ) : current.id === "creditos" ? (
                         <GestionCreditos token={token} onSessionExpired={onLogout} onShiftChange={setShift} />
                     ) : current.id === "cocina" ? (
-                        <GestionCocina feed={kitchen} onSessionExpired={onLogout} onOpenDelivery={() => setSection("delivery")} />
+                        <GestionCocina feed={kitchen} onSessionExpired={onLogout} onOpenDelivery={(orderId) => {
+                            setDeliveryOpenId(orderId ?? null);
+                            setSection("delivery");
+                        }} />
                     ) : current.id === "delivery" ? (
                         <GestionDelivery
                             token={token}
@@ -357,6 +365,7 @@ const GestionShell = ({ token, meId, name, roles, onLogout }: IGestionShellProps
                             roles={roles}
                             feed={delivery}
                             tracking={tracking}
+                            initialOpenId={deliveryOpenId}
                             onSessionExpired={onLogout}
                         />
                     ) : current.id === "pasteleria" ? (

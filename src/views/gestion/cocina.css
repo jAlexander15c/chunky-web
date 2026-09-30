@@ -37,6 +37,17 @@
   align-items: start;
 }
 
+/* Con pedidos de WhatsApp por confirmar sale una columna más, al principio */
+.kitchen-board--four {
+  grid-template-columns: 0.9fr 1.1fr 1fr 0.85fr;
+}
+
+/* Con cuatro columnas el nombre y el tiempo no caben en una línea */
+.kitchen-board--four .kitchen-ticket__top {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
 .kitchen-col {
   display: flex;
   flex-direction: column;
@@ -312,6 +323,18 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   vertical-align: middle;
+}
+
+/* Pedido por WhatsApp que falta confirmar con el cliente */
+.kitchen-ticket__badge--wa {
+  background: #dff3e6;
+  color: #1f7a4d;
+}
+
+.kitchen-ticket__action--confirm {
+  background: #1f7a4d;
+  border-color: #1f7a4d;
+  color: #fff;
 }
 
 /* Pedido por WhatsApp: se prepara igual, pero se cobra al entregarlo */

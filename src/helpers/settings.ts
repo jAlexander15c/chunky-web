@@ -17,7 +17,37 @@ export interface IPublicSettings {
     storeOverride: StoreOverride | null;
     /** El sitio publico tambien muestra el aviso de version nueva (el equipo siempre lo ve). */
     clientUpdateNotice: boolean;
+    /** El local y hasta dónde llega el delivery. Null con un API anterior. */
+    store: IStoreSettings | null;
 }
+
+export interface IStoreSettings {
+    location: { lat: number; lng: number };
+    /** Más lejos que esto (en línea recta) no hay delivery. */
+    deliveryMaxKm: number;
+    /** Desde aquí se acepta, pero se avisa que puede tardar más. */
+    deliveryFarKm: number;
+}
+
+/** Distancia en metros entre dos puntos (haversine). */
+export const getDistanceMeters = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+    const toRadians = (value: number) => (value * Math.PI) / 180;
+    const earthRadius = 6_371_000;
+    const dLat = toRadians(b.lat - a.lat);
+    const dLng = toRadians(b.lng - a.lng);
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRadians(a.lat)) * Math.cos(toRadians(b.lat)) * Math.sin(dLng / 2) ** 2;
+    return 2 * earthRadius * Math.asin(Math.sqrt(h));
+};
+
+export type DeliveryReach = "ok" | "far" | "out";
+
+/** A cuántos km del local queda un punto y si el delivery llega (igual que mide el API). Null sin local. */
+export const getDeliveryReach = (store: IStoreSettings | null, point: { lat: number; lng: number }) => {
+    if (!store) return null;
+    const km = Math.round(getDistanceMeters(store.location, point) / 100) / 10;
+    const reach: DeliveryReach = km > store.deliveryMaxKm ? "out" : km > store.deliveryFarKm ? "far" : "ok";
+    return { km, reach };
+};
 
 interface ISettingsState {
     settings: IPublicSettings;
@@ -34,6 +64,7 @@ const DEFAULT_SETTINGS: IPublicSettings = {
     openingHours: DEFAULT_OPENING_HOURS,
     storeOverride: null,
     clientUpdateNotice: false,
+    store: null,
 };
 
 // Un cliente con la pagina abierta se entera del cambio de modo en menos de un minuto

@@ -55,9 +55,10 @@ const formatAgo = (value: string, now: number) => {
 const isWhatsappOrder = (order: IPublicOrder) => order.paymentMethod === "whatsapp";
 
 /** Aviso que aparece en la pagina cuando el pedido cambia de paso estando abierta. */
-type StepAlert = "confirmed" | "accepted" | "ready" | "out";
+type StepAlert = "confirmed" | "accepted" | "ready" | "out" | "near";
 
 const getStepAlertText = (alert: StepAlert, isDelivery: boolean) => {
+    if (alert === "near") return { title: "¡Tu pedido está cerca!", text: "El repartidor está a menos de 300 m.", tabTitle: "📍 ¡Tu pedido está cerca!" };
     if (alert === "confirmed") return { title: "Confirmamos tu pedido", text: "Ya va a la cocina.", tabTitle: "✅ Pedido confirmado" };
     if (alert === "accepted") return { title: "Estamos preparando tu pedido", text: "La cocina ya lo tomó.", tabTitle: "👩‍🍳 Preparando tu pedido" };
     if (alert === "out") return { title: "¡Tu pedido va en camino!", text: "Síguelo en el mapa.", tabTitle: "🛵 Pedido en camino" };
@@ -70,6 +71,7 @@ const getStepAlertText = (alert: StepAlert, isDelivery: boolean) => {
 
 /** Que aviso corresponde al pasar de un estado al siguiente (null si no cambio de paso). */
 const getStepAlert = (previous: IPublicOrder, next: IPublicOrder): StepAlert | null => {
+    if (!previous.nearAt && next.nearAt) return "near";
     if (!previous.outAt && next.outAt) return "out";
     if (!previous.readyAt && next.readyAt) return "ready";
     if (!previous.acceptedAt && next.acceptedAt) return "accepted";
@@ -120,9 +122,19 @@ const useOrderStatus = (orderId: string, onStepChange: (alert: StepAlert) => voi
 };
 
 /** Lo que dice el ticket sobre el pago: pagado con Yappy, cobrado al entregar, o por pagar. */
+/** "con $20.00 · vuelto $13.00", o nada si no dijo con cuánto paga. */
+const formatCashChange = (cash: number | null | undefined, total: number) =>
+    cash ? ` con ${formatPrice(cash)}${cash > total + 0.005 ? ` · vuelto ${formatPrice(cash - total)}` : ""}` : "";
+
 const getTicketPayment = (order: IPublicOrder) => {
     if (!isWhatsappOrder(order)) return { total: "Total pagado", foot: "Pagado con Yappy", time: order.paidAt };
-    if (order.collectedMethod) return { total: "Total pagado", foot: `Pagado en ${COLLECTED_LABEL[order.collectedMethod]}`, time: order.paidAt };
+    if (order.collectedMethod) {
+        const change = order.collectedMethod === "efectivo" ? formatCashChange(order.cashReceived, order.total) : "";
+        return { total: "Total pagado", foot: `Pagado en ${COLLECTED_LABEL[order.collectedMethod]}${change}`, time: order.paidAt };
+    }
+    if (order.cashTendered) {
+        return { total: "Total a pagar al recibir", foot: `Pagas en efectivo${formatCashChange(order.cashTendered, order.total)}`, time: null };
+    }
     return { total: "Total a pagar al recibir", foot: "Por WhatsApp · efectivo, tarjeta o Yappy", time: null };
 };
 
@@ -277,7 +289,8 @@ const OnTheWay = ({ order }: { order: IPublicOrder }) => {
                         <DeliveryMap
                             destination={destination}
                             courier={position}
-                            label={`Mapa con ${courierName} y tu dirección`}
+                            store={order.storeLocation ?? null}
+                            label={`Mapa con ${courierName}, Chunky Bites y tu dirección`}
                         />
                     </Suspense>
                     <span className={`order-track__fresh${isStale ? " is-stale" : ""}`} role="status">
@@ -291,12 +304,21 @@ const OnTheWay = ({ order }: { order: IPublicOrder }) => {
                 <span>
                     <b>{courierName}</b>
                     <small>
-                        {isStale
-                            ? "No recibimos su ubicación hace un rato. Sigue en camino."
-                            : `Salió a las ${formatTime(order.outAt)}`}
+                        {order.nearAt
+                            ? "Está a menos de 300 m de tu casa."
+                            : isStale
+                              ? "No recibimos su ubicación hace un rato. Sigue en camino."
+                              : `Salió a las ${formatTime(order.outAt)}`}
                     </small>
                 </span>
             </div>
+            {order.storeLocation || destination ? (
+                <p className="order-track__legend">
+                    {order.storeLocation ? <span><i className="is-store" aria-hidden />Chunky Bites</span> : null}
+                    <span><i className="is-courier" aria-hidden />{courierName}</span>
+                    {destination ? <span><i className="is-home" aria-hidden />Tu casa</span> : null}
+                </p>
+            ) : null}
         </section>
     );
 };

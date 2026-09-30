@@ -60,7 +60,7 @@ interface IKitchenTicketProps {
     order: IKitchenOrder;
     now: number;
     onStep: (order: IKitchenOrder, step: KitchenStep) => void;
-    onOpenDelivery?: () => void;
+    onOpenDelivery?: (orderId?: string) => void;
 }
 
 const KitchenTicket = ({ order, now, onStep, onOpenDelivery }: IKitchenTicketProps) => {
@@ -85,7 +85,9 @@ const KitchenTicket = ({ order, now, onStep, onOpenDelivery }: IKitchenTicketPro
                 <span className="kitchen-ticket__name">
                     {order.customerName}
                     {order.delivery && <span className="kitchen-ticket__badge">Delivery</span>}
-                    {isUnpaidOrder(order) && <span className="kitchen-ticket__badge kitchen-ticket__badge--due">Por cobrar</span>}
+                    {order.isAwaitingConfirmation
+                        ? <span className="kitchen-ticket__badge kitchen-ticket__badge--wa">Por confirmar</span>
+                        : isUnpaidOrder(order) && <span className="kitchen-ticket__badge kitchen-ticket__badge--due">Por cobrar</span>}
                 </span>
                 <span className={`kitchen-ticket__time ${isLate ? "kitchen-ticket__time--late" : ""}`}>
                     {timeLabel} <b>{minutes}</b> min
@@ -110,18 +112,33 @@ const KitchenTicket = ({ order, now, onStep, onOpenDelivery }: IKitchenTicketPro
             {order.delivery && (
                 <div className="kitchen-ticket__dest">
                     <b>Entregar en</b>
-                    <span>{order.delivery.address}</span>
+                    <span>{order.delivery.address}{order.distanceKm != null ? ` · a ${order.distanceKm} km` : ""}</span>
                     {order.delivery.details && <span>{order.delivery.details}</span>}
                     <a href={order.delivery.mapUrl} target="_blank" rel="noopener noreferrer">Abrir en Maps</a>
                 </div>
             )}
             {order.note && <p className="kitchen-ticket__note">Nota: {order.note}</p>}
+            {order.cashTendered && isUnpaidOrder(order) ? (
+                <p className="kitchen-ticket__note">
+                    Paga con {formatPrice(order.cashTendered)}
+                    {order.cashTendered > order.total + 0.005 ? ` · llevar ${formatPrice(order.cashTendered - order.total)} de vuelto` : ""}
+                </p>
+            ) : null}
             <div className="kitchen-ticket__meta">
                 <span>{getTicketOrigin(order)} · {formatClock(order.paidAt)}</span>
                 {contactPhone ? <span>{contactPhone}</span> : null}
             </div>
-            {isHandledByDelivery ? (
-                <button type="button" className="kitchen-ticket__action kitchen-ticket__action--deliver" onClick={onOpenDelivery} disabled={!onOpenDelivery}>
+            {order.isAwaitingConfirmation ? (
+                <button
+                    type="button"
+                    className="kitchen-ticket__action kitchen-ticket__action--confirm"
+                    onClick={() => onOpenDelivery?.(order.id)}
+                    disabled={!onOpenDelivery}
+                >
+                    Confirmar
+                </button>
+            ) : isHandledByDelivery ? (
+                <button type="button" className="kitchen-ticket__action kitchen-ticket__action--deliver" onClick={() => onOpenDelivery?.(order.id)} disabled={!onOpenDelivery}>
                     {order.outAt ? `En camino con ${order.courierName ?? "el repartidor"}` : "Ver en Delivery"}
                 </button>
             ) : (
@@ -140,7 +157,7 @@ const KitchenColumn = ({ title, orders, empty, isNew, now, onStep, onOpenDeliver
     isNew?: boolean;
     now: number;
     onStep: (order: IKitchenOrder, step: KitchenStep) => void;
-    onOpenDelivery?: () => void;
+    onOpenDelivery?: (orderId?: string) => void;
 }) => (
     <section className={`kitchen-col ${isNew ? "kitchen-col--new" : ""}`} aria-label={title}>
         <h2 className="kitchen-col__head">{title} <span className="kitchen-count">{orders.length}</span></h2>
@@ -156,7 +173,7 @@ interface IGestionCocinaProps {
     feed: IKitchenFeed;
     onSessionExpired: () => void;
     /** Lleva a la pestaña Delivery (cobro al entregar y pedidos a domicilio). */
-    onOpenDelivery?: () => void;
+    onOpenDelivery?: (orderId?: string) => void;
 }
 
 export const GestionCocina = ({ feed, onSessionExpired, onOpenDelivery }: IGestionCocinaProps) => {
@@ -171,7 +188,9 @@ export const GestionCocina = ({ feed, onSessionExpired, onOpenDelivery }: IGesti
     }, []);
 
     const { orders, offlineSince, isSoundOn, turnSoundOn, updateOrder, refresh } = feed;
-    const newOrders = orders.filter((order) => !order.acceptedAt);
+    // Los de WhatsApp sin confirmar van aparte: se ven, pero todavía no se preparan
+    const awaitingOrders = orders.filter((order) => order.isAwaitingConfirmation);
+    const newOrders = orders.filter((order) => !order.acceptedAt && !order.isAwaitingConfirmation);
     const preparingOrders = orders.filter((order) => order.acceptedAt && !order.readyAt);
     const readyOrders = orders.filter((order) => order.readyAt);
 
@@ -201,7 +220,10 @@ export const GestionCocina = ({ feed, onSessionExpired, onOpenDelivery }: IGesti
 
             {stepError && <div className="kitchen-banner" role="alert"><span>{stepError}</span></div>}
 
-            <div className="kitchen-board">
+            <div className={`kitchen-board${awaitingOrders.length > 0 ? " kitchen-board--four" : ""}`}>
+                {awaitingOrders.length > 0 ? (
+                    <KitchenColumn title="Por confirmar" orders={awaitingOrders} empty="" isNew now={now} onStep={runStep} onOpenDelivery={onOpenDelivery} />
+                ) : null}
                 <KitchenColumn title="Nuevos" orders={newOrders} empty="Sin pedidos nuevos" isNew now={now} onStep={runStep} />
                 <KitchenColumn title="Preparando" orders={preparingOrders} empty="Nada en preparación" now={now} onStep={runStep} />
                 <KitchenColumn title="Listos para retirar o enviar" orders={readyOrders} empty="Nada por entregar" now={now} onStep={runStep} onOpenDelivery={onOpenDelivery} />

@@ -14,12 +14,16 @@ import {
     createOrder,
     createWhatsappOrder,
     formatPhone,
+    formatPrice,
+    getCartTotal,
     getCheckoutErrors,
+    getDeliveryReach,
     getDeliveryText,
     getMapsUrl,
     getOrderingStatusLabel,
     getWhatsAppUrl,
     isAcceptingOrders,
+    parseMoney,
     readCheckoutDraft,
     rememberOrderAccess,
     saveCheckoutDraft,
@@ -92,6 +96,7 @@ export const CartCheckout = () => {
     const [paymentError, setPaymentError] = useState<string | null>(null);
     const [isYappyOnline, setIsYappyOnline] = useState(true);
     const [paymentMethod, setPaymentMethod] = useState<OrderPaymentMethod>("yappy");
+    const [cashText, setCashText] = useState("");
     const [isSendingWhatsapp, setIsSendingWhatsapp] = useState(false);
     const [isLocating, setIsLocating] = useState(false);
     const [locationError, setLocationError] = useState<string | null>(null);
@@ -166,13 +171,36 @@ export const CartCheckout = () => {
 
     const clearLocation = () => setForm((current) => ({ ...current, deliveryLat: null, deliveryLng: null }));
 
+    // Si compartió su ubicación, a cuántos km queda y si el delivery llega (el API mide igual)
+    const reach = requiresDelivery && form.deliveryLat !== null && form.deliveryLng !== null
+        ? getDeliveryReach(settings.store, { lat: form.deliveryLat, lng: form.deliveryLng })
+        : null;
+    const reachError = reach?.reach === "out"
+        ? `Estás a ${reach.km} km: el delivery llega hasta ${settings.store?.deliveryMaxKm ?? 20} km. Puedes elegir retirar.`
+        : null;
+
+    // "Pagas con": solo con WhatsApp, opcional, y tiene que alcanzar para el total
+    const total = getCartTotal(lines);
+    const cashTendered = parseMoney(cashText);
+    const cashError = paymentMethod !== "whatsapp" || !cashText.trim()
+        ? null
+        : cashTendered === null
+          ? "Escribe un monto, por ejemplo 20."
+          : cashTendered + 0.005 < total ? `Con ${formatPrice(cashTendered)} no alcanza: el total es ${formatPrice(total)}.` : null;
+
+    /** Revisa todo lo que no deja enviar el pedido. true si se puede seguir. */
+    const validateCheckout = () => {
+        const formErrors = getCheckoutErrors(form, requiresDelivery);
+        setErrors(formErrors);
+        if (reachError) setPaymentError(reachError);
+        return Object.keys(formErrors).length === 0 && !reachError && !cashError;
+    };
+
     const createPayment = async () => {
         markCheckoutStart();
         trackEvent("pay_click");
         setPaymentError(null);
-        const formErrors = getCheckoutErrors(form, requiresDelivery);
-        setErrors(formErrors);
-        if (Object.keys(formErrors).length > 0) return null;
+        if (!validateCheckout()) return null;
 
         try {
             idempotencyKeyRef.current ??= createIdempotencyKey();
@@ -218,23 +246,29 @@ export const CartCheckout = () => {
         markCheckoutStart();
         trackEvent("pay_click", "whatsapp");
         setPaymentError(null);
-        const formErrors = getCheckoutErrors(form, requiresDelivery);
-        setErrors(formErrors);
-        if (Object.keys(formErrors).length > 0) return;
+        if (!validateCheckout()) return;
+        const tendered = cashText.trim() ? cashTendered : null;
 
         const chat = window.open("", "_blank");
         if (chat) chat.opener = null;
         setIsSendingWhatsapp(true);
         try {
             idempotencyKeyRef.current ??= createIdempotencyKey();
-            const session = await createWhatsappOrder(lines, form, requiresDelivery, idempotencyKeyRef.current);
+            const session = await createWhatsappOrder(lines, form, requiresDelivery, idempotencyKeyRef.current, tendered);
             idempotencyKeyRef.current = null;
             rememberOrderAccess(session.orderId, session.accessToken);
             setLastOrderId(session.orderId);
             trackEvent("whatsapp_order");
 
             const orderUrl = `${window.location.origin}/pedido/${session.orderId}`;
-            const message = buildWhatsappOrderMessage(lines, requiresDelivery ? form : { ...form, deliveryAddress: "" }, session.orderId, orderUrl);
+            const message = buildWhatsappOrderMessage(
+                lines,
+                requiresDelivery ? form : { ...form, deliveryAddress: "" },
+                session.orderId,
+                orderUrl,
+                tendered
+            );
+            setCashText("");
             if (chat) chat.location.href = getWhatsAppUrl(message);
 
             orderIdRef.current = session.orderId;
@@ -329,7 +363,7 @@ export const CartCheckout = () => {
                         {form.deliveryLat !== null && form.deliveryLng !== null ? (
                             <div className="checkout__location" role="status">
                                 <PiCheckCircleBold aria-hidden />
-                                <span>Ubicación guardada</span>
+                                <span>Ubicación guardada{reach ? ` · a ${reach.km} km del local` : ""}</span>
                                 <a href={getMapsUrl(form.deliveryLat, form.deliveryLng)} target="_blank" rel="noopener noreferrer">Ver en Maps</a>
                                 <button type="button" className="checkout__location-clear" onClick={clearLocation}>Quitar</button>
                             </div>
@@ -339,6 +373,12 @@ export const CartCheckout = () => {
                             </button>
                         )}
                         {locationError && <span className="field__error" role="alert">{locationError}</span>}
+                        {reach?.reach === "far" && (
+                            <p className="checkout__reach checkout__reach--far" role="status">
+                                Estás a {reach.km} km: llegamos, pero puede tardar un poco más.
+                            </p>
+                        )}
+                        {reachError && <p className="checkout__reach checkout__reach--out" role="alert">{reachError}</p>}
                     </>
                 )}
 
@@ -358,6 +398,33 @@ export const CartCheckout = () => {
                         </label>
                     ))}
                 </div>
+
+                {paymentMethod === "whatsapp" && (
+                    <div className="field">
+                        <label htmlFor="checkout-cash" className="field__label">
+                            Si pagas en efectivo, ¿con cuánto? <span className="field__optional">(opcional)</span>
+                        </label>
+                        <div className="field__phone">
+                            <span className="field__prefix" aria-hidden>$</span>
+                            <input
+                                id="checkout-cash"
+                                className="field__input"
+                                type="text"
+                                inputMode="decimal"
+                                placeholder={total < 20 ? "20.00" : "50.00"}
+                                value={cashText}
+                                onChange={(event) => setCashText(event.target.value)}
+                                aria-invalid={Boolean(cashError)}
+                                aria-describedby="checkout-cash-help"
+                            />
+                        </div>
+                        <span id="checkout-cash-help" className={cashError ? "field__error" : "field__help"}>
+                            {cashError ?? (cashTendered !== null && cashTendered > total + 0.005
+                                ? `Vuelto ${formatPrice(cashTendered - total)}: el repartidor lleva el cambio justo.`
+                                : "Así el repartidor lleva el cambio justo.")}
+                        </span>
+                    </div>
+                )}
 
                 <p className="checkout__section">Contacto</p>
 

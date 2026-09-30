@@ -12,14 +12,19 @@ import {
     formatPastaOptions,
     formatPhone,
     getCustomerWhatsAppUrl,
+    getCashSuggestions,
+    getChangeToCarry,
+    getDeliveryReach,
     getDeliveryStage,
     getMinutesSince,
     getTrackingUrl,
     isUnpaidOrder,
+    parseMoney,
     releaseDeliveryOrder,
     resolveLocationLink,
     shareTrackingLink,
     takeDeliveryOrder,
+    useSettings,
 } from "@/helpers";
 import type { CollaboratorRole, DeliveryStage, IDeliveryInput, IDeliveryOrder, PaymentMethod } from "@/helpers";
 import type { IDeliveryFeed } from "@/hooks/useDeliveryFeed";
@@ -91,14 +96,34 @@ const DeliveryOrderDialog = ({ token, order, meId, roles, onChanged, onClose, on
     const [isConfirmingCancel, setIsConfirmingCancel] = useState(false);
     const [copied, setCopied] = useState(false);
 
+    // "Paga con" que dijo el cliente (caja lo corrige) y con cuánto pagó al entregar
+    const [cashText, setCashText] = useState(order.cashTendered ? order.cashTendered.toFixed(2) : "");
+    const [receivedText, setReceivedText] = useState(order.cashTendered ? order.cashTendered.toFixed(2) : "");
+
+    const { settings } = useSettings();
     const needsCollect = isUnpaidOrder(order);
     const contactPhone = getContactPhone(order);
+    const isWhatsapp = order.paymentMethod === "whatsapp";
+
+    const cashTendered = cashText.trim() ? parseMoney(cashText) : null;
+    const cashError = !cashText.trim()
+        ? ""
+        : cashTendered === null
+          ? "Escribe un monto, por ejemplo 20."
+          : cashTendered + 0.005 < order.total ? `Con ${formatCash(cashTendered)} no alcanza para ${formatCash(order.total)}.` : "";
+    const received = parseMoney(receivedText);
+    const change = received !== null ? Math.round((received - order.total) * 100) / 100 : null;
+
+    // A cuántos km del local queda el punto (el API rechaza pasado el máximo)
+    const reach = isDelivery && point ? getDeliveryReach(settings.store, point) : null;
+
     const isDeliveryDirty =
         isDelivery !== Boolean(order.delivery) ||
         address.trim() !== (order.delivery?.address ?? "") ||
         details.trim() !== (order.delivery?.details ?? "") ||
         (point?.lat ?? null) !== (order.delivery?.lat ?? null) ||
-        (point?.lng ?? null) !== (order.delivery?.lng ?? null);
+        (point?.lng ?? null) !== (order.delivery?.lng ?? null) ||
+        (isWhatsapp && cashTendered !== (order.cashTendered ?? null));
 
     const getDeliveryInput = (): IDeliveryInput | null => {
         if (!isDelivery) return null;
@@ -142,17 +167,30 @@ const DeliveryOrderDialog = ({ token, order, meId, roles, onChanged, onClose, on
             setError("Escribe la dirección (al menos 5 letras) o márcalo para retirar.");
             return false;
         }
+        if (reach?.reach === "out") {
+            setError(`Queda a ${reach.km} km: el delivery llega hasta ${settings.store?.deliveryMaxKm ?? 20} km. Márcalo para retirar.`);
+            return false;
+        }
+        if (cashError) {
+            setError(cashError);
+            return false;
+        }
         return true;
     };
 
+    const getChange = () => ({
+        delivery: getDeliveryInput(),
+        ...(isWhatsapp && { cashTendered }),
+    });
+
     const confirm = () => {
         if (!validateDelivery()) return;
-        void run(() => confirmDeliveryOrder(token, order.id, getDeliveryInput()), "No pudimos confirmar el pedido.");
+        void run(() => confirmDeliveryOrder(token, order.id, getChange()), "No pudimos confirmar el pedido.");
     };
 
     const saveDelivery = () => {
         if (!validateDelivery()) return;
-        void run(() => changeOrderDelivery(token, order.id, getDeliveryInput()), "No pudimos guardar la entrega.");
+        void run(() => changeOrderDelivery(token, order.id, getChange()), "No pudimos guardar los cambios.");
     };
 
     const copyLink = async () => {
@@ -175,8 +213,18 @@ const DeliveryOrderDialog = ({ token, order, meId, roles, onChanged, onClose, on
             setError("Elige con qué pagó el cliente.");
             return;
         }
-        void run(() => deliverOrder(token, order.id, needsCollect ? method ?? undefined : undefined), "No pudimos entregar el pedido.", true);
+        const isCash = needsCollect && method === "efectivo";
+        if (isCash && receivedText.trim() && (received === null || received + 0.005 < order.total)) {
+            setError(`Con cuánto pagó: tiene que ser al menos ${formatCash(order.total)}.`);
+            return;
+        }
+        const payment = needsCollect
+            ? { method: method ?? undefined, cashReceived: isCash && receivedText.trim() ? received : null }
+            : {};
+        void run(() => deliverOrder(token, order.id, payment), "No pudimos entregar el pedido.", true);
     };
+
+    const changeToCarry = getChangeToCarry(order);
 
     const mapsUrl = point
         ? `https://www.google.com/maps/dir/?api=1&destination=${point.lat},${point.lng}`
@@ -253,10 +301,13 @@ const DeliveryOrderDialog = ({ token, order, meId, roles, onChanged, onClose, on
                                 </div>
                                 {linkError ? <p className="ges-error" role="alert">{linkError}</p> : null}
                                 {point ? (
-                                    <p className="dlv-point" role="status">
-                                        ✓ Ubicación <code>{point.lat}, {point.lng}</code>
+                                    <p className={`dlv-point${reach?.reach === "out" ? " is-out" : reach?.reach === "far" ? " is-far" : ""}`} role="status">
+                                        {reach?.reach === "out" ? "✕" : "✓"} Ubicación <code>{point.lat}, {point.lng}</code>
+                                        {reach ? <span>· a {reach.km} km del local</span> : null}
                                         <a href={`https://www.google.com/maps?q=${point.lat},${point.lng}`} target="_blank" rel="noopener noreferrer">Ver</a>
                                         <button type="button" onClick={() => setPoint(null)}>Quitar</button>
+                                        {reach?.reach === "far" ? <em>Lejos: puede tardar más.</em> : null}
+                                        {reach?.reach === "out" ? <em>Más de {settings.store?.deliveryMaxKm ?? 20} km: no llega el delivery.</em> : null}
                                     </p>
                                 ) : (
                                     <p className="ges-field__hint">Sin punto el repartidor usa la dirección escrita y el cliente no ve su casa en el mapa.</p>
@@ -275,12 +326,42 @@ const DeliveryOrderDialog = ({ token, order, meId, roles, onChanged, onClose, on
                 ) : order.delivery ? (
                     <div className="dlv-dest">
                         <b>Entregar en</b>
-                        <span>{order.delivery.address}</span>
+                        <span>{order.delivery.address}{order.distanceKm != null ? ` · a ${order.distanceKm} km` : ""}</span>
                         {order.delivery.details ? <span>{order.delivery.details}</span> : null}
                     </div>
                 ) : (
                     <p className="ges-note">Para retirar en el local.</p>
                 )}
+
+                {/* Vuelto: caja corrige el "paga con" antes de que salga */}
+                {isWhatsapp && needsCollect && canEditDelivery ? (
+                    <div className="ges-field">
+                        <span><label htmlFor="delivery-paga-con">Paga en efectivo con (opcional)</label></span>
+                        <div className="dlv-link">
+                            <input
+                                id="delivery-paga-con"
+                                type="text"
+                                inputMode="decimal"
+                                value={cashText}
+                                placeholder="20.00"
+                                onChange={(event) => { setCashText(event.target.value); setError(""); }}
+                            />
+                            <span className="ges-pill is-ok dlv-change">
+                                {cashTendered !== null && !cashError && cashTendered > order.total + 0.005
+                                    ? `Vuelto ${formatCash(cashTendered - order.total)}`
+                                    : "Sin vuelto"}
+                            </span>
+                        </div>
+                        {cashError ? <span className="ges-field__hint dlv-bad">{cashError}</span> : null}
+                    </div>
+                ) : null}
+
+                {needsCollect && changeToCarry > 0 && (stage === "listo-salir" || stage === "en-camino") ? (
+                    <div className="dlv-carry" role="status">
+                        <span>Lleva de vuelto</span>
+                        <b>{formatCash(changeToCarry)}</b>
+                    </div>
+                ) : null}
 
                 {order.delivery && mapsUrl ? (
                     <a className="ges-btn ges-btn--sm" href={mapsUrl} target="_blank" rel="noopener noreferrer">Abrir en Maps</a>
@@ -333,7 +414,35 @@ const DeliveryOrderDialog = ({ token, order, meId, roles, onChanged, onClose, on
                                     </button>
                                 ))}
                             </div>
-                            <p className="ges-field__hint">Entra al turno abierto. El efectivo se entrega en caja al volver.</p>
+                            {method === "efectivo" ? (
+                                <>
+                                    <label className="ges-field">
+                                        <span>Con cuánto pagó</span>
+                                        <input
+                                            id="delivery-recibido"
+                                            type="text"
+                                            inputMode="decimal"
+                                            value={receivedText}
+                                            placeholder="0.00"
+                                            onChange={(event) => { setReceivedText(event.target.value); setError(""); }}
+                                        />
+                                    </label>
+                                    <div className="ges-quick">
+                                        {getCashSuggestions(order.total).map((value, index) => (
+                                            <button key={value} type="button" onClick={() => setReceivedText(value.toFixed(2))}>
+                                                {index === 0 ? `Justo ${formatCash(value)}` : formatCash(value)}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className={`ges-change${change !== null && change < -0.005 ? " is-short" : ""}`}>
+                                        <span>{change !== null && change < -0.005 ? "Falta" : "Vuelto"}</span>
+                                        <b>{formatCash(change !== null ? Math.abs(change) : 0)}</b>
+                                    </div>
+                                    <p className="ges-field__hint">Al cajón entra {formatCash(order.total)}: el vuelto salió de la caja y vuelve con el billete.</p>
+                                </>
+                            ) : (
+                                <p className="ges-field__hint">Entra al turno abierto.</p>
+                            )}
                         </>
                     ) : null
                 ) : null}
@@ -351,7 +460,7 @@ const DeliveryOrderDialog = ({ token, order, meId, roles, onChanged, onClose, on
 
                     {!isPending && canEditDelivery && isDeliveryDirty ? (
                         <button type="button" className="ges-btn ges-btn--solid" onClick={saveDelivery} disabled={isSending}>
-                            Guardar entrega
+                            Guardar cambios
                         </button>
                     ) : null}
 
@@ -368,7 +477,13 @@ const DeliveryOrderDialog = ({ token, order, meId, roles, onChanged, onClose, on
 
                     {(stage === "en-camino" && (isMine || isCaja)) || stage === "listo-retirar" ? (
                         <button type="button" className="ges-btn ges-btn--solid" onClick={deliver} disabled={isSending}>
-                            {isSending ? "Guardando…" : needsCollect ? "Entregado y cobrado" : "Entregado"}
+                            {isSending
+                                ? "Guardando…"
+                                : !needsCollect
+                                  ? "Entregado"
+                                  : method === "efectivo" && change !== null && change > 0.005
+                                    ? `Cobrar ${formatCash(order.total)} y dar ${formatCash(change)}`
+                                    : `Entregado y cobrado`}
                         </button>
                     ) : null}
                 </div>
@@ -426,6 +541,8 @@ const DeliveryRow = ({ order, now, meId, onOpen }: { order: IDeliveryOrder; now:
             </span>
             <span className="dlv-row__meta">
                 #{order.id} · {order.delivery ? order.delivery.address : "Retiro en el local"}
+                {order.distanceKm != null ? ` · ${order.distanceKm} km` : ""}
+                {isUnpaidOrder(order) && getChangeToCarry(order) > 0 ? ` · vuelto ${formatCash(getChangeToCarry(order))}` : ""}
             </span>
             <span className="dlv-row__meta">
                 {since ? `hace ${getMinutesSince(since, now)} min` : ""}
@@ -453,11 +570,13 @@ interface IGestionDeliveryProps {
     roles: CollaboratorRole[];
     feed: IDeliveryFeed;
     tracking: ICourierTracking;
+    /** Pedido que se abre al llegar (desde Cocina). */
+    initialOpenId?: string | null;
     onSessionExpired: () => void;
 }
 
-export const GestionDelivery = ({ token, meId, roles, feed, tracking, onSessionExpired }: IGestionDeliveryProps) => {
-    const [openId, setOpenId] = useState<string | null>(null);
+export const GestionDelivery = ({ token, meId, roles, feed, tracking, initialOpenId = null, onSessionExpired }: IGestionDeliveryProps) => {
+    const [openId, setOpenId] = useState<string | null>(initialOpenId);
     const [now, setNow] = useState(() => Date.now());
 
     useEffect(() => {

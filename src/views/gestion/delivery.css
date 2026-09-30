@@ -100,6 +100,30 @@
 .dlv-point code { font-family: ui-monospace, Consolas, monospace; color: var(--ink); font-weight: 600; }
 .dlv-point a, .dlv-point button { font: inherit; font-size: 0.75rem; color: var(--mora); background: none; border: 0; padding: 0; text-decoration: underline; cursor: pointer; }
 
+.dlv-point span { font-weight: 800; color: inherit; }
+.dlv-point em { flex-basis: 100%; font-style: normal; font-size: 0.75rem; }
+.dlv-point.is-far { background: var(--ges-warn-bg); color: var(--ges-warn); }
+.dlv-point.is-out { background: var(--ges-crit-bg); color: var(--ges-crit); }
+
+/* Vuelto: lo que dijo el cliente y lo que lleva el repartidor */
+.dlv-change { align-self: center; }
+.dlv-bad { color: var(--ges-crit); }
+
+.dlv-carry {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.65rem 0.85rem;
+    border-radius: 12px;
+    background: var(--ges-warn-bg);
+    color: var(--ges-warn);
+    font-weight: 800;
+    font-size: 0.85rem;
+}
+
+.dlv-carry b { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+
 .dlv-dest { display: grid; gap: 0.1rem; padding: 0.6rem 0.8rem; border-radius: 12px; background: var(--ges-panel-2); font-size: 0.85rem; }
 .dlv-dest b { font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ges-text-3); }
 

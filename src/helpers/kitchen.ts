@@ -13,6 +13,12 @@ export interface IKitchenOrder {
     paymentMethod?: "yappy" | "whatsapp";
     /** Un pedido de WhatsApp confirmado se prepara sin cobrar: se cobra al entregarlo. */
     isPaid?: boolean;
+    /** Llegó por WhatsApp y nadie lo ha confirmado: se ve, pero no se prepara todavía. */
+    isAwaitingConfirmation?: boolean;
+    /** A cuántos km del local queda la casa (null sin punto). */
+    distanceKm?: number | null;
+    /** Efectivo: con cuánto dijo que paga, para llevar el vuelto. */
+    cashTendered?: number | null;
     /** Delivery: cuando salio y quien lo lleva. */
     outAt?: string | null;
     courierName?: string | null;

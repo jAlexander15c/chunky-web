@@ -1912,6 +1912,26 @@ main {
   pointer-events: none;
 }
 
+/* Distancia desde el local cuando compartió su ubicación */
+.checkout__reach {
+  margin: 0;
+  padding: 0.55rem 0.8rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.checkout__reach--far {
+  background: var(--mantequilla);
+  color: #8d5d0c;
+}
+
+.checkout__reach--out {
+  background: #f6dbe8;
+  color: #9c2f5b;
+}
+
 /* Con WhatsApp elegido tampoco se ve, pero sigue montado por lo mismo */
 .checkout__yappy--hidden {
   display: none;
@@ -2411,6 +2431,36 @@ main {
   background: var(--orquidea);
   border: 3px solid var(--ink);
 }
+
+.map-pin--store span {
+  border-radius: 9px;
+  background: var(--mora);
+  border: 3px solid #fff;
+  box-shadow: 0 4px 10px -4px rgb(var(--shadow-tint) / 0.8);
+}
+
+.order-track__legend {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-soft);
+}
+
+.order-track__legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 0.3rem;
+  border-radius: 50%;
+  vertical-align: -1px;
+}
+
+.order-track__legend .is-store { border-radius: 3px; background: var(--mora); }
+.order-track__legend .is-courier { background: #1f7a4d; }
+.order-track__legend .is-home { background: var(--orquidea); box-shadow: inset 0 0 0 2px var(--ink); }
 
 .map-pin--courier span {
   background: #1f7a4d;

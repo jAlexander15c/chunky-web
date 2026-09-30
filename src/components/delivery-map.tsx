@@ -12,6 +12,8 @@ interface IDeliveryMapProps {
     destination: IMapPoint | null;
     /** Última posición del repartidor. Null mientras no llegue la primera. */
     courier: (IMapPoint & { accuracy?: number | null }) | null;
+    /** El local: de ahí sale el pedido. */
+    store?: IMapPoint | null;
     /** Texto para lectores de pantalla (el mapa en sí no se lee). */
     label: string;
 }
@@ -29,6 +31,12 @@ const homeIcon = L.divIcon({
     iconSize: [34, 34],
     iconAnchor: [17, 17],
 });
+const storeIcon = L.divIcon({
+    className: "map-pin map-pin--store",
+    html: '<span aria-hidden="true"></span>',
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+});
 const courierIcon = L.divIcon({
     className: "map-pin map-pin--courier",
     html: '<span aria-hidden="true"></span>',
@@ -43,10 +51,11 @@ const toLatLng = (point: IMapPoint): L.LatLngTuple => [point.lat, point.lng];
  * no pese en el resto de la web. Encuadra los dos puntos al empezar y vuelve a encuadrar solo si
  * el repartidor se sale de lo que se ve, para no pelear con quien mueve el mapa con el dedo.
  */
-const DeliveryMap = ({ destination, courier, label }: IDeliveryMapProps) => {
+const DeliveryMap = ({ destination, courier, store = null, label }: IDeliveryMapProps) => {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<L.Map | null>(null);
     const homeRef = useRef<L.Marker | null>(null);
+    const storeRef = useRef<L.Marker | null>(null);
     const courierRef = useRef<L.Marker | null>(null);
     const hasFramedRef = useRef(false);
 
@@ -60,6 +69,7 @@ const DeliveryMap = ({ destination, courier, label }: IDeliveryMapProps) => {
             map.remove();
             mapRef.current = null;
             homeRef.current = null;
+            storeRef.current = null;
             courierRef.current = null;
             hasFramedRef.current = false;
         };
@@ -73,12 +83,19 @@ const DeliveryMap = ({ destination, courier, label }: IDeliveryMapProps) => {
             homeRef.current ??= L.marker(toLatLng(destination), { icon: homeIcon, keyboard: false }).addTo(map);
             homeRef.current.setLatLng(toLatLng(destination));
         }
+        if (store) {
+            storeRef.current ??= L.marker(toLatLng(store), { icon: storeIcon, keyboard: false }).addTo(map);
+            storeRef.current.setLatLng(toLatLng(store));
+        }
         if (courier) {
             courierRef.current ??= L.marker(toLatLng(courier), { icon: courierIcon, keyboard: false, zIndexOffset: 500 }).addTo(map);
             courierRef.current.setLatLng(toLatLng(courier));
         }
 
-        const points = [destination, courier].filter((point): point is IMapPoint => point !== null).map(toLatLng);
+        // Al empezar se ven los tres; después solo se reencuadra si el repartidor se sale de la vista
+        const points = [destination, courier, hasFramedRef.current ? null : store]
+            .filter((point): point is IMapPoint => point !== null)
+            .map(toLatLng);
         if (points.length === 0) return;
 
         const isCourierHidden = courier !== null && hasFramedRef.current && !map.getBounds().contains(toLatLng(courier));
@@ -87,7 +104,7 @@ const DeliveryMap = ({ destination, courier, label }: IDeliveryMapProps) => {
             else map.fitBounds(L.latLngBounds(points), { padding: FIT_PADDING, maxZoom: 17 });
             hasFramedRef.current = true;
         }
-    }, [destination, courier]);
+    }, [destination, courier, store]);
 
     return <div ref={containerRef} className="delivery-map" role="img" aria-label={label} />;
 };
