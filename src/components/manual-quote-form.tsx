@@ -19,9 +19,8 @@ import {
     getQuoteBreakdown,
     getQuoteDessert,
     getQuoteSurcharge,
-    isQuoteSizeAvailable,
 } from "@/helpers";
-import type { IManualQuoteDraft, IQuote, QuoteSize } from "@/helpers";
+import type { IManualQuoteDraft, IQuote } from "@/helpers";
 
 import "./manual-quote-form.css";
 
@@ -75,10 +74,6 @@ export const ManualQuoteForm = ({ token, onSaved, onCancel, onSessionExpired }: 
 
     const update = (changes: Partial<IManualQuoteDraft>) => setDraft((current) => ({ ...current, ...changes }));
 
-    // Conserva la altura elegida cuando está disponible para el tamaño.
-    const changeSize = (size: QuoteSize) =>
-        update({ size, height: isQuoteSizeAvailable(size, draft.height) ? draft.height : 2 });
-
     const toggleFilling = (id: string) =>
         update({
             fillingIds: draft.fillingIds.includes(id)
@@ -131,7 +126,7 @@ export const ManualQuoteForm = ({ token, onSaved, onCancel, onSessionExpired }: 
                                 <legend>Tamaño</legend>
                                 <div className="mq-chips">
                                     {QUOTE_SIZES.map((size) => (
-                                        <Chip key={size} isOn={draft.size === size} onClick={() => changeSize(size)}>
+                                        <Chip key={size} isOn={draft.size === size} onClick={() => update({ size })}>
                                             {size}"
                                         </Chip>
                                     ))}
@@ -145,7 +140,6 @@ export const ManualQuoteForm = ({ token, onSaved, onCancel, onSessionExpired }: 
                                         <Chip
                                             key={height.value}
                                             isOn={draft.height === height.value}
-                                            isDisabled={!isQuoteSizeAvailable(draft.size, height.value)}
                                             onClick={() => update({ height: height.value })}
                                         >
                                             {height.label}

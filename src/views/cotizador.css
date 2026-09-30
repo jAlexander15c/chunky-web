@@ -238,15 +238,6 @@
     outline-offset: 2px;
 }
 
-/* Alturas no disponibles en el catálogo */
-.quote-heights input:disabled {
-    cursor: not-allowed;
-}
-
-.quote-heights input:disabled + span {
-    opacity: 0.42;
-}
-
 /* ============ Cakes o postres enteros ============ */
 
 .quote-kinds {
@@ -315,12 +306,6 @@
         margin: 0;
         white-space: nowrap;
     }
-}
-
-.quote-size__note {
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: var(--mora);
 }
 
 /* ============ Chips de masa y relleno ============ */

@@ -28,7 +28,6 @@ import {
     getQuoteDessert,
     getWhatsAppUrl,
     isDessertSelection,
-    isQuoteSizeAvailable,
     submitQuote,
     trackEvent,
 } from "@/helpers";
@@ -380,14 +379,9 @@ export const Cotizador = () => {
         setDraft((current) => ({ ...current, [key]: value }));
     };
 
-    // Conserva la altura elegida cuando está disponible para el tamaño.
     const selectSize = (size: QuoteSize) => {
         markStep(draft.kind, "size");
-        setDraft((current) => ({
-            ...current,
-            size,
-            height: isQuoteSizeAvailable(size, current.height) ? current.height : 2,
-        }));
+        setDraft((current) => ({ ...current, size }));
     };
 
     const toggleFilling = (id: string) => {
@@ -536,29 +530,23 @@ export const Cotizador = () => {
                                 <span className="quote-step__n script">1</span>Tamaño y altura
                             </legend>
                             <div className="quote-sizes">
-                                {QUOTE_SIZES.map((size) => {
-                                    const isAvailable = isQuoteSizeAvailable(size, draft.height);
-                                    const height: QuoteHeight = isAvailable ? draft.height : 2;
-
-                                    return (
-                                        <label key={size} className="quote-size">
-                                            <input
-                                                id={`size-${size}`}
-                                                type="radio"
-                                                name="size"
-                                                value={size}
-                                                checked={draft.size === size}
-                                                onChange={() => selectSize(size)}
-                                            />
-                                            <span className="quote-size__card">
-                                                <CakeDrawing isDouble={height === 2} />
-                                                <span className="quote-size__inch">{size}"</span>
-                                                <span className="quote-size__price">{formatPrice(getQuoteBasePrice(size, height))}</span>
-                                                {isAvailable ? null : <span className="quote-size__note">Solo doble altura</span>}
-                                            </span>
-                                        </label>
-                                    );
-                                })}
+                                {QUOTE_SIZES.map((size) => (
+                                    <label key={size} className="quote-size">
+                                        <input
+                                            id={`size-${size}`}
+                                            type="radio"
+                                            name="size"
+                                            value={size}
+                                            checked={draft.size === size}
+                                            onChange={() => selectSize(size)}
+                                        />
+                                        <span className="quote-size__card">
+                                            <CakeDrawing isDouble={draft.height === 2} />
+                                            <span className="quote-size__inch">{size}"</span>
+                                            <span className="quote-size__price">{formatPrice(getQuoteBasePrice(size, draft.height))}</span>
+                                        </span>
+                                    </label>
+                                ))}
                             </div>
                             <div className="quote-heights" role="radiogroup" aria-label="Altura">
                                 {QUOTE_HEIGHTS.map((height) => (
@@ -569,7 +557,6 @@ export const Cotizador = () => {
                                             name="height"
                                             value={height.value}
                                             checked={draft.height === height.value}
-                                            disabled={!isQuoteSizeAvailable(draft.size, height.value)}
                                             onChange={() => update("height", height.value as QuoteHeight)}
                                         />
                                         <span>{height.label}</span>

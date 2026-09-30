@@ -35,10 +35,6 @@ const QUOTE_BASE_PRICES: Record<QuoteSize, Record<QuoteHeight, number>> = {
 const SURCHARGE_REFERENCE_PRICE = KNOWN_6_DOUBLE;
 
 export const QUOTE_SIZES: QuoteSize[] = ["4.5", "6", "7"];
-
-/** Se pueden cotizar todas las combinaciones con precio en el catálogo. */
-export const isQuoteSizeAvailable = (size: QuoteSize, height: QuoteHeight) =>
-    Object.hasOwn(QUOTE_BASE_PRICES, size) && Object.hasOwn(QUOTE_BASE_PRICES[size], height);
 export const QUOTE_HEIGHTS: { value: QuoteHeight; label: string }[] = [
     { value: 1, label: "1 altura" },
     { value: 2, label: "Doble altura" },
