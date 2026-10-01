@@ -19,6 +19,8 @@ export interface IKitchenOrder {
     distanceKm?: number | null;
     /** Efectivo: con cuánto dijo que paga, para llevar el vuelto. */
     cashTendered?: number | null;
+    /** Lo recibe otra persona: caja la ubica al confirmar. */
+    forSomeoneElse?: boolean;
     /** Delivery: cuando salio y quien lo lleva. */
     outAt?: string | null;
     courierName?: string | null;

@@ -109,12 +109,17 @@ export interface ICheckoutForm {
     deliveryDetails: string;
     deliveryLat: number | null;
     deliveryLng: number | null;
+    /**
+     * A domicilio para otra persona: no se pide la ubicación de quien pide (puede estar lejos);
+     * se coordina por WhatsApp y el local ubica a quien recibe.
+     */
+    isForSomeoneElse: boolean;
     /** Marcó la casilla del aviso de privacidad (Ley 81) en este pedido. Siempre obligatoria. */
     privacyConsent: boolean;
 }
 
 export type CheckoutErrors = Partial<
-    Record<"customerName" | "customerPhone" | "whatsappPhone" | "deliveryAddress" | "privacyConsent", string>
+    Record<"customerName" | "customerPhone" | "whatsappPhone" | "deliveryAddress" | "deliveryLocation" | "privacyConsent", string>
 >;
 
 /**
@@ -205,6 +210,10 @@ export const getCheckoutErrors = (form: ICheckoutForm, requiresDelivery = false)
     if (requiresDelivery && form.deliveryAddress.trim().length < MIN_ADDRESS_LENGTH) {
         errors.deliveryAddress = "Escribe la dirección donde te llevamos el pedido.";
     }
+    // Sin la ubicación no se sabe si llegamos (el API exige lo mismo)
+    if (requiresDelivery && !form.isForSomeoneElse && (form.deliveryLat === null || form.deliveryLng === null)) {
+        errors.deliveryLocation = "Toca «Usar mi ubicación» para saber si llegamos. Si es para otra persona, márcalo.";
+    }
     if (form.customerName.trim().length < 2) errors.customerName = "Escribe tu nombre para saber de quién es el pedido.";
     if (!isPanamaMobile(form.customerPhone)) errors.customerPhone = "Escribe un celular de 8 dígitos que empiece en 6.";
     if (form.hasOtherWhatsapp && !isPanamaMobile(form.whatsappPhone)) {
@@ -236,6 +245,7 @@ const getOrderBody = (lines: ICartLine[], form: ICheckoutForm, requiresDelivery:
         note: form.note.trim() || undefined,
         privacyConsent: form.privacyConsent,
         privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
+        forSomeoneElse: requiresDelivery && form.isForSomeoneElse ? true : undefined,
 });
 
 const getIdempotencyOptions = (idempotencyKey?: string) =>
@@ -270,11 +280,12 @@ export const parseMoney = (value: string) => {
 export const getCashSuggestions = (total: number) =>
     [total, ...[5, 10, 20, 50, 100].filter((bill) => bill > total + 0.005)].slice(0, 4);
 
+// Para otra persona no va el punto de quien pide: no es donde se entrega
 const getDeliveryPayload = (form: ICheckoutForm) => ({
     address: form.deliveryAddress.trim(),
     details: form.deliveryDetails.trim() || undefined,
-    lat: form.deliveryLat ?? undefined,
-    lng: form.deliveryLng ?? undefined,
+    lat: form.isForSomeoneElse ? undefined : form.deliveryLat ?? undefined,
+    lng: form.isForSomeoneElse ? undefined : form.deliveryLng ?? undefined,
 });
 
 /** Direccion y referencias en texto, para el mensaje de WhatsApp. Vacio si no hay entrega. */
@@ -384,16 +395,21 @@ export const buildPaymentHelpMessage = (
 /** Mensaje que abre WhatsApp al guardar un pedido para coordinar: el código, lo pedido y la entrega. */
 export const buildWhatsappOrderMessage = (
     lines: ICartLine[],
-    form: Pick<ICheckoutForm, "customerName" | "note"> & Partial<Pick<ICheckoutForm, "deliveryAddress" | "deliveryDetails" | "deliveryLat" | "deliveryLng">>,
+    form: Pick<ICheckoutForm, "customerName" | "note"> &
+        Partial<Pick<ICheckoutForm, "deliveryAddress" | "deliveryDetails" | "deliveryLat" | "deliveryLng" | "isForSomeoneElse">>,
     orderId: string,
     orderUrl: string,
     cashTendered?: number | null
 ) => {
     const detail = lines.map(formatCartLine).join("\n");
-    const delivery = getDeliveryText(form);
+    // Para otra persona no va la ubicación de quien pide: la de quien recibe se manda por el chat
+    const forOther = Boolean(form.isForSomeoneElse && form.deliveryAddress?.trim());
+    const delivery = getDeliveryText(forOther ? { ...form, deliveryLat: null, deliveryLng: null } : form);
     const who = form.customerName.trim() ? `Soy ${form.customerName.trim()}. ` : "";
     const note = form.note.trim() ? `\n\nNota: ${form.note.trim()}` : "";
-    const fulfillment = delivery ? `\n\n${delivery}` : "\n\nPaso a retirarlo.";
+    const fulfillment = delivery
+        ? `\n\n${delivery}${forOther ? "\nEs para otra persona: te paso su ubicación por aquí." : ""}`
+        : "\n\nPaso a retirarlo.";
     const cash = cashTendered ? `\nPago en efectivo con ${formatPrice(cashTendered)}` : "";
     return `¡Hola! ${who}Quiero coordinar mi pedido ${orderId}:\n\n${detail}\n\nTotal: ${formatPrice(getCartTotal(lines))}${cash}${fulfillment}${note}\n\nVer pedido: ${orderUrl}`;
 };

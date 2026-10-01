@@ -167,6 +167,11 @@ const DeliveryOrderDialog = ({ token, order, meId, roles, onChanged, onClose, on
             setError("Escribe la dirección (al menos 5 letras) o márcalo para retirar.");
             return false;
         }
+        // Para otra persona no se midió a nadie al pedir: sin el punto de quien recibe no se sabe si llegamos
+        if (isDelivery && order.forSomeoneElse && !point) {
+            setError("Es para otra persona: pega la ubicación de quien recibe para saber si llegamos.");
+            return false;
+        }
         if (reach?.reach === "out") {
             setError(`Queda a ${reach.km} km: el delivery llega hasta ${settings.store?.deliveryMaxKm ?? 20} km. Márcalo para retirar.`);
             return false;
@@ -241,6 +246,11 @@ const DeliveryOrderDialog = ({ token, order, meId, roles, onChanged, onClose, on
                     #{order.id} · pedido a las {formatClock(order.createdAt)}
                     {order.confirmedByName ? ` · confirmó ${order.confirmedByName}` : ""}
                 </p>
+                {order.forSomeoneElse ? (
+                    <p className="ges-note">
+                        <b>Es para otra persona.</b> Pídele por WhatsApp la ubicación de quien recibe y pégala abajo.
+                    </p>
+                ) : null}
 
                 {contactPhone ? (
                     <a className="ges-btn ges-btn--sm dlv-wa" href={getCustomerWhatsAppUrl(contactPhone)} target="_blank" rel="noopener noreferrer">
@@ -541,6 +551,7 @@ const DeliveryRow = ({ order, now, meId, onOpen }: { order: IDeliveryOrder; now:
             </span>
             <span className="dlv-row__meta">
                 #{order.id} · {order.delivery ? order.delivery.address : "Retiro en el local"}
+                {order.forSomeoneElse ? " · para otra persona" : ""}
                 {order.distanceKm != null ? ` · ${order.distanceKm} km` : ""}
                 {isUnpaidOrder(order) && getChangeToCarry(order) > 0 ? ` · vuelto ${formatCash(getChangeToCarry(order))}` : ""}
             </span>

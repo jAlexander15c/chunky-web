@@ -2743,6 +2743,12 @@ main {
   box-shadow: 0 6px 14px -10px rgb(var(--shadow-tint) / 0.7);
 }
 
+/* Yappy no aplica a un pedido para otra persona */
+.checkout__fulfillment-option:has(input:disabled) {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .checkout__fulfillment-option:has(input:focus-visible) {
   outline: 3px solid var(--focus);
   outline-offset: 2px;

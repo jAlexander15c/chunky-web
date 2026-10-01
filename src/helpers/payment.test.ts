@@ -14,6 +14,7 @@ const FORM: ICheckoutForm = {
     deliveryDetails: "portón verde",
     deliveryLat: 8.24,
     deliveryLng: -80.47,
+    isForSomeoneElse: false,
     privacyConsent: true,
 };
 
@@ -48,6 +49,13 @@ describe("errores del checkout", () => {
         const withoutAddress = { ...FORM, deliveryAddress: "" };
         expect(getCheckoutErrors(withoutAddress, true).deliveryAddress).toBeTruthy();
         expect(getCheckoutErrors(withoutAddress, false).deliveryAddress).toBeUndefined();
+    });
+
+    test("con delivery hay que compartir la ubicación, salvo que sea para otra persona", () => {
+        const withoutLocation = { ...FORM, deliveryLat: null, deliveryLng: null };
+        expect(getCheckoutErrors(withoutLocation, true).deliveryLocation).toBeTruthy();
+        expect(getCheckoutErrors({ ...withoutLocation, isForSomeoneElse: true }, true).deliveryLocation).toBeUndefined();
+        expect(getCheckoutErrors(withoutLocation, false).deliveryLocation).toBeUndefined();
     });
 
     test("celular y WhatsApp de Panamá", () => {

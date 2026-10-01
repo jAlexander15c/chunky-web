@@ -44,6 +44,7 @@ const EMPTY_FORM: ICheckoutForm = {
     deliveryDetails: "",
     deliveryLat: null,
     deliveryLng: null,
+    isForSomeoneElse: false,
     privacyConsent: false,
 };
 
@@ -141,11 +142,14 @@ export const CartCheckout = () => {
         setErrors((current) => ({ ...current, whatsappPhone: undefined }));
     };
 
-    /** Guarda la ubicacion del celular. Es un extra: sin ella el pedido sale igual con la direccion escrita. */
+    /**
+     * Guarda la ubicacion del celular. Es obligatoria para delivery: con ella se sabe si llegamos.
+     * Si es para otra persona no hace falta (se ubica a quien recibe por WhatsApp).
+     */
     const captureLocation = () => {
         setLocationError(null);
         if (!navigator.geolocation) {
-            setLocationError("Tu navegador no comparte la ubicación. Escribe la dirección y las referencias.");
+            setLocationError("Tu navegador no comparte la ubicación. Elige retirar o, si es para otra persona, márcalo.");
             return;
         }
 
@@ -157,12 +161,13 @@ export const CartCheckout = () => {
                     deliveryLat: roundCoordinate(position.coords.latitude),
                     deliveryLng: roundCoordinate(position.coords.longitude),
                 }));
+                setErrors((current) => ({ ...current, deliveryLocation: undefined }));
                 setIsLocating(false);
             },
             (error) => {
                 setLocationError(error.code === error.PERMISSION_DENIED
-                    ? "No tenemos permiso para ver tu ubicación. Escribe la dirección y las referencias."
-                    : "No pudimos ubicarte. Escribe la dirección y las referencias.");
+                    ? "No tenemos permiso para ver tu ubicación. Actívala para este sitio, elige retirar o, si es para otra persona, márcalo."
+                    : "No pudimos ubicarte. Intenta de nuevo, elige retirar o, si es para otra persona, márcalo.");
                 setIsLocating(false);
             },
             { enableHighAccuracy: true, timeout: GEOLOCATION_TIMEOUT_MS, maximumAge: 60000 }
@@ -171,8 +176,19 @@ export const CartCheckout = () => {
 
     const clearLocation = () => setForm((current) => ({ ...current, deliveryLat: null, deliveryLng: null }));
 
+    // Para otra persona se coordina por WhatsApp: no se mide a quien pide y Yappy no aplica
+    const isForSomeoneElse = requiresDelivery && form.isForSomeoneElse;
+    const toggleForSomeoneElse = (event: ChangeEvent<HTMLInputElement>) => {
+        const checked = event.target.checked;
+        setForm((current) => ({ ...current, isForSomeoneElse: checked }));
+        setErrors((current) => ({ ...current, deliveryLocation: undefined }));
+        setLocationError(null);
+        setPaymentError(null);
+        if (checked) setPaymentMethod("whatsapp");
+    };
+
     // Si compartió su ubicación, a cuántos km queda y si el delivery llega (el API mide igual)
-    const reach = requiresDelivery && form.deliveryLat !== null && form.deliveryLng !== null
+    const reach = requiresDelivery && !isForSomeoneElse && form.deliveryLat !== null && form.deliveryLng !== null
         ? getDeliveryReach(settings.store, { lat: form.deliveryLat, lng: form.deliveryLng })
         : null;
     const reachError = reach?.reach === "out"
@@ -360,7 +376,21 @@ export const CartCheckout = () => {
                             <span className="field__help field__counter">{form.deliveryDetails.length}/{MAX_DETAILS_LENGTH}</span>
                         </div>
 
-                        {form.deliveryLat !== null && form.deliveryLng !== null ? (
+                        <label className="field__check" htmlFor="checkout-for-someone-else">
+                            <input
+                                id="checkout-for-someone-else"
+                                type="checkbox"
+                                checked={form.isForSomeoneElse}
+                                onChange={toggleForSomeoneElse}
+                            />
+                            Es para otra persona
+                        </label>
+
+                        {isForSomeoneElse ? (
+                            <p className="checkout__reach checkout__reach--far" role="status">
+                                Lo coordinamos por WhatsApp: mándanos la ubicación de quien recibe y te confirmamos si llegamos.
+                            </p>
+                        ) : form.deliveryLat !== null && form.deliveryLng !== null ? (
                             <div className="checkout__location" role="status">
                                 <PiCheckCircleBold aria-hidden />
                                 <span>Ubicación guardada{reach ? ` · a ${reach.km} km del local` : ""}</span>
@@ -372,7 +402,9 @@ export const CartCheckout = () => {
                                 <PiMapPinBold aria-hidden /> {isLocating ? "Buscando tu ubicación…" : "Usar mi ubicación"}
                             </button>
                         )}
-                        {locationError && <span className="field__error" role="alert">{locationError}</span>}
+                        {!isForSomeoneElse && (locationError || errors.deliveryLocation) && (
+                            <span className="field__error" role="alert">{locationError ?? errors.deliveryLocation}</span>
+                        )}
                         {reach?.reach === "far" && (
                             <p className="checkout__reach checkout__reach--far" role="status">
                                 Estás a {reach.km} km: llegamos, pero puede tardar un poco más.
@@ -391,10 +423,13 @@ export const CartCheckout = () => {
                                 name="checkout-payment"
                                 value={option.value}
                                 checked={paymentMethod === option.value}
+                                disabled={isForSomeoneElse && option.value === "yappy"}
                                 onChange={() => choosePaymentMethod(option.value)}
                             />
                             <span className="checkout__fulfillment-label">{option.label}</span>
-                            <span className="checkout__fulfillment-detail">{option.detail}</span>
+                            <span className="checkout__fulfillment-detail">
+                                {isForSomeoneElse && option.value === "yappy" ? "No para otra persona" : option.detail}
+                            </span>
                         </label>
                     ))}
                 </div>

@@ -85,6 +85,7 @@ const KitchenTicket = ({ order, now, onStep, onOpenDelivery }: IKitchenTicketPro
                 <span className="kitchen-ticket__name">
                     {order.customerName}
                     {order.delivery && <span className="kitchen-ticket__badge">Delivery</span>}
+                    {order.forSomeoneElse && <span className="kitchen-ticket__badge kitchen-ticket__badge--due">Para otra persona</span>}
                     {order.isAwaitingConfirmation
                         ? <span className="kitchen-ticket__badge kitchen-ticket__badge--wa">Por confirmar</span>
                         : isUnpaidOrder(order) && <span className="kitchen-ticket__badge kitchen-ticket__badge--due">Por cobrar</span>}
