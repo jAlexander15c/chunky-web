@@ -6,4 +6,6 @@
 
 ## Ramas
 - `dev`: rama de desarrollo, todo el trabajo nuevo se integra aqui.
-- `main`: rama de despliegue (produccion), solo recibe cambios ya probados desde `dev`.
+- `staging`: ambiente de pruebas, recibe lo que sale de `dev` para probarlo antes de produccion.
+- `main`: rama de despliegue (produccion), solo recibe cambios desde `staging` cuando las pruebas estan aprobadas.
+- Flujo: `dev` → `staging` → `main`. Nunca pasar de `dev` directo a `main`, y no subir a `main` sin que el usuario apruebe las pruebas en `staging`.
