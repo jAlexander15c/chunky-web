@@ -266,7 +266,16 @@ export interface IFinanceReport {
     hours: { hour: number; total: number; tickets: number }[];
     bestDay: { date: string; total: number } | null;
     slowestDay: { date: string; total: number } | null;
-    payments: { cash: number; card: number; yappy: number; web: number; shifts: number; shiftsWithoutBreakdown: number };
+    payments: {
+        cash: number;
+        card: number;
+        yappy: number;
+        web: number;
+        shifts: number;
+        shiftsWithoutBreakdown: number;
+        /** El turno sigue abierto: lo del local incluye lo que lleva cobrado. Opcional con el API viejo. */
+        openShift?: boolean;
+    };
     outflows: { total: number; count: number; reasons: { reason: string; total: number; count: number }[] };
     credits: { total: number; count: number; oldestAt: string | null };
     topProducts: { name: string; units: number; webUnits: number; webShare: number }[] | null;

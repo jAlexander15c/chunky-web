@@ -395,7 +395,7 @@ const PaymentsCard = ({ report }: { report: IFinanceReport }) => {
     return (
         <div className="adm-card">
             <h3 className="script">Cómo pagaron</h3>
-            <p className="adm-note">El local, según los cierres de turno; la web junta lo pagado con Yappy y con tarjeta en la página.</p>
+            <p className="adm-note">El local, según los cierres de turno y el turno en curso; la web junta lo pagado con Yappy y con tarjeta en la página.</p>
 
             {sum === 0 ? (
                 <p className="adm-empty">Sin cobros registrados en este período.</p>
@@ -419,7 +419,10 @@ const PaymentsCard = ({ report }: { report: IFinanceReport }) => {
                 </>
             )}
 
-            {payments.shifts === 0 ? (
+            {payments.openShift ? (
+                <p className="adm-callout">El local incluye lo que lleva cobrado el turno en curso: se completa al cerrarlo.</p>
+            ) : null}
+            {payments.shifts === 0 && !payments.openShift ? (
                 <p className="adm-callout">Ningún turno cerró en este período: lo cobrado en el local todavía no tiene desglose.</p>
             ) : payments.shiftsWithoutBreakdown > 0 ? (
                 <p className="adm-callout">
