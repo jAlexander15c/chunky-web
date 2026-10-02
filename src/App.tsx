@@ -10,6 +10,7 @@ import { Menu } from "@/views/menu";
 import { OrderStatusView } from "@/views/order-status";
 import { getTrackedPath, isAppReloading, trackEvent, useAppUpdate, useSettings } from "@/helpers";
 import { useOperationalAutoUpdate } from "@/hooks/useOperationalAutoUpdate";
+import { useOperationalManifest } from "@/hooks/useOperationalManifest";
 import { useSilentSiteUpdate } from "@/hooks/useSilentSiteUpdate";
 import { useWwwRedirect } from "@/hooks/useWwwRedirect";
 
@@ -75,6 +76,7 @@ const SiteUpdate = () => {
 /** /admin, /gestion y /staff: se recargan solas en un momento seguro y mientras tanto muestran el aviso. */
 const OperationalLayout = () => {
   const isUpdateAvailable = useOperationalAutoUpdate();
+  useOperationalManifest();
 
   return (
     <>

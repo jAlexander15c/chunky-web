@@ -1,0 +1,143 @@
+/* Acceso del equipo: Face ID, elegir PIN y Mi acceso. Funciona dentro de .adm y de .ges
+   con los tokens de marca de index.css; los botones y paneles son los de cada pantalla. */
+
+.sa-faceid-ico { width: 20px; height: 20px; flex: none; }
+
+.sa-faceid-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.sa-faceid-hero {
+    display: block;
+    width: 56px;
+    height: 56px;
+    margin: 0.4rem auto 0.8rem;
+    color: var(--mora);
+}
+
+.sa-faceid-login { display: grid; gap: 0.6rem; margin-bottom: 0.4rem; }
+
+/* "o con tu PIN": separa Face ID del PIN sin otra caja */
+.sa-or {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: var(--text-soft);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin: 0.3rem 0 0.4rem;
+}
+
+.sa-or::before,
+.sa-or::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--sky);
+}
+
+.sa-stack { display: grid; gap: 0.6rem; }
+
+/* Aviso de instalar en la pantalla de inicio (solo en Safari del iPhone) */
+.sa-install {
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+    text-align: left;
+    background: #f8e9c9;
+    color: #8d5d0c;
+    border-radius: 14px;
+    padding: 0.7rem 0.8rem;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    margin: 0 0 1rem;
+}
+
+.sa-install svg { width: 18px; height: 18px; flex: none; margin-top: 1px; }
+
+/* Pasos de elegir PIN: escribirlo y repetirlo */
+.sa-steps { display: flex; justify-content: center; gap: 6px; margin: 0.2rem 0 0.8rem; }
+.sa-steps i { width: 28px; height: 4px; border-radius: 4px; background: var(--sky); }
+.sa-steps i.is-on { background: var(--mora); }
+
+.sa-hint { font-size: 0.75rem; color: var(--text-soft); margin: 0.8rem 0 0; }
+
+/* Mi acceso */
+.sa-panel { display: grid; gap: 1rem; max-width: 640px; }
+.sa-panel--ges { padding: var(--gutter); }
+
+.sa-block {
+    background: #fffef6;
+    border: 1px solid #e4dec6;
+    border-radius: 16px;
+    padding: 1rem;
+    display: grid;
+    gap: 0.7rem;
+    align-content: start;
+}
+
+.sa-block h3 { margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--ink); }
+
+.sa-muted { margin: 0; font-size: 0.8rem; line-height: 1.5; color: var(--text-soft); }
+
+.sa-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.sa-row h3 { margin-right: auto; }
+.sa-switch { margin-left: auto; }
+
+.sa-devices { list-style: none; margin: 0; padding: 0; display: grid; }
+
+.sa-devices li {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 0;
+    border-top: 1px dashed #e4dec6;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.sa-devices li:first-child { border-top: 0; }
+.sa-devices li > span { margin-right: auto; min-width: 0; }
+.sa-devices small { display: block; font-weight: 600; font-size: 0.72rem; color: var(--text-soft); }
+
+.sa-pill {
+    justify-self: start;
+    font-size: 0.72rem;
+    font-weight: 800;
+    border-radius: 999px;
+    padding: 0.2rem 0.7rem;
+    background: var(--sky);
+    color: var(--mora);
+}
+
+.sa-pill.is-on { background: #dfeee4; color: #2f6f4c; }
+
+.sa-pin-form { display: grid; gap: 0.7rem; }
+.sa-pin-form label { display: grid; gap: 0.25rem; max-width: 220px; }
+
+.sa-pin-form label > span {
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-soft);
+}
+
+.sa-pin-form input {
+    font: inherit;
+    font-size: 1.2rem;
+    font-weight: 800;
+    letter-spacing: 0.35em;
+    padding: 0.5rem 0.7rem;
+    border: 2px solid var(--sky);
+    border-radius: 12px;
+    background: var(--crema);
+    color: var(--ink);
+}
+
+.sa-pin-form input:focus-visible { outline: 3px solid var(--mora); outline-offset: 1px; }

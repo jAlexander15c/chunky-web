@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useSearchParams } from "react-router";
 
@@ -9,6 +9,7 @@ import {
     readStoredSelection,
     storeSelection,
     fetchSupplies,
+    fetchStaffMe,
     formatMoney,
     getAdminToken,
     loadSettings,
@@ -22,7 +23,8 @@ import {
     syncReceiptsNow,
     useSettings,
 } from "@/helpers";
-import type { IDashboard, ISupplyStatus, PeriodSelection } from "@/helpers";
+import type { IDashboard, IStaffLogin, IStaffMe, ISupplyStatus, PeriodSelection } from "@/helpers";
+import { shouldOfferFaceId, useChoosePin, useFaceIdLogin } from "@/hooks/useStaffAccess";
 
 import { AdminCaja } from "./admin-caja";
 import { AdminCollaborators } from "./admin-collaborators";
@@ -37,6 +39,7 @@ import { AdminOverview } from "./admin-overview";
 import { PeriodPicker } from "./admin-period";
 import { ADMIN_GROUPS, ADMIN_SECTIONS, getSectionFromParam } from "./admin-sections";
 import type { AdminSection } from "./admin-sections";
+import { AccessPanel, FaceIdLoginButton, FaceIdOffer, InstallHint } from "./staff-access";
 
 import "./admin.css";
 
@@ -57,16 +60,18 @@ const useAdminHead = () => {
     }, []);
 };
 
-/* ============ Acceso con PIN ============ */
+/* ============ Acceso con PIN o Face ID ============ */
 
 interface IAdminLoginProps {
-    onLogin: (token: string) => void;
+    /** viaPin: entró escribiendo el PIN (después se le ofrece Face ID). */
+    onLogin: (login: IStaffLogin, viaPin: boolean) => void;
 }
 
 const AdminLogin = ({ onLogin }: IAdminLoginProps) => {
     const [pin, setPin] = useState("");
     const [error, setError] = useState("");
     const [isSending, setIsSending] = useState(false);
+    const faceId = useFaceIdLogin("admin", (login) => onLogin(login, false));
 
     const submit = async (event: FormEvent) => {
         event.preventDefault();
@@ -76,9 +81,7 @@ const AdminLogin = ({ onLogin }: IAdminLoginProps) => {
         setError("");
 
         try {
-            const { token } = await loginAdmin(pin);
-            setAdminToken(token);
-            onLogin(token);
+            onLogin(await loginAdmin(pin), true);
         } catch (requestError) {
             setError(requestError instanceof HttpError ? requestError.message : "No pudimos entrar.");
             setPin("");
@@ -92,7 +95,9 @@ const AdminLogin = ({ onLogin }: IAdminLoginProps) => {
             <form className="adm-gate__panel" onSubmit={submit}>
                 <span className="script adm-gate__mark">Chunky Bites</span>
                 <h1>Tablero</h1>
-                <p>Escribe el PIN de administración.</p>
+                <InstallHint />
+                <FaceIdLoginButton kind="adm" faceId={faceId} />
+                {faceId.isAvailable ? null : <p>Escribe tu PIN.</p>}
 
                 <label htmlFor="admin-pin" className="adm-sr-only">PIN</label>
                 <input
@@ -101,7 +106,7 @@ const AdminLogin = ({ onLogin }: IAdminLoginProps) => {
                     type="password"
                     inputMode="numeric"
                     autoComplete="off"
-                    autoFocus
+                    autoFocus={!faceId.isAvailable}
                     value={pin}
                     onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 12))}
                 />
@@ -111,6 +116,62 @@ const AdminLogin = ({ onLogin }: IAdminLoginProps) => {
                 <button type="submit" className="adm-btn adm-btn--solid adm-btn--block" disabled={pin.length < 4 || isSending}>
                     {isSending ? "Entrando…" : "Entrar"}
                 </button>
+            </form>
+        </div>
+    );
+};
+
+/** Quien entró con el PIN que generó el sistema elige el suyo antes de ver el tablero. */
+const AdminChoosePin = ({ token, name, onChanged }: { token: string; name: string; onChanged: (login: IStaffLogin) => void }) => {
+    const choose = useChoosePin("admin", token, onChanged);
+    const isFirst = choose.step === "first";
+
+    const submit = (event: FormEvent) => {
+        event.preventDefault();
+        void choose.submit(choose.pin);
+    };
+
+    return (
+        <div className="adm-gate">
+            <form className="adm-gate__panel" onSubmit={submit}>
+                <span className="script adm-gate__mark">Chunky Bites</span>
+                <h1>{isFirst ? "Elige tu PIN" : "Repite tu PIN"}</h1>
+                <div className="sa-steps" aria-hidden="true">
+                    <i className="is-on" />
+                    <i className={isFirst ? undefined : "is-on"} />
+                </div>
+                <p>
+                    {isFirst
+                        ? `Hola, ${name}. Escribe 6 números que recuerdes. Desde ahora entras con ese PIN o con Face ID.`
+                        : "Escríbelo otra vez para confirmarlo."}
+                </p>
+
+                <label htmlFor="admin-new-pin" className="adm-sr-only">{isFirst ? "PIN nuevo" : "Repite el PIN"}</label>
+                <input
+                    key={choose.step}
+                    id="admin-new-pin"
+                    className="adm-gate__input"
+                    type="password"
+                    inputMode="numeric"
+                    autoComplete="new-password"
+                    autoFocus
+                    value={choose.pin}
+                    onChange={(event) => {
+                        choose.setError("");
+                        choose.setPin(event.target.value.replace(/\D/g, "").slice(0, choose.pinLength));
+                    }}
+                />
+
+                {choose.error ? <p className="adm-gate__error" role="alert">{choose.error}</p> : null}
+
+                <button
+                    type="submit"
+                    className="adm-btn adm-btn--solid adm-btn--block"
+                    disabled={choose.pin.length !== choose.pinLength || choose.isSaving}
+                >
+                    {choose.isSaving ? "Guardando…" : isFirst ? "Seguir" : "Guardar PIN"}
+                </button>
+                <p className="sa-hint">No sirven 123456, 111111 ni parecidos.</p>
             </form>
         </div>
     );
@@ -370,7 +431,15 @@ const SECTION_PARAM = "s";
 
 /* ============ Tablero ============ */
 
-const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => void }) => {
+interface IAdminDashboardProps {
+    token: string;
+    /** Null si se entró con la llave de recuperación (ADMIN_PIN). */
+    personName: string | null;
+    onLogout: () => void;
+    onTokenChange: (login: IStaffLogin) => void;
+}
+
+const AdminDashboard = ({ token, personName, onLogout, onTokenChange }: IAdminDashboardProps) => {
     const [dashboard, setDashboard] = useState<IDashboard | null>(null);
     const [supplies, setSupplies] = useState<ISupplyStatus[]>([]);
     const [error, setError] = useState("");
@@ -472,7 +541,7 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
             <header className="adm-bar">
                 <div className="adm-bar__in">
                     <img className="adm-bar__logo" src={LOGO_SRC} alt="Chunky Bites Bakery" width={140} height={42} />
-                    <span className="adm-bar__where">{today}</span>
+                    <span className="adm-bar__where">{personName ? `${today} · ${personName}` : today}</span>
                     {openIncidents > 0 ? (
                         <button
                             type="button"
@@ -582,6 +651,15 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
                             <PastaModePanel token={token} onSessionExpired={onLogout} />
                             <ClientUpdateNoticePanel token={token} onSessionExpired={onLogout} />
                         </>
+                    ) : section === "acceso" ? (
+                        <AccessPanel
+                            kind="adm"
+                            scope="admin"
+                            token={token}
+                            personName={personName}
+                            onSessionExpired={onLogout}
+                            onTokenChange={onTokenChange}
+                        />
                     ) : (
                         <AdminCollaborators token={token} onSessionExpired={onLogout} />
                     )}
@@ -596,8 +674,17 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
     );
 };
 
+/** Lo que se sabe con un API que todavía no tiene /admin/me: sin persona y sin Face ID. */
+const UNKNOWN_ME: IStaffMe = { collaborator: null, mustChangePin: false, isFaceIdAvailable: false };
+
 export const AdminView = () => {
     const [token, setToken] = useState<string | null>(() => getAdminToken());
+    const [me, setMe] = useState<IStaffMe | null>(null);
+    const [meError, setMeError] = useState("");
+    const [retryKey, setRetryKey] = useState(0);
+    const [isOfferingFaceId, setIsOfferingFaceId] = useState(false);
+    /** Entró con PIN en esta visita: al terminar se le ofrece Face ID una vez. */
+    const offerAfterPinRef = useRef(false);
     useAdminHead();
 
     // También al vencer la sesión: revocar una ya vencida no hace daño
@@ -605,8 +692,82 @@ export const AdminView = () => {
         if (token) void logoutAdmin(token);
         setAdminToken(null);
         setToken(null);
+        setMe(null);
+        setIsOfferingFaceId(false);
     }, [token]);
 
-    if (!token) return <AdminLogin onLogin={setToken} />;
-    return <AdminDashboard token={token} onLogout={logout} />;
+    const applyLogin = useCallback((login: IStaffLogin, viaPin = false) => {
+        setAdminToken(login.token);
+        setToken(login.token);
+        setMe(null);
+        if (viaPin) offerAfterPinRef.current = true;
+    }, []);
+
+    // Quién tiene la sesión y si le falta elegir PIN: se pregunta al API, no se guarda en el navegador
+    useEffect(() => {
+        if (!token || me) return;
+
+        const controller = new AbortController();
+        fetchStaffMe("admin", token, controller.signal)
+            .then((loaded) => {
+                setMeError("");
+                setMe(loaded);
+            })
+            .catch((requestError) => {
+                if (controller.signal.aborted) return;
+                if (requestError instanceof HttpError && requestError.status === 401) {
+                    setAdminToken(null);
+                    setToken(null);
+                    return;
+                }
+                if (requestError instanceof HttpError && requestError.status === 404) {
+                    setMe(UNKNOWN_ME);
+                    return;
+                }
+                setMeError("No pudimos conectar. Revisa la conexión.");
+            });
+        return () => controller.abort();
+    }, [token, me, retryKey]);
+
+    // Ya con su PIN propio: si entró con PIN y el equipo tiene Face ID, se le ofrece una vez
+    useEffect(() => {
+        if (!me?.collaborator || me.mustChangePin || !offerAfterPinRef.current) return;
+        offerAfterPinRef.current = false;
+        void shouldOfferFaceId(me.isFaceIdAvailable).then(setIsOfferingFaceId);
+    }, [me]);
+
+    if (!token) return <AdminLogin onLogin={applyLogin} />;
+    if (!me) {
+        return (
+            <div className="adm-gate">
+                <div className="adm-gate__panel">
+                    <span className="script adm-gate__mark">Chunky Bites</span>
+                    {meError ? (
+                        <>
+                            <p className="adm-gate__error" role="alert">{meError}</p>
+                            <button type="button" className="adm-btn adm-btn--block" onClick={() => setRetryKey((key) => key + 1)}>
+                                Reintentar
+                            </button>
+                        </>
+                    ) : (
+                        <p className="adm-gate__loading script">Entrando…</p>
+                    )}
+                </div>
+            </div>
+        );
+    }
+    if (me.mustChangePin && me.collaborator) {
+        return <AdminChoosePin token={token} name={me.collaborator.name} onChanged={(login) => applyLogin(login, true)} />;
+    }
+    if (isOfferingFaceId) {
+        return <FaceIdOffer kind="adm" scope="admin" token={token} mark="Chunky Bites" onDone={() => setIsOfferingFaceId(false)} />;
+    }
+    return (
+        <AdminDashboard
+            token={token}
+            personName={me.collaborator?.name ?? null}
+            onLogout={logout}
+            onTokenChange={(login) => applyLogin(login)}
+        />
+    );
 };

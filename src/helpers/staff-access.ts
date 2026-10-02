@@ -47,6 +47,23 @@ export const fetchStaffMe = (scope: StaffScope, token: string, signal?: AbortSig
 export const changeMyPin = (scope: StaffScope, token: string, newPin: string) =>
     httpPost<IStaffLogin>(`/${scope}/me/pin`, { newPin }, { headers: getScopeHeaders(scope, token) });
 
+/**
+ * PIN que se adivina en pocos intentos: todos iguales, escaleras (123456, 654321) o un par o
+ * trío repetido (121212, 123123). Es la misma regla de pin.rules del API, que es quien decide;
+ * aquí solo sirve para avisar en el primer paso y no después de repetirlo.
+ */
+export const isPinEasyToGuess = (pin: string) => {
+    const digits = pin.split("").map(Number);
+    const steps = digits.slice(1).map((digit, index) => digit - digits[index]);
+
+    const isSameDigit = steps.every((step) => step === 0);
+    const isLadder = steps.every((step) => step === 1) || steps.every((step) => step === -1);
+    const isRepeatedPair = pin === pin.slice(0, 2).repeat(3);
+    const isRepeatedTriple = pin === pin.slice(0, 3).repeat(2);
+
+    return isSameDigit || isLadder || isRepeatedPair || isRepeatedTriple;
+};
+
 /* ============ Face ID ============ */
 
 const FACE_ID_FLAG_KEY = "chunky-faceid";

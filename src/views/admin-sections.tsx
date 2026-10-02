@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 /** Las secciones del tablero. El id es el que va en la dirección: /admin?s=inventario. */
-export type AdminSection = "resumen" | "ventas" | "web" | "clientes" | "inventario" | "menu" | "caja" | "local" | "colaboradores";
+export type AdminSection = "resumen" | "ventas" | "web" | "clientes" | "inventario" | "menu" | "caja" | "local" | "colaboradores" | "acceso";
 
 export interface IAdminSectionInfo {
     id: AdminSection;
@@ -122,12 +122,24 @@ export const ADMIN_GROUPS: IAdminSectionGroup[] = [
             {
                 id: "colaboradores",
                 label: "Colaboradores",
-                subtitle: "Entran a /gestion con su PIN y ven solo lo que su rol permite.",
+                subtitle: "Entran con su PIN o Face ID y ven solo lo que su rol permite. Admin abre este tablero.",
                 source: "Postgres",
                 icon: (
                     <>
                         <circle cx="9" cy="8" r="3.5" />
                         <path d="M2 20c0-3.5 3-6 7-6s7 2.5 7 6M17 5a3.2 3.2 0 0 1 0 6M22 20c0-2.8-1.6-4.7-4-5.6" />
+                    </>
+                ),
+            },
+            {
+                // Face ID, PIN propio y avisos de insumos de quien tiene el tablero abierto
+                id: "acceso",
+                label: "Mi acceso",
+                subtitle: "Tu PIN, tus equipos con Face ID y los avisos de insumos en este teléfono.",
+                icon: (
+                    <>
+                        <path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" />
+                        <path d="M9 9.5v1M15 9.5v1M12 9.5v3.5h-1M9.5 15.5c1.4 1.1 3.6 1.1 5 0" />
                     </>
                 ),
             },

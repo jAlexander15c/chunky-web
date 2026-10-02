@@ -36,6 +36,7 @@ const ROLE_HINT: Record<CollaboratorRole, string> = {
     caja: "Mesas, cobrar y cerrar la caja",
     pastelera: "Pastelería: cotizaciones de cakes con sus fotos, registro a mano e ingresos",
     repartidor: "Delivery: toma los pedidos listos, comparte su ubicación y cobra al entregar",
+    admin: "Tablero completo (ventas, menú, colaboradores) y avisos de insumos en su teléfono",
 };
 
 interface ICollaboratorDialogProps {
@@ -83,7 +84,7 @@ const CollaboratorDialog = ({ editing, onSave, onClose }: ICollaboratorDialogPro
                 <p className="adm-modal__hint">
                     {editing
                         ? "Cambia su nombre o lo que puede hacer. El PIN no se toca aquí."
-                        : "El PIN lo genera el sistema y se muestra una sola vez. Anótalo y entrégaselo."}
+                        : "El sistema genera un PIN que se muestra una sola vez. Entrégaselo: al entrar, la persona elige el suyo."}
                 </p>
 
                 <div className="adm-form">
@@ -212,7 +213,8 @@ export const AdminCollaborators = ({ token, onSessionExpired }: { token: string;
                 {freshPin ? (
                     <div className="adm-reveal" role="status">
                         <p>
-                            <b>{freshPin.name}</b> ya puede entrar. Anota el PIN ahora: no se vuelve a mostrar.
+                            <b>{freshPin.name}</b> ya puede entrar. Entrégale este PIN: no se vuelve a mostrar, y al entrar
+                            elige el suyo. Si tenía Face ID, tiene que volver a activarlo.
                         </p>
                         <span className="adm-reveal__pin">{freshPin.pin}</span>
                         <button type="button" className="adm-btn adm-btn--sm" onClick={() => setFreshPin(null)}>

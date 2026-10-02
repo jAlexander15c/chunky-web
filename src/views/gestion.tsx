@@ -1,20 +1,23 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import {
+    COLLABORATOR_ROLES,
     HttpError,
     ROLE_LABEL,
-    fetchGestionMe,
+    fetchStaffMe,
     formatCash,
     getGestionToken,
+    hasUsedFaceIdHere,
     loginGestion,
     logoutGestion,
     setGestionToken,
 } from "@/helpers";
-import type { CollaboratorRole, IGestionSession, IShiftDetail } from "@/helpers";
+import type { CollaboratorRole, IGestionSession, IShiftDetail, IStaffLogin } from "@/helpers";
 import { useCourierTracking } from "@/hooks/useCourierTracking";
 import { useDeliveryFeed } from "@/hooks/useDeliveryFeed";
 import { useKitchenFeed } from "@/hooks/useKitchenFeed";
+import { shouldOfferFaceId, useChoosePin, useFaceIdLogin } from "@/hooks/useStaffAccess";
 
 import { GestionCaja } from "./gestion/caja";
 import { GestionCocina, KitchenToast } from "./gestion/cocina";
@@ -23,6 +26,7 @@ import { GestionDelivery } from "./gestion/delivery";
 import { GestionInventario } from "./gestion/inventario";
 import { GestionPasteleria } from "./gestion/pasteleria";
 import { GestionTurno } from "./gestion/turno";
+import { AccessPanel, FaceIdLoginButton, FaceIdOffer, InstallHint } from "./staff-access";
 
 import "./gestion.css";
 import "./admin.css";
@@ -39,18 +43,77 @@ const useGestionHead = () => {
     }, []);
 };
 
-/* ============ Acceso con PIN ============ */
+/* ============ Acceso con PIN o Face ID ============ */
 
 const PIN_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"];
 
+interface IPinPadProps {
+    pin: string;
+    isBusy: boolean;
+    /** Lo que se lee bajo los puntos: el error o "Entrando…". */
+    status: string;
+    onChange: (pin: string) => void;
+    /** Con seis dígitos se envía solo: no hace falta buscar el botón con las manos ocupadas. */
+    onComplete: (pin: string) => void;
+}
+
+/** Los puntos y el teclado grande de /gestion, para entrar y para elegir el PIN. */
+const PinPad = ({ pin, isBusy, status, onChange, onComplete }: IPinPadProps) => {
+    const pressKey = (key: string) => {
+        if (isBusy) return;
+        if (key === "⌫") {
+            onChange(pin.slice(0, -1));
+            return;
+        }
+        if (pin.length >= PIN_LENGTH) return;
+
+        const next = pin + key;
+        onChange(next);
+        if (next.length === PIN_LENGTH) onComplete(next);
+    };
+
+    return (
+        <>
+            <div className="ges-dots" role="status" aria-label={`${pin.length} de ${PIN_LENGTH} dígitos`}>
+                {Array.from({ length: PIN_LENGTH }, (_value, index) => (
+                    <span key={index} className={index < pin.length ? "is-on" : undefined} />
+                ))}
+            </div>
+
+            <p className="ges-gate__error" role="alert">{status}</p>
+
+            <div className="ges-keys">
+                {PIN_KEYS.map((key, index) =>
+                    key ? (
+                        <button
+                            key={key}
+                            type="button"
+                            className={`ges-key${key === "⌫" ? " ges-key--soft" : ""}`}
+                            onClick={() => pressKey(key)}
+                            disabled={isBusy}
+                            aria-label={key === "⌫" ? "Borrar" : key}
+                        >
+                            {key}
+                        </button>
+                    ) : (
+                        <span key={`vacio-${index}`} />
+                    )
+                )}
+            </div>
+        </>
+    );
+};
+
 interface IGestionLoginProps {
-    onLogin: (token: string, collaborator: IGestionSession) => void;
+    /** viaPin: entró escribiendo el PIN (después se le ofrece Face ID). */
+    onLogin: (login: IStaffLogin, viaPin: boolean) => void;
 }
 
 const GestionLogin = ({ onLogin }: IGestionLoginProps) => {
     const [pin, setPin] = useState("");
     const [error, setError] = useState("");
     const [isSending, setIsSending] = useState(false);
+    const faceId = useFaceIdLogin("gestion", (login) => onLogin(login, false));
 
     const submit = useCallback(
         async (candidate: string) => {
@@ -58,8 +121,7 @@ const GestionLogin = ({ onLogin }: IGestionLoginProps) => {
             setError("");
 
             try {
-                const { token, collaborator } = await loginGestion(candidate);
-                onLogin(token, collaborator);
+                onLogin(await loginGestion(candidate), true);
             } catch (loginError) {
                 setPin("");
                 setIsSending(false);
@@ -73,57 +135,63 @@ const GestionLogin = ({ onLogin }: IGestionLoginProps) => {
         [onLogin]
     );
 
-    // Con seis dígitos entra sola: no hace falta buscar el botón con las manos ocupadas
-    const pressKey = (key: string) => {
-        if (isSending) return;
-        setError("");
-
-        if (key === "⌫") {
-            setPin((current) => current.slice(0, -1));
-            return;
-        }
-
-        setPin((current) => {
-            if (current.length >= PIN_LENGTH) return current;
-            const next = current + key;
-            if (next.length === PIN_LENGTH) void submit(next);
-            return next;
-        });
-    };
+    const isReturning = faceId.isAvailable && hasUsedFaceIdHere();
 
     return (
         <div className="ges ges-gate">
             <div className="ges-gate__panel">
                 <span className="ges-gate__mark script">Gestión</span>
-                <h1>Entra con tu PIN</h1>
+                <h1>{isReturning ? "Hola de nuevo" : "Entra con tu PIN"}</h1>
                 <p>Es tuyo: lo que registres queda a tu nombre.</p>
+                <InstallHint />
+                <FaceIdLoginButton kind="ges" faceId={faceId} />
 
-                <div className="ges-dots" role="status" aria-label={`${pin.length} de ${PIN_LENGTH} dígitos`}>
-                    {Array.from({ length: PIN_LENGTH }, (_value, index) => (
-                        <span key={index} className={index < pin.length ? "is-on" : undefined} />
-                    ))}
+                <PinPad
+                    pin={pin}
+                    isBusy={isSending}
+                    status={isSending ? "Entrando…" : error}
+                    onChange={(next) => {
+                        setError("");
+                        setPin(next);
+                    }}
+                    onComplete={(next) => void submit(next)}
+                />
+            </div>
+        </div>
+    );
+};
+
+/** Quien entró con el PIN que generó el tablero elige el suyo, con el mismo teclado. */
+const GestionChoosePin = ({ token, name, onChanged }: { token: string; name: string; onChanged: (login: IStaffLogin) => void }) => {
+    const choose = useChoosePin("gestion", token, onChanged);
+    const isFirst = choose.step === "first";
+
+    return (
+        <div className="ges ges-gate">
+            <div className="ges-gate__panel">
+                <span className="ges-gate__mark script">Gestión</span>
+                <h1>{isFirst ? "Elige tu PIN" : "Repite tu PIN"}</h1>
+                <div className="sa-steps" aria-hidden="true">
+                    <i className="is-on" />
+                    <i className={isFirst ? undefined : "is-on"} />
                 </div>
+                <p>
+                    {isFirst
+                        ? `Hola, ${name}. Escribe 6 números que recuerdes. Desde ahora entras con ese PIN o con Face ID.`
+                        : "Escríbelo otra vez para confirmarlo."}
+                </p>
 
-                <p className="ges-gate__error" role="alert">{isSending ? "Entrando…" : error}</p>
-
-                <div className="ges-keys">
-                    {PIN_KEYS.map((key, index) =>
-                        key ? (
-                            <button
-                                key={key}
-                                type="button"
-                                className={`ges-key${key === "⌫" ? " ges-key--soft" : ""}`}
-                                onClick={() => pressKey(key)}
-                                disabled={isSending}
-                                aria-label={key === "⌫" ? "Borrar" : key}
-                            >
-                                {key}
-                            </button>
-                        ) : (
-                            <span key={`vacio-${index}`} />
-                        )
-                    )}
-                </div>
+                <PinPad
+                    pin={choose.pin}
+                    isBusy={choose.isSaving}
+                    status={choose.isSaving ? "Guardando…" : choose.error}
+                    onChange={(next) => {
+                        choose.setError("");
+                        choose.setPin(next);
+                    }}
+                    onComplete={(next) => void choose.submit(next)}
+                />
+                <p className="sa-hint">No sirven 123456, 111111 ni parecidos.</p>
             </div>
         </div>
     );
@@ -131,7 +199,7 @@ const GestionLogin = ({ onLogin }: IGestionLoginProps) => {
 
 /* ============ Armazón ============ */
 
-type Section = "caja" | "turno" | "creditos" | "cocina" | "delivery" | "inventario" | "pasteleria";
+type Section = "caja" | "turno" | "creditos" | "cocina" | "delivery" | "inventario" | "pasteleria" | "acceso";
 
 interface ISectionInfo {
     id: Section;
@@ -228,6 +296,20 @@ const SECTIONS: ISectionInfo[] = [
             </svg>
         ),
     },
+    {
+        // Va al final y la ve cualquiera con un rol: es de la persona, no de su trabajo
+        id: "acceso",
+        // Corto: en la barra de abajo del teléfono ya van siete secciones
+        label: "Acceso",
+        roles: COLLABORATOR_ROLES,
+        sub: "Tu PIN y tus equipos con Face ID",
+        icon: (
+            <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" />
+                <path d="M9 9.5v1M15 9.5v1M12 9.5v3.5h-1M9.5 15.5c1.4 1.1 3.6 1.1 5 0" />
+            </svg>
+        ),
+    },
 ];
 
 interface IGestionShellProps {
@@ -236,9 +318,10 @@ interface IGestionShellProps {
     name: string;
     roles: CollaboratorRole[];
     onLogout: () => void;
+    onTokenChange: (login: IStaffLogin) => void;
 }
 
-const GestionShell = ({ token, meId, name, roles, onLogout }: IGestionShellProps) => {
+const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGestionShellProps) => {
     const [shift, setShift] = useState<IShiftDetail | null>(null);
 
     // Solo se ofrece lo que esta persona puede hacer
@@ -371,6 +454,15 @@ const GestionShell = ({ token, meId, name, roles, onLogout }: IGestionShellProps
                         />
                     ) : current.id === "pasteleria" ? (
                         <GestionPasteleria token={token} onSessionExpired={onLogout} />
+                    ) : current.id === "acceso" ? (
+                        <AccessPanel
+                            kind="ges"
+                            scope="gestion"
+                            token={token}
+                            personName={name}
+                            onSessionExpired={onLogout}
+                            onTokenChange={onTokenChange}
+                        />
                     ) : (
                         <GestionInventario token={token} onSessionExpired={onLogout} />
                     )}
@@ -395,17 +487,27 @@ const GestionSessionCheck = ({ error, onRetry }: { error: string; onRetry: () =>
     </div>
 );
 
+interface IGestionMe extends IGestionSession {
+    mustChangePin: boolean;
+    isFaceIdAvailable: boolean;
+}
+
 export const GestionView = () => {
     const [token, setToken] = useState<string | null>(() => getGestionToken());
-    const [session, setSession] = useState<IGestionSession | null>(null);
+    const [session, setSession] = useState<IGestionMe | null>(null);
     const [sessionError, setSessionError] = useState("");
     const [retryKey, setRetryKey] = useState(0);
+    const [isOfferingFaceId, setIsOfferingFaceId] = useState(false);
+    /** Entró con PIN en esta visita: al terminar se le ofrece Face ID una vez. */
+    const offerAfterPinRef = useRef(false);
     useGestionHead();
 
-    const login = useCallback((newToken: string, collaborator: IGestionSession) => {
-        setGestionToken(newToken);
-        setToken(newToken);
-        setSession(collaborator);
+    // Nombre, roles y si le falta elegir PIN se piden siempre al API (efecto de abajo)
+    const login = useCallback((result: IStaffLogin, viaPin = false) => {
+        setGestionToken(result.token);
+        setToken(result.token);
+        setSession(null);
+        if (viaPin) offerAfterPinRef.current = true;
     }, []);
 
     // También al vencer la sesión: revocar una ya vencida no hace daño
@@ -414,6 +516,7 @@ export const GestionView = () => {
         setGestionToken(null);
         setToken(null);
         setSession(null);
+        setIsOfferingFaceId(false);
     }, [token]);
 
     // Con un token guardado, nombre y roles se piden al API: no se guardan en el navegador
@@ -421,8 +524,17 @@ export const GestionView = () => {
         if (!token || session) return;
 
         const controller = new AbortController();
-        fetchGestionMe(token, controller.signal)
-            .then(setSession)
+        fetchStaffMe("gestion", token, controller.signal)
+            .then(({ collaborator, mustChangePin, isFaceIdAvailable }) => {
+                if (!collaborator) return;
+                setSession({
+                    ...collaborator,
+                    roles: collaborator.roles.filter((role) => COLLABORATOR_ROLES.includes(role)),
+                    // Un API sin estos campos (antes de desplegarlo) no pide elegir PIN
+                    mustChangePin: mustChangePin === true,
+                    isFaceIdAvailable: isFaceIdAvailable === true,
+                });
+            })
             .catch((requestError) => {
                 if (controller.signal.aborted) return;
                 if (requestError instanceof HttpError && requestError.status === 401) {
@@ -435,6 +547,13 @@ export const GestionView = () => {
         return () => controller.abort();
     }, [token, session, retryKey]);
 
+    // Ya con su PIN propio: si entró con PIN y el equipo tiene Face ID, se le ofrece una vez
+    useEffect(() => {
+        if (!session || session.mustChangePin || !offerAfterPinRef.current) return;
+        offerAfterPinRef.current = false;
+        void shouldOfferFaceId(session.isFaceIdAvailable).then(setIsOfferingFaceId);
+    }, [session]);
+
     if (!token) return <GestionLogin onLogin={login} />;
     if (!session) {
         const retry = () => {
@@ -443,5 +562,20 @@ export const GestionView = () => {
         };
         return <GestionSessionCheck error={sessionError} onRetry={retry} />;
     }
-    return <GestionShell token={token} meId={session.id} name={session.name} roles={session.roles} onLogout={logout} />;
+    if (session.mustChangePin) {
+        return <GestionChoosePin token={token} name={session.name} onChanged={(result) => login(result, true)} />;
+    }
+    if (isOfferingFaceId) {
+        return <FaceIdOffer kind="ges" scope="gestion" token={token} mark="Gestión" onDone={() => setIsOfferingFaceId(false)} />;
+    }
+    return (
+        <GestionShell
+            token={token}
+            meId={session.id}
+            name={session.name}
+            roles={session.roles}
+            onLogout={logout}
+            onTokenChange={(result) => login(result)}
+        />
+    );
 };
