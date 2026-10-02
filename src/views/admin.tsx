@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import type { FormEvent, ReactNode } from "react";
+import type { FormEvent } from "react";
+import { useSearchParams } from "react-router";
 
 import {
     HttpError,
     fetchDashboard,
+    getSelectionRange,
+    readStoredSelection,
+    storeSelection,
     fetchSupplies,
     formatMoney,
     getAdminToken,
@@ -18,24 +22,30 @@ import {
     syncReceiptsNow,
     useSettings,
 } from "@/helpers";
-import type { IDashboard, ISupplyStatus } from "@/helpers";
+import type { IDashboard, ISupplyStatus, PeriodSelection } from "@/helpers";
 
 import { AdminCaja } from "./admin-caja";
 import { AdminCollaborators } from "./admin-collaborators";
-import { AdminFinance, StatTile } from "./admin-finance";
+import { AdminFinance } from "./admin-finance";
 import { AdminHours } from "./admin-hours";
 import { AdminIncidents } from "./admin-incidents";
 import { AdminInventory } from "./admin-inventory";
 import { AdminMenu } from "./admin-menu";
 import { AdminWeb } from "./admin-web";
 import { AdminCustomers } from "./admin-customers";
+import { AdminOverview } from "./admin-overview";
+import { PeriodPicker } from "./admin-period";
+import { ADMIN_GROUPS, ADMIN_SECTIONS, getSectionFromParam } from "./admin-sections";
+import type { AdminSection } from "./admin-sections";
 
 import "./admin.css";
 
 /** El tablero se refresca solo: la cocina carga producción mientras alguien mira las cifras. */
 const REFRESH_MS = 60000;
-/** "El día" solo necesita hoy; las finanzas piden su propio rango. */
-const TODAY_SALES_DAYS = 1;
+/** Hoy y los siete días anteriores: el resumen compara con el mismo día de la semana pasada. */
+const SUMMARY_SALES_DAYS = 8;
+/** El logo azul de los correos: pesa poco y se lee sobre el crema. */
+const LOGO_SRC = "/correo/logo.png";
 
 const useAdminHead = () => {
     useEffect(() => {
@@ -354,84 +364,9 @@ const PastaModePanel = ({ token, onSessionExpired }: { token: string; onSessionE
     );
 };
 
-/* ============ Menú ============ */
-
-type AdminSection = "tablero" | "web" | "clientes" | "inventario" | "menu" | "caja" | "local" | "colaboradores";
-
-const ADMIN_SECTIONS: { id: AdminSection; label: string; icon: ReactNode }[] = [
-    {
-        id: "tablero",
-        label: "Tablero",
-        icon: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
-    },
-    {
-        // Embudo de compra y clics de la web publica
-        id: "web",
-        label: "Web",
-        icon: <path d="M4 4l7 17 2.5-7.5L21 11z" />,
-    },
-    {
-        // Quién compra en la web y en el local
-        id: "clientes",
-        label: "Clientes",
-        icon: (
-            <>
-                <circle cx="12" cy="8" r="4" />
-                <path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" />
-            </>
-        ),
-    },
-    {
-        id: "inventario",
-        label: "Inventario",
-        icon: (
-            <>
-                <path d="M3 7l9-4 9 4v10l-9 4-9-4z" />
-                <path d="M3 7l9 4 9-4M12 11v10" />
-            </>
-        ),
-    },
-    {
-        id: "menu",
-        label: "Menú",
-        icon: (
-            <>
-                <path d="M5 3h11l3 3v15H5z" />
-                <path d="M9 9h6M9 13h6M9 17h4" />
-            </>
-        ),
-    },
-    {
-        id: "caja",
-        label: "Caja",
-        icon: (
-            <>
-                <rect x="2" y="7" width="20" height="13" rx="2" />
-                <path d="M6 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2M2 12h20" />
-            </>
-        ),
-    },
-    {
-        id: "local",
-        label: "Local",
-        icon: (
-            <>
-                <path d="M3 9l1.5-5h15L21 9M3 9h18M3 9v11h18V9" />
-                <path d="M9 20v-6h6v6" />
-            </>
-        ),
-    },
-    {
-        id: "colaboradores",
-        label: "Colaboradores",
-        icon: (
-            <>
-                <circle cx="9" cy="8" r="3.5" />
-                <path d="M2 20c0-3.5 3-6 7-6s7 2.5 7 6M17 5a3.2 3.2 0 0 1 0 6M22 20c0-2.8-1.6-4.7-4-5.6" />
-            </>
-        ),
-    },
-];
+/** Las secciones que usan el período del encabezado. */
+const PERIOD_SECTIONS: AdminSection[] = ["ventas", "web"];
+const SECTION_PARAM = "s";
 
 /* ============ Tablero ============ */
 
@@ -442,15 +377,20 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
     const [isLoading, setIsLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
     const [openIncidents, setOpenIncidents] = useState(0);
-    const [section, setSection] = useState<AdminSection>("tablero");
+    const [period, setPeriod] = useState<PeriodSelection>(readStoredSelection);
     /** Sube al leer recibos a mano: la sección abierta vuelve a cargar. */
     const [refreshKey, setRefreshKey] = useState(0);
+
+    // La sección va en la dirección: al recargar o compartir el enlace se abre la misma
+    const [searchParams, setSearchParams] = useSearchParams();
+    const section = getSectionFromParam(searchParams.get(SECTION_PARAM));
+    const sectionInfo = ADMIN_SECTIONS.find((one) => one.id === section) ?? ADMIN_SECTIONS[0];
 
     const loadSummary = useCallback(
         async (signal?: AbortSignal) => {
             try {
                 const [dashboardData, suppliesData] = await Promise.all([
-                    fetchDashboard(token, TODAY_SALES_DAYS, signal),
+                    fetchDashboard(token, SUMMARY_SALES_DAYS, signal),
                     fetchSupplies(token, signal),
                 ]);
 
@@ -495,14 +435,29 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
         }
     };
 
-    const openSection = (next: AdminSection) => {
-        setSection(next);
-        window.scrollTo({ top: 0 });
+    /** Abre una sección. Con anchor, además baja hasta ese bloque (los descuadres viven en el resumen). */
+    const openSection = (next: AdminSection, anchor?: string) => {
+        if (next !== section) {
+            // Cada sección nueva entra al historial: el botón atrás vuelve a la anterior
+            setSearchParams(next === "resumen" ? {} : { [SECTION_PARAM]: next });
+        }
+        window.requestAnimationFrame(() => {
+            if (anchor) document.getElementById(anchor)?.scrollIntoView({ behavior: "smooth", block: "start" });
+            else window.scrollTo({ top: 0 });
+        });
     };
 
+    const changePeriod = (next: PeriodSelection) => {
+        setPeriod(next);
+        storeSelection(next);
+    };
+
+    const range = getSelectionRange(period);
+
     const toBuy = supplies.filter((supply) => supply.state === "comprar");
-    // Puede faltar si Loyverse no respondio; el resto del tablero se muestra igual
-    const sales = dashboard?.sales ?? null;
+    const today = dashboard
+        ? new Date(dashboard.serverTime).toLocaleDateString("es-PA", { weekday: "short", day: "numeric", month: "short" })
+        : "";
 
     if (isLoading) {
         return (
@@ -516,137 +471,126 @@ const AdminDashboard = ({ token, onLogout }: { token: string; onLogout: () => vo
         <div className="adm">
             <header className="adm-bar">
                 <div className="adm-bar__in">
-                    <span className="script adm-bar__mark">Chunky Bites</span>
-                    <span className="adm-bar__where">
-                        Tablero · {dashboard ? new Date(dashboard.serverTime).toLocaleDateString("es-PA", { weekday: "short", day: "numeric", month: "short" }) : ""}
-                    </span>
+                    <img className="adm-bar__logo" src={LOGO_SRC} alt="Chunky Bites Bakery" width={140} height={42} />
+                    <span className="adm-bar__where">{today}</span>
                     {openIncidents > 0 ? (
-                        <a
+                        <button
+                            type="button"
                             className="adm-btn adm-btn--sm adm-btn--alert"
-                            href="#descuadres"
-                            onClick={(event) => {
-                                if (section === "tablero") return;
-                                // Los descuadres viven en el tablero: primero se abre y luego se baja hasta ellos
-                                event.preventDefault();
-                                setSection("tablero");
-                                window.requestAnimationFrame(() => document.getElementById("descuadres")?.scrollIntoView());
-                            }}
+                            aria-label={`${openIncidents} descuadres sin resolver`}
+                            onClick={() => openSection("resumen", "descuadres")}
                         >
-                            Descuadres <span className="adm-btn__count">{openIncidents}</span>
-                        </a>
+                            <span className="adm-btn__text">Descuadres</span> <span className="adm-btn__count">{openIncidents}</span>
+                        </button>
                     ) : null}
-                    <button type="button" className="adm-btn adm-btn--sm" onClick={runSync} disabled={isSyncing}>
+                    <button type="button" className="adm-btn adm-btn--sm" onClick={runSync} disabled={isSyncing} title="Trae los recibos nuevos de Loyverse">
                         {isSyncing ? "Leyendo…" : "Leer recibos"}
                     </button>
-                    <button type="button" className="adm-btn adm-btn--sm" onClick={onLogout}>Salir</button>
+                    <button type="button" className="adm-btn adm-btn--sm adm-btn--ghost" onClick={onLogout}>Salir</button>
                 </div>
                 <div className="awning" aria-hidden="true" />
             </header>
 
             <div className="adm-shell">
-            <nav className="adm-menu" aria-label="Secciones del tablero">
-                {ADMIN_SECTIONS.map((one) => (
-                    <button
-                        key={one.id}
-                        type="button"
-                        className="adm-menu__item"
-                        aria-current={section === one.id}
-                        onClick={() => openSection(one.id)}
-                    >
-                        <svg className="adm-menu__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                            {one.icon}
-                        </svg>
-                        {one.label}
-                        {one.id === "inventario" && toBuy.length > 0 ? (
-                            <span className="adm-menu__badge" aria-label={`${toBuy.length} insumos por comprar`}>{toBuy.length}</span>
-                        ) : null}
-                    </button>
-                ))}
-            </nav>
+                <nav className="adm-menu" aria-label="Secciones del tablero">
+                    {ADMIN_GROUPS.map((group) => (
+                        <div className="adm-menu__group" role="group" aria-labelledby={`adm-menu-${group.label}`} key={group.label}>
+                            <span className="adm-menu__label" id={`adm-menu-${group.label}`}>{group.label}</span>
+                            {group.sections.map((one) => (
+                                <button
+                                    key={one.id}
+                                    type="button"
+                                    className="adm-menu__item"
+                                    aria-current={section === one.id}
+                                    onClick={() => openSection(one.id)}
+                                >
+                                    <svg
+                                        className="adm-menu__ico"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        aria-hidden="true"
+                                    >
+                                        {one.icon}
+                                    </svg>
+                                    {one.label}
+                                    {one.id === "inventario" && toBuy.length > 0 ? (
+                                        <span className="adm-menu__badge" aria-label={`${toBuy.length} insumos por comprar`}>{toBuy.length}</span>
+                                    ) : null}
+                                    {one.id === "resumen" && openIncidents > 0 ? (
+                                        <span className="adm-menu__badge is-alert" aria-label={`${openIncidents} descuadres sin resolver`}>
+                                            {openIncidents}
+                                        </span>
+                                    ) : null}
+                                </button>
+                            ))}
+                        </div>
+                    ))}
+                </nav>
 
-            {section === "web" ? (
-                <main className="adm-wrap">
-                    <ClientUpdateNoticePanel token={token} onSessionExpired={onLogout} />
-                    <AdminWeb token={token} onSessionExpired={onLogout} refreshKey={refreshKey} />
-                </main>
-            ) : section === "clientes" ? (
-                <main className="adm-wrap">
-                    <AdminCustomers token={token} onSessionExpired={onLogout} refreshKey={refreshKey} />
-                </main>
-            ) : section === "caja" ? (
-                <main className="adm-wrap">
-                    <AdminCaja token={token} onSessionExpired={onLogout} />
-                </main>
-            ) : section === "menu" ? (
-                <main className="adm-wrap">
-                    <AdminMenu token={token} onSessionExpired={onLogout} />
-                </main>
-            ) : section === "local" ? (
-                <main className="adm-wrap">
-                    <AdminHours token={token} onSessionExpired={onLogout} />
-                    <DeliveryModePanel token={token} onSessionExpired={onLogout} />
-                    <CardPaymentsPanel token={token} onSessionExpired={onLogout} />
-                    <PastaModePanel token={token} onSessionExpired={onLogout} />
-                </main>
-            ) : section === "colaboradores" ? (
-                <main className="adm-wrap">
-                    <AdminCollaborators token={token} onSessionExpired={onLogout} />
-                </main>
-            ) : section === "inventario" ? (
-                <main className="adm-wrap">
-                    <AdminInventory token={token} onSessionExpired={onLogout} refreshKey={refreshKey} />
-                </main>
-            ) : (
-            <main className="adm-wrap">
-                {error ? <p className="adm-error">{error}</p> : null}
-                {dashboard?.salesError ? (
-                    <p className="adm-warning">
-                        {dashboard.salesError} Las finanzas y el inventario siguen al día: salen de nuestra base.
-                    </p>
-                ) : null}
-
-                <AdminIncidents token={token} onSessionExpired={onLogout} onOpenCountChange={setOpenIncidents} />
-
-                {/* ===== El día ===== */}
-                <section className="adm-band">
-                    <div className="adm-band__head">
-                        <h2 className="script">El día</h2>
-                        <span className="adm-band__sub">Mostrador y web juntos</span>
-                        <span className="adm-src">Loyverse + Postgres</span>
+                <main className="adm-wrap" key={section}>
+                    <div className="adm-head">
+                        <div className="adm-head__text">
+                            <h1 className="script">{sectionInfo.label}</h1>
+                            <p>
+                                {sectionInfo.subtitle}
+                                {sectionInfo.source ? <span className={`adm-src${sectionInfo.source === "Loyverse" ? "" : " is-own"}`}>{sectionInfo.source}</span> : null}
+                            </p>
+                        </div>
+                        {PERIOD_SECTIONS.includes(section) ? <PeriodPicker selection={period} onChange={changePeriod} /> : null}
                     </div>
 
-                    <div className="adm-tiles">
-                        <StatTile
-                            label="Venta del día"
-                            value={`B/. ${formatMoney(sales?.today.total ?? 0)}`}
-                            detail={`mostrador B/. ${formatMoney(sales?.today.mostrador ?? 0)} · web B/. ${formatMoney(sales?.today.web ?? 0)}`}
-                            split={{ left: sales?.today.mostrador ?? 0, right: sales?.today.web ?? 0 }}
-                        />
-                        <StatTile
-                            label="Tickets"
-                            value={String(sales?.today.tickets ?? 0)}
-                            detail={`ticket promedio B/. ${formatMoney(sales?.today.averageTicket ?? 0)}`}
-                        />
-                        <StatTile
-                            label="Insumos por comprar"
-                            value={String(dashboard?.inventory.suppliesToBuy ?? 0)}
-                            detail={toBuy.length ? toBuy.slice(0, 3).map((supply) => supply.name.toLowerCase()).join(", ") : "nada urgente"}
-                            isAlert={(dashboard?.inventory.suppliesToBuy ?? 0) > 0}
-                            action={{ label: "Ver inventario", onClick: () => openSection("inventario") }}
-                        />
-                        <StatTile
-                            label="Productos agotados"
-                            value={String(dashboard?.inventory.productsSoldOut ?? 0)}
-                            detail={`${dashboard?.inventory.productsLow ?? 0} con poco stock`}
-                            isAlert={(dashboard?.inventory.productsSoldOut ?? 0) > 0}
-                            action={{ label: "Ver inventario", onClick: () => openSection("inventario") }}
-                        />
-                    </div>
-                </section>
+                    {section === "resumen" ? (
+                        <>
+                            {error ? <p className="adm-error">{error}</p> : null}
+                            {dashboard?.salesError ? (
+                                <p className="adm-warning">
+                                    {dashboard.salesError} Las finanzas y el inventario siguen al día: salen de nuestra base.
+                                </p>
+                            ) : null}
 
-                <AdminFinance token={token} onSessionExpired={onLogout} refreshKey={refreshKey} />
-            </main>
-            )}
+                            <AdminOverview
+                                token={token}
+                                onSessionExpired={onLogout}
+                                refreshKey={refreshKey}
+                                dashboard={dashboard}
+                                supplies={supplies}
+                                openIncidents={openIncidents}
+                                onOpen={openSection}
+                            />
+                        </>
+                    ) : section === "ventas" ? (
+                        <AdminFinance token={token} onSessionExpired={onLogout} refreshKey={refreshKey} from={range.from} to={range.to} />
+                    ) : section === "web" ? (
+                        <AdminWeb token={token} onSessionExpired={onLogout} refreshKey={refreshKey} from={range.from} to={range.to} />
+                    ) : section === "clientes" ? (
+                        <AdminCustomers token={token} onSessionExpired={onLogout} refreshKey={refreshKey} />
+                    ) : section === "inventario" ? (
+                        <AdminInventory token={token} onSessionExpired={onLogout} refreshKey={refreshKey} />
+                    ) : section === "menu" ? (
+                        <AdminMenu token={token} onSessionExpired={onLogout} />
+                    ) : section === "caja" ? (
+                        <AdminCaja token={token} onSessionExpired={onLogout} />
+                    ) : section === "local" ? (
+                        <>
+                            <AdminHours token={token} onSessionExpired={onLogout} />
+                            <DeliveryModePanel token={token} onSessionExpired={onLogout} />
+                            <CardPaymentsPanel token={token} onSessionExpired={onLogout} />
+                            <PastaModePanel token={token} onSessionExpired={onLogout} />
+                            <ClientUpdateNoticePanel token={token} onSessionExpired={onLogout} />
+                        </>
+                    ) : (
+                        <AdminCollaborators token={token} onSessionExpired={onLogout} />
+                    )}
+
+                    {/* Los descuadres se cuentan en todas las secciones (el aviso del encabezado), pero se muestran en el resumen */}
+                    <div hidden={section !== "resumen"}>
+                        <AdminIncidents token={token} onSessionExpired={onLogout} onOpenCountChange={setOpenIncidents} />
+                    </div>
+                </main>
             </div>
         </div>
     );

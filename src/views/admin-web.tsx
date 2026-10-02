@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router";
 
 import { StatTile } from "./admin-finance";
 import {
-    FINANCE_PERIODS,
     HttpError,
     fetchWebReport,
     formatDayLabel,
@@ -11,11 +11,9 @@ import {
     formatPrice,
     formatShortDate,
     getDelta,
-    getPeriodRange,
 } from "@/helpers";
 import type {
     CakeQuoteStep,
-    FinancePeriod,
     IQuoteWebReport,
     IWebPoint,
     IWebReport,
@@ -26,8 +24,10 @@ import type {
 } from "@/helpers";
 
 const REFRESH_MS = 60000;
-const PERIOD_STORAGE_KEY = "chunky-admin-web-period";
-const DEFAULT_PERIOD: FinancePeriod = "30d";
+
+/** Pestañas de la sección: lo que se pide para comprar y lo que se pide para cotizar. */
+type WebTab = "pedidos" | "cotizaciones";
+const WEB_TAB_PARAM = "t";
 
 const FUNNEL_LABEL: Record<WebFunnelStep, string> = {
     visit: "Visitaron",
@@ -103,23 +103,6 @@ const formatCount = (value: number) => value.toLocaleString("es-PA");
 
 const formatPercent = (ratio: number) =>
     `${(ratio * 100).toLocaleString("es-PA", { maximumFractionDigits: 1 })} %`;
-
-const readStoredPeriod = (): FinancePeriod => {
-    try {
-        const stored = window.localStorage.getItem(PERIOD_STORAGE_KEY);
-        return FINANCE_PERIODS.some((period) => period.id === stored) ? (stored as FinancePeriod) : DEFAULT_PERIOD;
-    } catch {
-        return DEFAULT_PERIOD;
-    }
-};
-
-const storePeriod = (period: FinancePeriod) => {
-    try {
-        window.localStorage.setItem(PERIOD_STORAGE_KEY, period);
-    } catch {
-        return;
-    }
-};
 
 /* ============ Gráfico de visitas ============ */
 
@@ -211,15 +194,18 @@ interface IAdminWebProps {
     token: string;
     onSessionExpired: () => void;
     refreshKey: number;
+    /** Primer y último día (incluidos): los elige el encabezado del tablero, iguales para Ventas y Web. */
+    from: string;
+    to: string;
 }
 
-export const AdminWeb = ({ token, onSessionExpired, refreshKey }: IAdminWebProps) => {
-    const [period, setPeriod] = useState<FinancePeriod>(readStoredPeriod);
+export const AdminWeb = ({ token, onSessionExpired, refreshKey, from, to }: IAdminWebProps) => {
+    const [searchParams, setSearchParams] = useSearchParams();
+    const tab: WebTab = searchParams.get(WEB_TAB_PARAM) === "cotizaciones" ? "cotizaciones" : "pedidos";
     const [report, setReport] = useState<IWebReport | null>(null);
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(true);
 
-    const { from, to } = getPeriodRange(period);
 
     const load = useCallback(
         async (signal?: AbortSignal) => {
@@ -252,49 +238,51 @@ export const AdminWeb = ({ token, onSessionExpired, refreshKey }: IAdminWebProps
         };
     }, [load, refreshKey]);
 
-    const changePeriod = (next: FinancePeriod) => {
-        setPeriod(next);
-        storePeriod(next);
-    };
+    // La pestaña va en la dirección, como la sección: al recargar se queda donde estaba
+    const changeTab = (next: WebTab) =>
+        setSearchParams(
+            (current) => {
+                const params = new URLSearchParams(current);
+                if (next === "pedidos") params.delete(WEB_TAB_PARAM);
+                else params.set(WEB_TAB_PARAM, next);
+                return params;
+            },
+            { replace: true }
+        );
 
     const isStale = isLoading && report !== null;
 
     return (
-        <section className="adm-band" aria-busy={isLoading}>
-            <div className="adm-band__head">
-                <h2 className="script">La web</h2>
-                <span className="adm-band__sub">Qué hace la gente antes de pagar · sesiones = pestañas distintas</span>
-                <span className="adm-src is-own">Postgres</span>
-            </div>
+        <section className="adm-section-body" aria-busy={isLoading}>
+            {report ? (
+                <p className="adm-period__range">
+                    {formatRange(report.range.from, report.range.to)} · comparado con {formatRange(report.range.previousFrom, report.range.previousTo)}
+                </p>
+            ) : null}
 
-            <div className="adm-period">
-                <div className="adm-chips" role="group" aria-label="Período">
-                    {FINANCE_PERIODS.map((option) => (
-                        <button
-                            key={option.id}
-                            type="button"
-                            className="adm-chip"
-                            aria-pressed={period === option.id}
-                            onClick={() => changePeriod(option.id)}
-                        >
-                            {option.label}
-                        </button>
-                    ))}
-                </div>
-                {report ? (
-                    <span className="adm-period__range">
-                        {formatRange(report.range.from, report.range.to)} · comparado con {formatRange(report.range.previousFrom, report.range.previousTo)}
-                    </span>
-                ) : null}
+            <div className="adm-tabs" role="tablist" aria-label="Qué mirar de la web">
+                <button type="button" role="tab" className="adm-tab" aria-selected={tab === "pedidos"} onClick={() => changeTab("pedidos")}>
+                    Pedidos
+                </button>
+                <button
+                    type="button"
+                    role="tab"
+                    className="adm-tab"
+                    aria-selected={tab === "cotizaciones"}
+                    onClick={() => changeTab("cotizaciones")}
+                >
+                    Cotizaciones
+                    {report ? <span className="adm-tab__count">{formatCount(report.quotes.sent.all.count)}</span> : null}
+                </button>
             </div>
 
             {error ? <p className="adm-error">{error}</p> : null}
 
             {!report ? (
-                isLoading ? <p className="adm-empty">Cargando las estadísticas de la web…</p> : null
+                isLoading ? <div className="adm-skeleton adm-skeleton--tiles" aria-label="Cargando las estadísticas de la web" /> : null
             ) : (
-                <div className={isStale ? "adm-fin is-stale" : "adm-fin"}>
-                    <WebBody report={report} />
+                <div className={isStale ? "adm-fin is-stale" : "adm-fin"} role="tabpanel">
+                    {tab === "pedidos" ? <WebBody report={report} /> : <QuotesBody report={report} />}
                 </div>
             )}
         </section>
@@ -332,6 +320,7 @@ const WebBody = ({ report }: { report: IWebReport }) => {
                     label="Visitas"
                     value={formatCount(totals.sessions)}
                     delta={canCompare ? getDelta(totals.sessions, previous.sessions) : null}
+                    spark={report.series.map((point) => point.sessions)}
                     detail="sesiones que abrieron la web"
                 />
                 <StatTile
@@ -374,10 +363,6 @@ const WebBody = ({ report }: { report: IWebReport }) => {
 
                 {report.sources ? <SourcesCard sources={report.sources} /> : null}
 
-                <QuoteFunnelCard quotes={report.quotes} />
-                <QuoteTopCard quotes={report.quotes} />
-                <QuoteDropOffCard quotes={report.quotes} />
-
                 <ProductsCard report={report} />
                 <CategoriesCard report={report} />
                 <HoursCard report={report} />
@@ -387,7 +372,111 @@ const WebBody = ({ report }: { report: IWebReport }) => {
     );
 };
 
+/** Solo lo que pasa en el cotizador de la web. Los ingresos de cada pastelera no se muestran aquí: son de ella. */
+const QuotesBody = ({ report }: { report: IWebReport }) => {
+    const { quotes, dataSince, range } = report;
+
+    if (dataSince === null) {
+        return <p className="adm-warning">Todavía no hay visitas medidas: el cotizador empieza a contar en cuanto alguien lo abre.</p>;
+    }
+
+    const funnel = quotes.funnel.all;
+    const entered = funnel.find((step) => step.step === "visit")?.sessions ?? 0;
+    const submitted = funnel.find((step) => step.step === "submit")?.sessions ?? 0;
+    const whatsapp = funnel.find((step) => step.step === "whatsapp")?.sessions ?? 0;
+    const topQuoted = quotes.top[0] ?? null;
+
+    return (
+        <>
+            {dataSince > range.from ? (
+                <p className="adm-warning">Empezamos a medir el {formatShortDate(dataSince, true)}: este período sale incompleto.</p>
+            ) : null}
+
+            <div className="adm-tiles adm-tiles--web">
+                <StatTile
+                    label="Cotizaciones enviadas"
+                    value={formatCount(quotes.sent.all.count)}
+                    detail={`${formatCount(quotes.sent.cake.count)} cakes · ${formatCount(quotes.sent.postre.count)} flan y cheesecake`}
+                />
+                <StatTile
+                    label="Entran y envían"
+                    value={entered > 0 ? formatPercent(Math.min(1, submitted / entered)) : "—"}
+                    detail={`${formatCount(submitted)} de ${formatCount(entered)} sesiones que abrieron el cotizador`}
+                />
+                <StatTile
+                    label="Total estimado promedio"
+                    value={quotes.sent.all.averageTotal === null ? "—" : formatPrice(quotes.sent.all.averageTotal)}
+                    detail={`${formatCount(whatsapp)} abrieron WhatsApp después de enviar`}
+                />
+                <StatTile
+                    label="Lo más cotizado"
+                    value={topQuoted ? topQuoted.name : "—"}
+                    detail={topQuoted ? `${formatCount(topQuoted.count)} ${topQuoted.count === 1 ? "vez" : "veces"}` : "nadie envió una cotización todavía"}
+                />
+            </div>
+
+            <div className="adm-web-grid">
+                <QuoteFunnelCard quotes={quotes} />
+                <QuoteTopCard quotes={quotes} />
+                <QuoteDropOffCard quotes={quotes} />
+                {report.sources ? <QuoteSourcesCard sources={report.sources} /> : null}
+            </div>
+        </>
+    );
+};
+
 /* ============ Tarjetas ============ */
+
+/** De dónde llega la gente que cotiza, ordenado por cuántas cotizaciones salieron de cada origen. */
+const QuoteSourcesCard = ({ sources }: { sources: IWebSource[] }) => {
+    const quoting = sources.filter((entry) => entry.source !== null && entry.quotes > 0).sort((a, b) => b.quotes - a.quotes);
+    const topQuotes = Math.max(1, ...quoting.map((entry) => entry.quotes));
+
+    return (
+        <div className="adm-card adm-web-grid__wide">
+            <h3 className="script">De dónde llegan los que cotizan</h3>
+            <p className="adm-note">Sesiones que enviaron una cotización, por el origen con que abrieron la web.</p>
+
+            {quoting.length === 0 ? (
+                <p className="adm-empty">Nadie envió una cotización en este período.</p>
+            ) : (
+                <div className="adm-scroll">
+                    <table className="adm-web-table">
+                        <thead>
+                            <tr>
+                                <th>Origen</th>
+                                <th className="is-num">Visitas</th>
+                                <th className="is-num">Enviaron</th>
+                                <th className="is-num">Tasa</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {quoting.map((entry) => (
+                                <tr key={entry.source}>
+                                    <td>
+                                        {SOURCE_LABEL[entry.source ?? ""] ?? entry.source}
+                                        <span className="adm-web-table__bar" aria-hidden="true">
+                                            <i style={{ width: `${(entry.quotes / topQuotes) * 100}%` }} />
+                                        </span>
+                                    </td>
+                                    <td className="is-num">{formatCount(entry.sessions)}</td>
+                                    <td className="is-num"><b>{formatCount(entry.quotes)}</b></td>
+                                    <td className="is-num">
+                                        {entry.sessions >= MIN_SESSIONS_FOR_RATE ? (
+                                            formatPercent(Math.min(1, entry.quotes / entry.sessions))
+                                        ) : (
+                                            <span className="adm-web-table__muted">pocas visitas</span>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    );
+};
 
 const SourcesCard = ({ sources }: { sources: IWebSource[] }) => {
     // Lo de antes de medir el origen va al final, aunque tenga más visitas
@@ -602,31 +691,27 @@ const QuoteFunnelCard = ({ quotes }: { quotes: IQuoteWebReport }) => {
                 </>
             )}
 
-            <div className="adm-web-buttons adm-quote-facts">
-                <div>
-                    <b>{formatCount(sent.count)}</b>
-                    <span>{kind === "cake" ? "cakes enviados" : kind === "postre" ? "postres enviados" : "cotizaciones enviadas"}</span>
-                </div>
-                <div>
-                    <b>{base > 0 ? `${Math.round(Math.min(1, submitted / base) * 100)} %` : "—"}</b>
-                    <span>{kind === "all" ? "de los que entran envían" : "de los que arman envían"}</span>
-                </div>
-                <div>
-                    <b>{sent.averageTotal === null ? "—" : formatPrice(sent.averageTotal)}</b>
-                    <span>total estimado promedio</span>
-                </div>
-                {kind === "all" ? (
+            {/* En "Todo" estas cifras ya están en las estampillas de arriba: aquí solo aparecen al filtrar */}
+            {kind === "all" ? null : (
+                <div className="adm-web-buttons adm-quote-facts">
                     <div>
-                        <b>{formatCount(quotes.sent.cake.count)} · {formatCount(quotes.sent.postre.count)}</b>
-                        <span>cakes · flan y cheesecake enviados</span>
+                        <b>{formatCount(sent.count)}</b>
+                        <span>{kind === "cake" ? "cakes enviados" : "postres enviados"}</span>
                     </div>
-                ) : (
+                    <div>
+                        <b>{base > 0 ? `${Math.round(Math.min(1, submitted / base) * 100)} %` : "—"}</b>
+                        <span>de los que arman envían</span>
+                    </div>
+                    <div>
+                        <b>{sent.averageTotal === null ? "—" : formatPrice(sent.averageTotal)}</b>
+                        <span>total estimado promedio</span>
+                    </div>
                     <div>
                         <b>{topOfKind ? topOfKind.name : "—"}</b>
                         <span>el más cotizado</span>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -350,9 +350,10 @@ export interface IQuoteWebReport {
 export const fetchWebReport = (token: string, from: string, to: string, signal?: AbortSignal) =>
     httpGet<IWebReport>(`/admin/analytics?from=${from}&to=${to}`, { signal, headers: getAdminHeaders(token) });
 
-export type FinancePeriod = "7d" | "30d" | "mes" | "mes-anterior" | "90d" | "anio";
+export type FinancePeriod = "hoy" | "7d" | "30d" | "mes" | "mes-anterior" | "90d" | "anio";
 
 export const FINANCE_PERIODS: { id: FinancePeriod; label: string }[] = [
+    { id: "hoy", label: "Hoy" },
     { id: "7d", label: "7 días" },
     { id: "30d", label: "30 días" },
     { id: "mes", label: "Este mes" },
@@ -363,11 +364,13 @@ export const FINANCE_PERIODS: { id: FinancePeriod; label: string }[] = [
 
 const PANAMA_OFFSET_MS = 5 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
+/** Lo más largo que aceptan /admin/finance y /admin/analytics, contando los dos extremos. */
+export const FINANCE_MAX_DAYS = 366;
 
 /** Hoy en Panamá (YYYY-MM-DD): el día del negocio, sin importar dónde esté quien mira. */
-const getPanamaToday = () => new Date(Date.now() - PANAMA_OFFSET_MS).toISOString().slice(0, 10);
+export const getPanamaToday = () => new Date(Date.now() - PANAMA_OFFSET_MS).toISOString().slice(0, 10);
 
-const addDays = (date: string, days: number) =>
+export const addDays = (date: string, days: number) =>
     new Date(Date.parse(`${date}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
 
 /** Primer y último día (incluidos) de cada atajo de período. */
@@ -375,6 +378,8 @@ export const getPeriodRange = (period: FinancePeriod, today = getPanamaToday()) 
     const [year, month] = today.split("-");
 
     switch (period) {
+        case "hoy":
+            return { from: today, to: today };
         case "7d":
             return { from: addDays(today, -6), to: today };
         case "30d":

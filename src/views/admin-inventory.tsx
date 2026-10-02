@@ -58,6 +58,35 @@ const SUPPLY_STATE_TONE: Record<SupplyState, string> = {
 /** Lo urgente primero: así se leen en "Primero lo urgente". */
 const SUPPLY_STATE_ORDER: SupplyState[] = ["comprar", "pedir", "contar", "bien"];
 
+/** La barra de "Alcanza" se llena del todo con esta cantidad de días: más que eso ya no preocupa. */
+const COVERAGE_FULL_DAYS = 14;
+
+type CoverageTone = "crit" | "warn" | "ok";
+
+/**
+ * De qué color va la barra de "Alcanza" según los días que quedan al ritmo de consumo actual.
+ * TODO(usuario): decidir los cortes. Dependen de cuánto tarda cada proveedor en entregar.
+ */
+const getCoverageTone = (daysLeft: number): CoverageTone => {
+    if (daysLeft < 3) return "crit";
+    if (daysLeft < 7) return "warn";
+    return "ok";
+};
+
+/** Cuántos días alcanza el insumo, en número y en barra. Sin dos conteos no hay consumo y no se inventa un número. */
+const CoverageBar = ({ daysLeft }: { daysLeft: number | null }) => {
+    if (daysLeft === null) return <span className="adm-nodata">falta un 2.º conteo</span>;
+
+    return (
+        <span className={`adm-cover is-${getCoverageTone(daysLeft)}`}>
+            <span className="adm-cover__track" aria-hidden="true">
+                <i style={{ width: `${Math.min(100, Math.max(4, (daysLeft / COVERAGE_FULL_DAYS) * 100))}%` }} />
+            </span>
+            <b>{daysLeft} d</b>
+        </span>
+    );
+};
+
 const PRODUCT_STATE_LABEL: Record<ProductState, string> = {
     agotado: "Agotado",
     poco: "Queda poco",
@@ -651,7 +680,7 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
                                             <th>Categoría</th>
                                             <th className="num">Quedan</th>
                                             <th className="num">Gasto diario</th>
-                                            <th className="num">Alcanza</th>
+                                            <th>Alcanza</th>
                                             <th className="num">Mínimo</th>
                                             <th>Último conteo</th>
                                             <th>Estado</th>
@@ -667,8 +696,16 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
                                                 </td>
                                                 <td>{SUPPLY_CATEGORY_LABEL[supply.category]}</td>
                                                 <td className="num">{formatQuantity(supply.stock)} {supply.unit}</td>
-                                                <td className="num">{supply.dailyUse ? `${formatQuantity(supply.dailyUse)} ${supply.unit}` : "—"}</td>
-                                                <td className="num">{supply.daysLeft !== null ? `${supply.daysLeft} d` : "—"}</td>
+                                                <td className="num">
+                                                    {supply.dailyUse !== null ? (
+                                                        `${formatQuantity(supply.dailyUse)} ${supply.unit}`
+                                                    ) : (
+                                                        <span className="adm-nodata">sin datos</span>
+                                                    )}
+                                                </td>
+                                                <td>
+                                                    <CoverageBar daysLeft={supply.daysLeft} />
+                                                </td>
                                                 <td className="num">{formatQuantity(supply.minStock)} {supply.unit}</td>
                                                 <td>
                                                     <span className={`adm-age${supply.countAge !== null && supply.countAge > 7 ? " is-stale" : ""}`}>

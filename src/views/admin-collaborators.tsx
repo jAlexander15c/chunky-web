@@ -197,11 +197,6 @@ export const AdminCollaborators = ({ token, onSessionExpired }: { token: string;
 
     return (
         <section className="adm-band">
-            <div className="adm-band__head">
-                <h2 className="script">Colaboradores</h2>
-                <span className="adm-band__sub">Entran a /gestion con su PIN y ven solo lo que su rol permite</span>
-                <span className="adm-src is-own">Postgres</span>
-            </div>
 
             <div className="adm-card">
                 <div className="adm-card-head">

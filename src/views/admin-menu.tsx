@@ -930,11 +930,6 @@ export const AdminMenu = ({ token, onSessionExpired }: { token: string; onSessio
 
     return (
         <section className="adm-band">
-            <div className="adm-band__head">
-                <h2 className="script">Menú</h2>
-                <span className="adm-band__sub">Lo que crees aquí aparece en la web y en el POS de Loyverse</span>
-                <span className="adm-src">Loyverse</span>
-            </div>
 
             <div className="adm-menu-actions">
                 <button

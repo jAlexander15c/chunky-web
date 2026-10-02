@@ -583,11 +583,6 @@ export const AdminCustomers = ({ token, onSessionExpired, refreshKey }: IAdminCu
 
     return (
         <section className="adm-band" aria-busy={isLoading}>
-            <div className="adm-band__head">
-                <h2 className="script">Clientes</h2>
-                <span className="adm-band__sub">Quién compra en la web y en el local · se registran en la web con su permiso</span>
-                <span className="adm-src is-own">Postgres</span>
-            </div>
 
             <div className="adm-period">
                 <div className="adm-chips" role="group" aria-label="Período">

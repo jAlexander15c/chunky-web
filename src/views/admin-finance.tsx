@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
-    FINANCE_PERIODS,
     HttpError,
     fetchFinance,
     formatDayLabel,
@@ -10,13 +9,12 @@ import {
     formatRange,
     formatShortDate,
     getDelta,
-    getPeriodRange,
 } from "@/helpers";
-import type { FinancePeriod, IFinancePoint, IFinanceReport } from "@/helpers";
+import type { IFinancePoint, IFinanceReport } from "@/helpers";
+
+import { HourChart } from "./admin-hour-chart";
 
 const REFRESH_MS = 60000;
-const PERIOD_STORAGE_KEY = "chunky-admin-finance-period";
-const DEFAULT_PERIOD: FinancePeriod = "30d";
 
 /** Etiqueta corta del eje de horas en 12 h: "8a", "12p", "2p". */
 const formatHourTick = (hour: number) => `${hour % 12 || 12}${hour < 12 ? "a" : "p"}`;
@@ -36,17 +34,47 @@ interface IStatTileProps {
     split?: { left: number; right: number };
     /** Variación contra el período anterior, en %. */
     delta?: number | null;
+    /** Contra qué se compara el delta. */
+    deltaLabel?: string;
+    /** Valores recientes, del más viejo al más nuevo, para la línea chica junto a la cifra. */
+    spark?: number[];
     action?: { label: string; onClick: () => void };
 }
 
-export const StatTile = ({ label, value, detail, isAlert, split, delta, action }: IStatTileProps) => (
+const SPARK = { width: 76, height: 28 };
+
+/** Tendencia de la cifra en una línea: sin ejes, solo la forma y el último punto marcado. */
+const Sparkline = ({ values }: { values: number[] }) => {
+    const highest = Math.max(...values);
+    const lowest = Math.min(...values);
+    const range = highest - lowest || 1;
+    const points = values.map((value, index) => [
+        2 + (index * (SPARK.width - 4)) / (values.length - 1),
+        SPARK.height - 3 - ((value - lowest) / range) * (SPARK.height - 6),
+    ]);
+    const line = points.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+    const [lastX, lastY] = points[points.length - 1];
+
+    return (
+        <svg className="adm-spark" viewBox={`0 0 ${SPARK.width} ${SPARK.height}`} aria-hidden="true">
+            <polygon points={`2,${SPARK.height} ${line} ${lastX.toFixed(1)},${SPARK.height}`} className="adm-spark__area" />
+            <polyline points={line} className="adm-spark__line" />
+            <circle cx={lastX} cy={lastY} r={2.6} className="adm-spark__dot" />
+        </svg>
+    );
+};
+
+export const StatTile = ({ label, value, detail, isAlert, split, delta, deltaLabel = "vs período anterior", spark, action }: IStatTileProps) => (
     <div className="stamp-lift">
         <div className="stamp adm-tile">
             <span className="adm-tile__label">{label}</span>
-            <span className={`adm-tile__value${isAlert ? " is-alert" : ""}`}>{value}</span>
+            <span className="adm-tile__row">
+                <span className={`adm-tile__value${isAlert ? " is-alert" : ""}`}>{value}</span>
+                {spark && spark.length > 1 ? <Sparkline values={spark} /> : null}
+            </span>
             {delta !== undefined && delta !== null ? (
                 <span className={`adm-delta ${delta > 0 ? "is-up" : delta < 0 ? "is-down" : "is-flat"}`}>
-                    {delta > 0 ? "↑" : delta < 0 ? "↓" : "="} {Math.abs(delta)} % vs período anterior
+                    {delta > 0 ? "↑" : delta < 0 ? "↓" : "="} {Math.abs(delta)} % {deltaLabel}
                 </span>
             ) : null}
             {detail ? <span className="adm-tile__detail">{detail}</span> : null}
@@ -178,38 +206,22 @@ const formatAgeInDays = (value: string) => {
     return days <= 0 ? "hoy" : `hace ${days} d`;
 };
 
-const readStoredPeriod = (): FinancePeriod => {
-    try {
-        const stored = window.localStorage.getItem(PERIOD_STORAGE_KEY);
-        return FINANCE_PERIODS.some((period) => period.id === stored) ? (stored as FinancePeriod) : DEFAULT_PERIOD;
-    } catch {
-        return DEFAULT_PERIOD;
-    }
-};
-
-const storePeriod = (period: FinancePeriod) => {
-    try {
-        window.localStorage.setItem(PERIOD_STORAGE_KEY, period);
-    } catch {
-        return;
-    }
-};
-
 /* ============ Finanzas ============ */
 
 interface IAdminFinanceProps {
     token: string;
     onSessionExpired: () => void;
     refreshKey: number;
+    /** Primer y último día (incluidos): los elige el encabezado del tablero, iguales para Ventas y Web. */
+    from: string;
+    to: string;
 }
 
-export const AdminFinance = ({ token, onSessionExpired, refreshKey }: IAdminFinanceProps) => {
-    const [period, setPeriod] = useState<FinancePeriod>(readStoredPeriod);
+export const AdminFinance = ({ token, onSessionExpired, refreshKey, from, to }: IAdminFinanceProps) => {
     const [report, setReport] = useState<IFinanceReport | null>(null);
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(true);
 
-    const { from, to } = getPeriodRange(period);
 
     const load = useCallback(
         async (signal?: AbortSignal) => {
@@ -242,47 +254,21 @@ export const AdminFinance = ({ token, onSessionExpired, refreshKey }: IAdminFina
         };
     }, [load, refreshKey]);
 
-    const changePeriod = (next: FinancePeriod) => {
-        setPeriod(next);
-        storePeriod(next);
-    };
-
     // Mientras llega el período nuevo se sigue viendo el anterior, atenuado
     const isStale = isLoading && report !== null;
 
     return (
-        <section className="adm-band" aria-busy={isLoading}>
-            <div className="adm-band__head">
-                <h2 className="script">Finanzas</h2>
-                <span className="adm-band__sub">Venta, cobros, salidas de efectivo y cuándo se vende</span>
-                <span className="adm-src is-own">Postgres</span>
-            </div>
-
-            <div className="adm-period">
-                <div className="adm-chips" role="group" aria-label="Período">
-                    {FINANCE_PERIODS.map((option) => (
-                        <button
-                            key={option.id}
-                            type="button"
-                            className="adm-chip"
-                            aria-pressed={period === option.id}
-                            onClick={() => changePeriod(option.id)}
-                        >
-                            {option.label}
-                        </button>
-                    ))}
-                </div>
-                {report ? (
-                    <span className="adm-period__range">
-                        {formatRange(report.range.from, report.range.to)} · comparado con {formatRange(report.range.previousFrom, report.range.previousTo)}
-                    </span>
-                ) : null}
-            </div>
+        <section className="adm-section-body" aria-busy={isLoading}>
+            {report ? (
+                <p className="adm-period__range">
+                    {formatRange(report.range.from, report.range.to)} · comparado con {formatRange(report.range.previousFrom, report.range.previousTo)}
+                </p>
+            ) : null}
 
             {error ? <p className="adm-error">{error}</p> : null}
 
             {!report ? (
-                isLoading ? <p className="adm-empty">Cargando las finanzas…</p> : null
+                isLoading ? <div className="adm-skeleton adm-skeleton--tiles" aria-label="Cargando las ventas" /> : null
             ) : (
                 <div className={isStale ? "adm-fin is-stale" : "adm-fin"}>
                     <FinanceBody report={report} />
@@ -321,6 +307,7 @@ const FinanceBody = ({ report }: { report: IFinanceReport }) => {
                     label="Venta del período"
                     value={`B/. ${formatMoney(totals.total)}`}
                     delta={canCompare ? getDelta(totals.total, previous.total) : null}
+                    spark={report.series.map((point) => point.total)}
                     detail={`mostrador B/. ${formatMoney(totals.mostrador)} · web B/. ${formatMoney(totals.web)}`}
                     split={{ left: Math.max(0, totals.mostrador), right: Math.max(0, totals.web) }}
                 />
@@ -361,19 +348,28 @@ const FinanceBody = ({ report }: { report: IFinanceReport }) => {
             </div>
 
             <div className="adm-fin-grid">
-                <div className="adm-card">
-                    <h3 className="script">Venta por {range.granularity === "day" ? "día" : "semana"}</h3>
-                    <p className="adm-note">
-                        {range.granularity === "day"
-                            ? "Balboas por día. Un día cerrado corta la línea."
-                            : "Balboas por semana, contadas desde el primer día del período."}
-                    </p>
-                    <div className="adm-legend">
-                        <span><i className="is-local" />Mostrador</span>
-                        <span><i className="is-web" />Web</span>
+                {range.from === range.to ? (
+                    // Un solo día: una línea de un punto no dice nada, las horas sí
+                    <div className="adm-card">
+                        <h3 className="script">Venta por hora</h3>
+                        <p className="adm-note">Balboas de ese día por hora, mostrador y web juntos.</p>
+                        <HourChart today={report} label="Venta del día por hora" />
                     </div>
-                    <SalesChart points={report.series} granularity={range.granularity} />
-                </div>
+                ) : (
+                    <div className="adm-card">
+                        <h3 className="script">Venta por {range.granularity === "day" ? "día" : "semana"}</h3>
+                        <p className="adm-note">
+                            {range.granularity === "day"
+                                ? "Balboas por día. Un día cerrado corta la línea."
+                                : "Balboas por semana, contadas desde el primer día del período."}
+                        </p>
+                        <div className="adm-legend">
+                            <span><i className="is-local" />Mostrador</span>
+                            <span><i className="is-web" />Web</span>
+                        </div>
+                        <SalesChart points={report.series} granularity={range.granularity} />
+                    </div>
+                )}
 
                 <PaymentsCard report={report} />
                 <PatternsCard report={report} />
