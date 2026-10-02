@@ -17,6 +17,7 @@ export * from "./order-notify";
 export * from "./admin";
 export * from "./admin-period";
 export * from "./gestion";
+export * from "./staff-access";
 export * from "./quote";
 export * from "./tracking";
 export * from "./app-version";

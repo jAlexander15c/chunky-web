@@ -1,5 +1,5 @@
-// Service worker de los avisos al cliente sobre su pedido (aceptado y listo),
-// aunque tenga la web cerrada o el telefono bloqueado.
+// Service worker de los avisos push, aunque la web este cerrada o el telefono bloqueado:
+// al cliente sobre su pedido (aceptado y listo) y a los admins sobre los insumos.
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
@@ -29,11 +29,20 @@ self.addEventListener("notificationclick", (event) => {
     event.notification.close();
     const url = (event.notification.data && event.notification.data.url) || "/";
 
-    // Enfoca la pestana que ya tenga esa pagina (el pedido) o abre una nueva
+    // Enfoca la ventana que ya tenga esa pagina (el pedido) o abre una nueva. En el tablero la
+    // seccion va en ?s=: si la app ya esta abierta en otra seccion, se lleva a la del aviso.
     event.waitUntil(
         self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
-            const open = clients.find((client) => new URL(client.url).pathname === url);
-            return open ? open.focus() : self.clients.openWindow(url);
+            const target = new URL(url, self.location.origin);
+            const exact = clients.find((client) => {
+                const current = new URL(client.url);
+                return current.pathname === target.pathname && current.search === target.search;
+            });
+            if (exact) return exact.focus();
+
+            const samePage = clients.find((client) => new URL(client.url).pathname === target.pathname);
+            if (samePage && "navigate" in samePage) return samePage.focus().then(() => samePage.navigate(target.href));
+            return self.clients.openWindow(url);
         })
     );
 });

@@ -1,10 +1,10 @@
 /* Notificaciones push del navegador (cocina y clientes), con el service worker /sw.js. */
 
 /** Web agregada a la pantalla de inicio. En iOS es la unica forma de recibir push. */
-const isStandaloneApp = () =>
+export const isStandaloneApp = () =>
     window.matchMedia?.("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
 
-const isAppleMobile = () =>
+export const isAppleMobile = () =>
     /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
 const isPushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;

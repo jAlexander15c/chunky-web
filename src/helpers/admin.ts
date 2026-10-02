@@ -3,6 +3,7 @@ import type { ICreditTicket, IShiftDetail } from "./gestion";
 import type { IWeekHours, StoreOverride } from "./hours";
 import type { IModifier } from "./modifiers";
 import type { QuoteKind } from "./quote";
+import type { IStaffLogin } from "./staff-access";
 
 export type SupplyState = "comprar" | "pedir" | "contar" | "bien";
 export type ProductState = "agotado" | "poco" | "disponible" | "sin-control";
@@ -66,15 +67,17 @@ export interface IMovement {
 }
 
 /** Una persona puede tener varios: quien cuenta insumos también puede estar en caja. */
-export type CollaboratorRole = "inventario" | "caja" | "pastelera" | "repartidor";
+/** admin abre el tablero con su propio PIN o Face ID. */
+export type CollaboratorRole = "inventario" | "caja" | "pastelera" | "repartidor" | "admin";
 
-export const COLLABORATOR_ROLES: CollaboratorRole[] = ["inventario", "caja", "pastelera", "repartidor"];
+export const COLLABORATOR_ROLES: CollaboratorRole[] = ["inventario", "caja", "pastelera", "repartidor", "admin"];
 
 export const ROLE_LABEL: Record<CollaboratorRole, string> = {
     inventario: "Inventario",
     caja: "Caja",
     pastelera: "Pastelera",
     repartidor: "Repartidor",
+    admin: "Admin",
 };
 
 export interface ICollaborator {
@@ -192,7 +195,7 @@ export const setAdminToken = (token: string | null) => {
 export const logoutAdmin = (token: string) =>
     httpPost<void>("/admin/logout", {}, { headers: getAdminHeaders(token) }).catch(() => undefined);
 
-export const loginAdmin = (pin: string) => httpPost<{ token: string }>("/admin/login", { pin });
+export const loginAdmin = (pin: string) => httpPost<IStaffLogin>("/admin/login", { pin });
 
 export const fetchDashboard = (token: string, days = 14, signal?: AbortSignal) =>
     httpGet<IDashboard>(`/admin/dashboard?days=${days}`, { signal, headers: getAdminHeaders(token) });

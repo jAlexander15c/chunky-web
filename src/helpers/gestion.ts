@@ -9,6 +9,7 @@ import type {
 } from "./admin";
 import { httpGet, httpPost } from "./getHttp";
 import type { IModifier } from "./modifiers";
+import type { IStaffLogin } from "./staff-access";
 
 /** Quién entró: su nombre para el saludo y qué secciones puede ver. */
 export interface IGestionSession {
@@ -267,8 +268,7 @@ export const setGestionToken = (token: string | null) => {
     }
 };
 
-export const loginGestion = (pin: string) =>
-    httpPost<{ token: string; collaborator: IGestionSession }>("/gestion/login", { pin });
+export const loginGestion = (pin: string) => httpPost<IStaffLogin>("/gestion/login", { pin });
 
 /**
  * Quién tiene la sesión abierta. Los roles solo deciden qué secciones se ofrecen:
