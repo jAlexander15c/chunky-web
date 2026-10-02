@@ -25,8 +25,11 @@ export type OrderStatus =
  */
 export type OrderPaymentMethod = "yappy" | "card" | "whatsapp";
 
-/** Lo mínimo que cobra PagueloFacil con tarjeta (el API exige lo mismo). */
+/** Lo mínimo que cobra PagueloFacil con tarjeta, con el servicio web incluido (el API exige lo mismo). */
 export const CARD_MIN_TOTAL = 1;
+
+/** Cargo por servicio web al pagar con tarjeta si el API todavía no lo informa. */
+export const DEFAULT_CARD_SERVICE_FEE = 0.5;
 
 /** Con qué se cobró al entregar un pedido de WhatsApp. */
 export type CollectedMethod = "efectivo" | "tarjeta" | "yappy";
@@ -63,6 +66,8 @@ export interface IPublicOrder {
     /** Efectivo: con cuánto dijo que paga y con cuánto pagó al recibir. */
     cashTendered?: number | null;
     cashReceived?: number | null;
+    /** Con tarjeta: el cargo por servicio web, ya sumado en total. */
+    serviceFee?: number;
     /** Solo el nombre de pila. */
     customerName: string;
     lines: {

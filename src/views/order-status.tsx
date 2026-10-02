@@ -165,6 +165,12 @@ const OrderTicket = ({ order }: { order: IPublicOrder }) => {
                         <span className="order-ticket__amount">{formatPrice(line.price * line.quantity)}</span>
                     </li>
                 ))}
+                {Boolean(order.serviceFee) && (
+                    <li className="order-ticket__row">
+                        <span>Servicio web (tarjeta)</span>
+                        <span className="order-ticket__amount">{formatPrice(order.serviceFee ?? 0)}</span>
+                    </li>
+                )}
                 <li className="order-ticket__row order-ticket__row--total">
                     <span>{payment.total}</span>
                     <span className="order-ticket__amount">{formatPrice(order.total)}</span>

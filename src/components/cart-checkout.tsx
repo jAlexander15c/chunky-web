@@ -8,6 +8,7 @@ import { YappyButton } from "./yappy-button";
 
 import {
     CARD_MIN_TOTAL,
+    DEFAULT_CARD_SERVICE_FEE,
     HttpError,
     buildOrderMessage,
     buildWhatsappOrderMessage,
@@ -210,7 +211,10 @@ export const CartCheckout = () => {
 
     // "Pagas con": solo con WhatsApp, opcional, y tiene que alcanzar para el total
     const total = getCartTotal(lines);
-    const isCardAvailable = total + 0.005 >= CARD_MIN_TOTAL;
+    // Con tarjeta se suma el servicio web; el API calcula lo mismo y es lo que cobra PagueloFacil
+    const cardServiceFee = settings.cardServiceFee ?? DEFAULT_CARD_SERVICE_FEE;
+    const cardTotal = Math.round((total + cardServiceFee) * 100) / 100;
+    const isCardAvailable = cardTotal + 0.005 >= CARD_MIN_TOTAL;
     const cashTendered = parseMoney(cashText);
     const cashError = paymentMethod !== "whatsapp" || !cashText.trim()
         ? null
@@ -483,7 +487,9 @@ export const CartCheckout = () => {
                             />
                             <span className="checkout__fulfillment-label">{option.label}</span>
                             <span className="checkout__fulfillment-detail">
-                                {option.value === "card" && !isCardAvailable ? `Mínimo ${formatPrice(CARD_MIN_TOTAL)}` : option.detail}
+                                {option.value === "card"
+                                    ? isCardAvailable ? `+${formatPrice(cardServiceFee)} servicio web` : `Mínimo ${formatPrice(CARD_MIN_TOTAL)}`
+                                    : option.detail}
                             </span>
                         </label>
                     ))}
@@ -656,6 +662,7 @@ export const CartCheckout = () => {
                 <>
                     <p className="carrito__hint">
                         Te llevamos a la página segura de PagueloFacil para pagar con Visa o Mastercard, y vuelves aquí a ver tu pedido.
+                        {cardServiceFee > 0 && ` Incluye ${formatPrice(cardServiceFee)} de servicio web.`}
                     </p>
                     <button
                         type="button"
@@ -663,7 +670,7 @@ export const CartCheckout = () => {
                         onClick={() => void payWithCard()}
                         disabled={isOpeningCard || !isCardAvailable}
                     >
-                        <PiCreditCardBold aria-hidden /> {isOpeningCard ? "Abriendo el pago…" : `Pagar con tarjeta · ${formatPrice(total)}`}
+                        <PiCreditCardBold aria-hidden /> {isOpeningCard ? "Abriendo el pago…" : `Pagar con tarjeta · ${formatPrice(cardTotal)}`}
                     </button>
                     <button type="button" className="checkout__help" onClick={() => choosePaymentMethod("whatsapp")}>
                         <PiWhatsappLogoBold aria-hidden /> ¿Problemas para pagar? Coordínalo por WhatsApp
