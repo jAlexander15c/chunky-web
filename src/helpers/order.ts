@@ -10,6 +10,9 @@ const WHATSAPP_PHONE = "50763266648";
 /** La tienda en PedidosYa, para quien prefiere pedir por esa app. */
 export const PEDIDOS_YA_URL = "https://www.pedidosya.com.pa/restaurantes/aguadulce/chunky-bites-bakery-4dcee4db-b0f4-42b4-bcd3-ac8257ef2753-menu";
 
+/** Lo más que se pide de un mismo producto en un pedido web (el API acepta hasta 99). */
+export const MAX_LINE_QUANTITY = 99;
+
 export interface ICartLine {
     /** Identidad de la linea: el producto y, en la pasta, sus opciones (ver getLineKey). */
     lineKey: string;

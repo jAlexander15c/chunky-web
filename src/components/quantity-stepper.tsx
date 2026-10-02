@@ -1,5 +1,7 @@
 import { PiMinusBold, PiPlusBold, PiTrashBold } from "react-icons/pi";
 
+import { MAX_LINE_QUANTITY } from "@/helpers";
+
 interface IQuantityStepperProps {
     quantity: number;
     itemName: string;
@@ -23,7 +25,8 @@ export const QuantityStepper = ({ quantity, itemName, onChange, size = "md" }: I
                 type="button"
                 className="stepper__button"
                 onClick={() => onChange(quantity + 1)}
-                aria-label={`Agregar otro ${itemName}`}
+                disabled={quantity >= MAX_LINE_QUANTITY}
+                aria-label={quantity >= MAX_LINE_QUANTITY ? `Máximo ${MAX_LINE_QUANTITY} de ${itemName}` : `Agregar otro ${itemName}`}
             >
                 <PiPlusBold aria-hidden />
             </button>

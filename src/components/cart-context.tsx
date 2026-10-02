@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 import { CartContext } from "./use-cart";
 
-import { getCartCount, getCartTotal, getLineKey, trackEvent } from "@/helpers";
+import { MAX_LINE_QUANTITY, getCartCount, getCartTotal, getLineKey, trackEvent } from "@/helpers";
 import type { ICartLine, ICartModifier, IPastaOptions } from "@/helpers";
 import type { IItem } from "@/interfaces";
 
@@ -48,7 +48,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         setLines((current) => {
             const existing = current.find((line) => line.lineKey === lineKey);
             if (existing) {
-                return current.map((line) => line.lineKey === lineKey ? { ...line, quantity: line.quantity + 1 } : line);
+                return current.map((line) =>
+                    line.lineKey === lineKey ? { ...line, quantity: Math.min(MAX_LINE_QUANTITY, line.quantity + 1) } : line
+                );
             }
             return [...current, { lineKey, item, quantity: 1, options, ...(modifiers?.length && { modifiers }) }];
         });
@@ -57,7 +59,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     const setQuantity = useCallback((lineKey: string, quantity: number) => {
         setLines((current) => quantity <= 0
             ? current.filter((line) => line.lineKey !== lineKey)
-            : current.map((line) => line.lineKey === lineKey ? { ...line, quantity } : line));
+            : current.map((line) => line.lineKey === lineKey ? { ...line, quantity: Math.min(MAX_LINE_QUANTITY, quantity) } : line));
     }, []);
 
     const getQuantity = useCallback(
