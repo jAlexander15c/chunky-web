@@ -510,6 +510,10 @@ export const setPastaMode = (token: string, enabled: boolean) =>
 export const setDeliveryMode = (token: string, enabled: boolean) =>
     httpPost<{ deliveryMode: boolean }>("/admin/delivery-mode", { enabled }, { headers: getAdminHeaders(token) });
 
+/** Ofrece o no el pago con tarjeta (PagueloFacil) en el carrito de la web. */
+export const setCardPayments = (token: string, enabled: boolean) =>
+    httpPost<{ cardPayments: boolean }>("/admin/card-payments", { enabled }, { headers: getAdminHeaders(token) });
+
 /** Muestra o no al cliente el aviso de version nueva de la web. En /admin y /gestion siempre se muestra. */
 export const setClientUpdateNotice = (token: string, enabled: boolean) =>
     httpPost<{ clientUpdateNotice: boolean }>("/admin/client-update-notice", { enabled }, { headers: getAdminHeaders(token) });

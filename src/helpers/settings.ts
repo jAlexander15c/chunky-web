@@ -19,6 +19,8 @@ export interface IPublicSettings {
     clientUpdateNotice: boolean;
     /** El local y hasta dónde llega el delivery. Null con un API anterior. */
     store: IStoreSettings | null;
+    /** Se ofrece pagar con tarjeta (interruptor del tablero). Falta con un API anterior. */
+    cardPayments?: boolean;
     /** Lo que se suma al pagar con tarjeta (servicio web). Falta con un API anterior. */
     cardServiceFee?: number;
 }

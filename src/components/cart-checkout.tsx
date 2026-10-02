@@ -104,6 +104,12 @@ export const CartCheckout = () => {
     const [paymentError, setPaymentError] = useState<string | null>(null);
     const [isYappyOnline, setIsYappyOnline] = useState(true);
     const [paymentMethod, setPaymentMethod] = useState<OrderPaymentMethod>("yappy");
+    // La tarjeta se ofrece solo con el interruptor del tablero encendido
+    const isCardEnabled = Boolean(settings.cardPayments);
+    const paymentOptions = PAYMENT_OPTIONS.filter((option) => option.value !== "card" || isCardEnabled);
+    useEffect(() => {
+        if (!isCardEnabled && paymentMethod === "card") setPaymentMethod("yappy");
+    }, [isCardEnabled, paymentMethod]);
     const [cashText, setCashText] = useState("");
     const [isSendingWhatsapp, setIsSendingWhatsapp] = useState(false);
     const [isOpeningCard, setIsOpeningCard] = useState(false);
@@ -474,8 +480,12 @@ export const CartCheckout = () => {
                 )}
 
                 <p className="checkout__section">¿Cómo quieres pagar?</p>
-                <div className="checkout__fulfillment checkout__payment" role="radiogroup" aria-label="Cómo quieres pagar">
-                    {PAYMENT_OPTIONS.map((option) => (
+                <div
+                    className={`checkout__fulfillment${paymentOptions.length > 2 ? " checkout__payment" : ""}`}
+                    role="radiogroup"
+                    aria-label="Cómo quieres pagar"
+                >
+                    {paymentOptions.map((option) => (
                         <label key={option.value} className="checkout__fulfillment-option">
                             <input
                                 type="radio"
