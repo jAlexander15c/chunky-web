@@ -1,3 +1,4 @@
+import type {InventoryType,ProductAvailability} from "./inventory";
 import { httpDelete, httpGet, httpPost, httpPostBinary, httpPut } from "./getHttp";
 import type { ICreditTicket, IShiftDetail } from "./gestion";
 import type { IWeekHours, StoreOverride } from "./hours";
@@ -6,7 +7,7 @@ import type { QuoteKind } from "./quote";
 
 export type SupplyState = "comprar" | "pedir" | "contar" | "bien";
 export type ProductState = "agotado" | "poco" | "disponible" | "sin-control";
-export type MovementType = "compra" | "conteo" | "produccion" | "venta" | "merma" | "ajuste";
+export type MovementType = "compra" | "conteo" | "produccion" | "venta" | "merma" | "ajuste" | "consumo" | "vencimiento";
 type MovementSource = "local" | "loyverse" | "web";
 export type SupplyCategory = "alimento" | "limpieza" | "mantenimiento";
 
@@ -17,6 +18,7 @@ export const SUPPLY_CATEGORY_LABEL: Record<SupplyCategory, string> = {
 };
 
 export interface ISupplyStatus {
+    inventoryType?:InventoryType; baseUnit?:string; contentUnit?:string; unitsPerPurchase?:string|null; isPerishable?:boolean; shelfLifeDays?:number|null; nextExpiration?:string|null; expiredStock?:string; discardedStock?:string;
     id: number;
     name: string;
     unit: string;
@@ -35,7 +37,7 @@ export interface ISupplyStatus {
     state: SupplyState;
 }
 
-export interface IProductStatus {
+export interface IProductStatus extends Partial<ProductAvailability> {
     variantId: string;
     itemId: string;
     name: string;
@@ -435,6 +437,7 @@ export const registerWaste = (token: string, supplyId: number, quantity: number)
     );
 
 export interface ISupplyInput {
+    inventoryType?:InventoryType; contentUnit?:string; isPerishable?:boolean; shelfLifeDays?:number|null;
     name: string;
     unit: string;
     category: SupplyCategory;
@@ -570,6 +573,7 @@ export interface IMenuCategory {
 }
 
 export interface IMenuItem {
+    variants?:{variantId:string;name:string;availability?:ProductAvailability|null}[];
     id: string;
     name: string;
     categoryId: string | null;

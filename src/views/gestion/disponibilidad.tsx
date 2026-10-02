@@ -1,3 +1,5 @@
+import {availabilityLabel,expirationLabel} from "@/helpers/inventory";
+import type {ProductAvailability} from "@/helpers/inventory";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
@@ -133,6 +135,7 @@ export const GestionDisponibilidad = ({ token, onSessionExpired }: IGestionDispo
 
         try {
             await changeGestionAvailability(token, product.itemId, product.variantId, nextValue);
+            setProducts(current=>current.map(p=>p.variantId===product.variantId?{...p,availabilityMode:nextValue?"MANUAL_ON":"MANUAL_OFF"}:p));
         } catch (requestError) {
             setAvailabilityLocally(product.variantId, product.isAvailable);
             handleRequestError(requestError, `No pudimos cambiar ${product.name}. Quedó como estaba; intenta de nuevo.`);
@@ -222,13 +225,18 @@ export const GestionDisponibilidad = ({ token, onSessionExpired }: IGestionDispo
                                         {product.variantName ? <em> · {product.variantName}</em> : null}
                                     </div>
                                     <div className="ges-avail__meta">
+                                        {product.productionMode==="BATCH"?"Stock: "+product.usableStock+" · ":""}
+                                        {product.productionMode==="MADE_TO_ORDER"?"Se pueden preparar: "+product.maxProducible+" · ":""}
+                                        {product.limitingIngredient?"Limitado por: "+product.limitingIngredient+" · ":""}
+                                        {product.nextExpiration?expirationLabel(product.nextExpiration)+" · ":""}
+                                        {product.warning?product.warning+" · ":""}
                                         {product.categoryName}
                                         {product.price !== null ? ` · ${formatCash(product.price)}` : ""}
                                     </div>
                                 </div>
                                 <label className={`ges-check${isPending ? " is-busy" : ""}`}>
                                     <span className="ges-check__label">
-                                        {product.isAvailable ? "Disponible" : "Apagado"}
+                                        {product.availabilityMode ? availabilityLabel(product as ProductAvailability) : product.isAvailable ? "Disponible" : "Apagado"}
                                     </span>
                                     <input
                                         type="checkbox"

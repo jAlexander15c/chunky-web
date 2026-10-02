@@ -1,3 +1,10 @@
+import {ProductRecipeDialog} from "./inventory-product-dialog";
+import {fetchInventoryReceiptFailures,availabilityLabel} from "@/helpers/inventory";
+import type {InventoryReceiptFailure,ProductAvailability} from "@/helpers/inventory";
+import {PurchaseDialog} from "./inventory-purchase-dialog";
+import {InventoryBatchDialog} from "./inventory-batch-dialog";
+import {compatibleUnits,expirationLabel} from "@/helpers/inventory";
+import type {InventoryType} from "@/helpers/inventory";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 
@@ -17,7 +24,6 @@ import {
     getSafePage,
     registerCount,
     registerProduction,
-    registerPurchase,
     registerWaste,
     updateSupply,
 } from "@/helpers";
@@ -110,9 +116,10 @@ const MOVEMENT_LABEL: Record<MovementType, string> = {
     venta: "Venta",
     merma: "Merma",
     ajuste: "Ajuste",
+    consumo:"Consumo de receta",vencimiento:"Vencimiento",
 };
 
-const MOVEMENT_TYPES: MovementType[] = ["compra", "conteo", "produccion", "venta", "merma", "ajuste"];
+const MOVEMENT_TYPES: MovementType[] = ["compra", "conteo", "produccion", "venta", "merma", "ajuste","consumo","vencimiento"];
 
 const getMovementOrigin = (movement: IMovement) => {
     const from = movement.source === "web" ? "web" : movement.source === "loyverse" ? "mostrador" : "local";
@@ -171,6 +178,8 @@ const SUPPLY_UNITS = [
     { value: "L", label: "litros (L)" },
     { value: "ml", label: "mililitros (ml)" },
     { value: "u", label: "unidades (u)" },
+    {value:"slice",label:"rebanadas"},
+    {value:"portion",label:"porciones"},
 ];
 
 const SUPPLY_CATEGORIES: SupplyCategory[] = ["alimento", "limpieza", "mantenimiento"];
@@ -191,6 +200,10 @@ const SupplyFormDialog = ({ supply, onSave, onClose }: ISupplyFormProps) => {
     const [supplier, setSupplier] = useState(supply?.supplier ?? "");
     const [purchaseUnit, setPurchaseUnit] = useState(supply?.purchaseUnit ?? "");
     const [purchaseSize, setPurchaseSize] = useState(supply?.purchaseSize ? formatQuantity(supply.purchaseSize) : "");
+    const [inventoryType,setInventoryType]=useState<InventoryType>(supply?.inventoryType ?? "RAW_MATERIAL");
+    const [contentUnit,setContentUnit]=useState(supply?.contentUnit ?? supply?.unit ?? "kg");
+    const [isPerishable,setIsPerishable]=useState(supply?.isPerishable ?? false);
+    const [shelfLifeDays,setShelfLifeDays]=useState(supply?.shelfLifeDays ? String(supply.shelfLifeDays) : "");
     const [error, setError] = useState("");
     const [isSending, setIsSending] = useState(false);
 
@@ -227,7 +240,7 @@ const SupplyFormDialog = ({ supply, onSave, onClose }: ISupplyFormProps) => {
                 minStock: parsedMin,
                 supplier: supplier.trim() || undefined,
                 purchaseUnit: purchaseUnit.trim() || undefined,
-                purchaseSize: parsedSize,
+                purchaseSize: parsedSize,inventoryType,contentUnit,isPerishable,shelfLifeDays:isPerishable&&shelfLifeDays?Number(shelfLifeDays):null,
             });
             onClose();
         } catch (requestError) {
@@ -266,14 +279,17 @@ const SupplyFormDialog = ({ supply, onSave, onClose }: ISupplyFormProps) => {
                     </label>
 
                     <label className="adm-form__row">
-                        <span>Se mide en</span>
-                        <select className="adm-form__input" value={unit} onChange={(event) => setUnit(event.target.value)}>
+                        <span>Unidad de consumo</span>
+                        <select className="adm-form__input" value={unit} disabled={isEditing} onChange={(event) => {setUnit(event.target.value);setContentUnit(event.target.value);}}>
                             {SUPPLY_UNITS.map((option) => (
                                 <option key={option.value} value={option.value}>{option.label}</option>
                             ))}
                         </select>
                     </label>
 
+                    <label className="adm-form__row"><span>Tipo</span><select className="adm-form__input" value={inventoryType} onChange={e=>setInventoryType(e.target.value as InventoryType)}><option value="RAW_MATERIAL">Materia prima</option><option value="PACKAGED_ITEM">Producto empacado</option><option value="PREPARED_PRODUCT">Producto preparado</option></select></label>
+                    <label className="adm-form__row"><span>¿Es perecedero?</span><select className="adm-form__input" value={String(isPerishable)} onChange={e=>setIsPerishable(e.target.value==="true")}><option value="false">No</option><option value="true">Sí</option></select></label>
+                    <label className="adm-form__row"><span>Vida útil predeterminada (días)</span><input className="adm-form__input" type="number" min={1} max={3650} disabled={!isPerishable} value={shelfLifeDays} onChange={e=>setShelfLifeDays(e.target.value)}/></label>
                     <label className="adm-form__row">
                         <span>Categoría</span>
                         <select
@@ -311,7 +327,7 @@ const SupplyFormDialog = ({ supply, onSave, onClose }: ISupplyFormProps) => {
                     </label>
 
                     <label className="adm-form__row">
-                        <span>Cómo lo venden <em>opcional</em></span>
+                        <span>Presentación de compra <em>opcional</em></span>
                         <input
                             className="adm-form__input"
                             type="text"
@@ -322,7 +338,7 @@ const SupplyFormDialog = ({ supply, onSave, onClose }: ISupplyFormProps) => {
                     </label>
 
                     <label className="adm-form__row">
-                        <span>Cuánto trae cada uno</span>
+                        <span>Contenido por presentación</span>
                         <input
                             className="adm-form__input"
                             type="text"
@@ -332,19 +348,12 @@ const SupplyFormDialog = ({ supply, onSave, onClose }: ISupplyFormProps) => {
                             placeholder="25"
                         />
                     </label>
+                    <label className="adm-form__row"><span>Unidad del contenido</span><select className="adm-form__input" value={contentUnit} onChange={e=>setContentUnit(e.target.value)}>{compatibleUnits(unit).map(u=><option key={u}>{u}</option>)}</select></label>
                 </div>
 
                 <p className="adm-form__note">
-                    Con esos dos últimos datos la sugerencia de compra sale en sacos o cajas, que es
-                    como se le pide al proveedor, en vez de en {unit}.
+                    {purchaseUnit&&purchaseSize ? <>1 {purchaseUnit} contiene {purchaseSize} {contentUnit}. Las compras se convertirán a {unit} antes de agregarse al inventario.</> : "Configura la presentación y su contenido para comprar en paquetes, cajas o sacos."}
                 </p>
-
-                {supply && unit !== supply.unit ? (
-                    <p className="adm-warning">
-                        El stock no se convierte: los {formatQuantity(supply.stock)} {supply.unit} que hay pasan a ser{" "}
-                        {formatQuantity(supply.stock)} {unit}. Haz un conteo después de guardar.
-                    </p>
-                ) : null}
 
                 {error ? <p className="adm-gate__error">{error}</p> : null}
 
@@ -360,7 +369,7 @@ const SupplyFormDialog = ({ supply, onSave, onClose }: ISupplyFormProps) => {
 };
 
 type PendingAction =
-    | { kind: "purchase" | "count" | "waste" | "edit"; supply: ISupplyStatus }
+    | { kind: "purchase" | "count" | "waste" | "edit" | "batches"; supply: ISupplyStatus }
     | { kind: "production"; product: IProductStatus };
 
 /* ============ Piezas de filtro ============ */
@@ -427,6 +436,7 @@ type MovementTypeFilter = MovementType | "todos";
 type MovementKindFilter = "supply" | "product" | "todos";
 
 export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminInventoryProps) => {
+    const [receiptFailures,setReceiptFailures]=useState<InventoryReceiptFailure[]>([]);
     const [supplies, setSupplies] = useState<ISupplyStatus[]>([]);
     const [products, setProducts] = useState<IProductStatus[]>([]);
     const [error, setError] = useState("");
@@ -470,7 +480,8 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
     const loadStock = useCallback(
         async (signal?: AbortSignal) => {
             try {
-                const [suppliesData, productsData] = await Promise.all([fetchSupplies(token, signal), fetchProducts(token, signal)]);
+                const [suppliesData, productsData, failureData] = await Promise.all([fetchSupplies(token, signal), fetchProducts(token, signal),fetchInventoryReceiptFailures(token,signal)]);
+                setReceiptFailures(failureData.failures);
                 setSupplies(suppliesData.supplies);
                 setProducts(productsData.products);
                 setError("");
@@ -593,6 +604,7 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
         <>
             {error ? <p className="adm-error">{error}</p> : null}
 
+            {receiptFailures.length > 0 ? <div className="adm-error" role="alert"><strong>{receiptFailures.length} venta(s) pendientes de conciliar inventario.</strong><p>Revisa los lotes y registra el conteo físico necesario. Se reintentará al sincronizar ventas.</p>{receiptFailures.map(failure=><p key={failure.receiptNumber}>Recibo {failure.receiptNumber}: {failure.error}</p>)}</div> : null}
             {/* ===== Comprar ya ===== */}
             {toBuy.length > 0 ? <AdminBuyNow supplies={toBuy} /> : null}
 
@@ -682,7 +694,7 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
                                             <th className="num">Gasto diario</th>
                                             <th>Alcanza</th>
                                             <th className="num">Mínimo</th>
-                                            <th>Último conteo</th>
+                                            <th>Último conteo</th><th>Próximo vencimiento</th>
                                             <th>Estado</th>
                                             <th aria-label="Acciones" />
                                         </tr>
@@ -712,12 +724,16 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
                                                         {formatCountAge(supply.countAge)}
                                                     </span>
                                                 </td>
+                                                <td>{expirationLabel(supply.nextExpiration)}</td>
                                                 <td>
+                                                    {supply.stock<=0?<span className="adm-pill is-crit">Agotado</span>:supply.stock<=supply.minStock?<span className="adm-pill is-warn">Stock bajo</span>:null}
+                                                    {Number(supply.expiredStock)>0?<span className="adm-pill is-crit">Stock vencido</span>:null}
+                                                    {supply.nextExpiration?<span className="adm-pill is-warn">{expirationLabel(supply.nextExpiration)}</span>:null}
                                                     <span className={`adm-pill is-${SUPPLY_STATE_TONE[supply.state]}`}>
                                                         {SUPPLY_STATE_LABEL[supply.state]}
                                                     </span>
                                                 </td>
-                                                <td className="adm-actions">
+                                                <td className="adm-actions"><button type="button" className="adm-btn adm-btn--sm" onClick={()=>setPending({kind:"batches",supply})}>Lotes</button>
                                                     <button type="button" className="adm-btn adm-btn--sm" onClick={() => setPending({ kind: "purchase", supply })}>
                                                         Compra
                                                     </button>
@@ -814,13 +830,14 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
                                                     <tr key={product.variantId} className={product.state === "agotado" ? "is-crit" : undefined}>
                                                         <td className="adm-name">
                                                             {product.name}
+                                                            {product.productionMode ? <em>{product.productionMode==="BATCH"?"Stock: "+product.usableStock:"Se pueden preparar: "+product.maxProducible}{product.limitingIngredient?" · Limitado por: "+product.limitingIngredient:""}{product.nextExpiration?" · "+expirationLabel(product.nextExpiration):""}{product.warning?" · "+product.warning:""}</em> : null}
                                                             {product.soldOutAt ? <em>Se agotó a las {formatClock(product.soldOutAt)}</em> : null}
                                                         </td>
                                                         <td className="num">{formatQuantity(product.producedToday)}</td>
                                                         <td className="num">{formatQuantity(product.stock)}</td>
                                                         <td>
                                                             <span className={`adm-pill is-${PRODUCT_STATE_TONE[product.state]}`}>
-                                                                {PRODUCT_STATE_LABEL[product.state]}
+                                                                {product.availabilityMode ? availabilityLabel(product as ProductAvailability) : PRODUCT_STATE_LABEL[product.state]}
                                                             </span>
                                                         </td>
                                                         <td>
@@ -950,24 +967,13 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
                 />
             ) : null}
 
-            {pending?.kind === "purchase" ? (
-                <AmountDialog
-                    title={`Compra de ${pending.supply.name}`}
-                    hint={`Cuánto entró, en ${pending.supply.unit}. Quedan ${formatQuantity(pending.supply.stock)}.`}
-                    unit={pending.supply.unit}
-                    confirmLabel="Registrar compra"
-                    onConfirm={async (amount) => {
-                        await registerPurchase(token, pending.supply.id, amount);
-                        await reloadAll();
-                    }}
-                    onClose={() => setPending(null)}
-                />
-            ) : null}
+            {pending?.kind === "purchase" ? <PurchaseDialog token={token} supply={pending.supply} onSaved={reloadAll} onClose={()=>setPending(null)}/> : null}
+            {pending?.kind === "batches" ? <InventoryBatchDialog token={token} supply={pending.supply} onChanged={reloadAll} onClose={()=>setPending(null)}/> : null}
 
             {pending?.kind === "count" ? (
                 <AmountDialog
                     title={`Conteo de ${pending.supply.name}`}
-                    hint={`Cuánto hay ahora mismo, en ${pending.supply.unit}. El sistema dice ${formatQuantity(pending.supply.stock)}.`}
+                    hint={`Cuánto hay ahora mismo, en ${pending.supply.unit}. El sistema dice ${formatQuantity(pending.supply.stock)}. Cuenta solo stock utilizable; los vencidos se descartan en Lotes.`}
                     unit={pending.supply.unit}
                     initial={formatQuantity(pending.supply.stock)}
                     confirmLabel="Registrar conteo"
@@ -993,7 +999,7 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
                 />
             ) : null}
 
-            {pending?.kind === "production" ? (
+            {pending?.kind === "production" && pending.product.productionMode ? <ProductRecipeDialog token={token} product={pending.product} onClose={()=>setPending(null)} onChanged={reloadAll}/> : pending?.kind === "production" ? (
                 <AmountDialog
                     title={`Producción de ${pending.product.name}`}
                     hint="Cuántas unidades se hicieron. Si es la primera carga del día, reemplaza el saldo anterior."

@@ -1,3 +1,4 @@
+import {PurchaseDialog} from "../inventory-purchase-dialog";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AmountDialog } from "@/components";
@@ -12,7 +13,6 @@ import {
     formatQuantity,
     registerGestionCount,
     registerGestionProduction,
-    registerGestionPurchase,
     registerGestionWaste,
 } from "@/helpers";
 import type { IMovement, IProductStatus, ISupplyStatus, SupplyCategory } from "@/helpers";
@@ -338,20 +338,7 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                 <GestionPager page={currentMinePage} pageCount={minePageCount} onChange={setMinePage} />
             </section>
 
-            {pending?.kind === "purchase" ? (
-                <AmountDialog
-                    title={`Compra de ${pending.supply.name}`}
-                    hint={`Cuánto entró, en ${pending.supply.unit}. Se suma a los ${formatQuantity(pending.supply.stock)} que hay.`}
-                    unit={pending.supply.unit}
-                    confirmLabel="Guardar compra"
-                    buttonClass="ges-btn"
-                    onConfirm={async (amount) => {
-                        await registerGestionPurchase(token, pending.supply.id, amount);
-                        await loadAll();
-                    }}
-                    onClose={() => setPending(null)}
-                />
-            ) : null}
+            {pending?.kind==="purchase"?<PurchaseDialog token={token} scope="gestion" supply={pending.supply} onSaved={loadAll} onClose={()=>setPending(null)}/>:null}
 
             {pending?.kind === "count" ? (
                 <AmountDialog

@@ -1,3 +1,4 @@
+import type {ProductAvailability} from "@/helpers/inventory";
 export interface IItem {
     id: string,
     handle: string,
@@ -28,6 +29,7 @@ export interface IItem {
 
 
 interface IItemVariant {
+    inventoryAvailability?: ProductAvailability,
     variant_id: string,
     item_id: string,
     sku: string,

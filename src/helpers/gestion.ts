@@ -1,3 +1,4 @@
+import type {ProductAvailability} from "./inventory";
 import { COLLABORATOR_ROLES } from "./admin";
 import type {
     CollaboratorRole,
@@ -328,7 +329,7 @@ export const registerGestionProduction = (token: string, variantId: string, quan
     );
 
 /** Una variante del menú con su estado de venta en Loyverse. */
-export interface ISaleAvailability {
+export interface ISaleAvailability extends Partial<ProductAvailability> {
     itemId: string;
     variantId: string;
     name: string;

@@ -1,7 +1,7 @@
 /* Tablero administrativo. Usa los tokens de marca de index.css y
    .script, .awning, .stamp y .stamp-lift de App.css. */
 
-.adm {
+.adm, .inventory-dialog {
     --adm-panel: #fffef6;
     --adm-panel-2: #f6f2df;
     --adm-line: #e4dec6;
@@ -22,10 +22,12 @@
     --adm-card: #6f8fd6;
     --adm-yappy: #8c5bb3;
 
-    min-height: 100dvh;
-    background: var(--crema);
     color: var(--ink);
     font-size: 14px;
+}
+.adm {
+    min-height: 100dvh;
+    background: var(--crema);
 }
 
 .adm-sr-only {
