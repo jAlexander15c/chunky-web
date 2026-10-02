@@ -675,7 +675,7 @@ export const cropMenuImage = async (file: File): Promise<Blob> => {
 
 /* ============ Descuadres de pago ============ */
 
-type IncidentKind = "RECEIPT_MISSING" | "IPN_UNMATCHED" | "LATE_PAYMENT" | "IPN_INVALID_HASH";
+type IncidentKind = "RECEIPT_MISSING" | "IPN_UNMATCHED" | "LATE_PAYMENT" | "IPN_INVALID_HASH" | "CARD_UNVERIFIED";
 export type IncidentStatus = "open" | "resolved";
 
 export const INCIDENT_LABEL: Record<IncidentKind, string> = {
@@ -683,6 +683,7 @@ export const INCIDENT_LABEL: Record<IncidentKind, string> = {
     LATE_PAYMENT: "Pago tardío",
     IPN_UNMATCHED: "Pago sin pedido",
     IPN_INVALID_HASH: "Firma inválida",
+    CARD_UNVERIFIED: "Tarjeta sin verificar",
 };
 
 /** Cuánto pesa cada tipo: un pago sin pedido es plata cobrada sin nada que entregar; uno tardío solo avisa. */
@@ -691,6 +692,7 @@ export const INCIDENT_TONE: Record<IncidentKind, "warn" | "crit" | "idle"> = {
     LATE_PAYMENT: "idle",
     IPN_UNMATCHED: "crit",
     IPN_INVALID_HASH: "crit",
+    CARD_UNVERIFIED: "crit",
 };
 
 export interface IIncident {

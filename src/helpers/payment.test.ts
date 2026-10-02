@@ -51,10 +51,11 @@ describe("errores del checkout", () => {
         expect(getCheckoutErrors(withoutAddress, false).deliveryAddress).toBeUndefined();
     });
 
-    test("con delivery hay que compartir la ubicación, salvo que sea para otra persona", () => {
+    test("con delivery hay que compartir la ubicación, o marcar el pin si es para otra persona", () => {
         const withoutLocation = { ...FORM, deliveryLat: null, deliveryLng: null };
-        expect(getCheckoutErrors(withoutLocation, true).deliveryLocation).toBeTruthy();
-        expect(getCheckoutErrors({ ...withoutLocation, isForSomeoneElse: true }, true).deliveryLocation).toBeUndefined();
+        expect(getCheckoutErrors(withoutLocation, true).deliveryLocation).toMatch(/Usar mi ubicación/);
+        expect(getCheckoutErrors({ ...withoutLocation, isForSomeoneElse: true }, true).deliveryLocation).toMatch(/Marca en el mapa/);
+        expect(getCheckoutErrors({ ...FORM, isForSomeoneElse: true }, true).deliveryLocation).toBeUndefined();
         expect(getCheckoutErrors(withoutLocation, false).deliveryLocation).toBeUndefined();
     });
 

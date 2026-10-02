@@ -103,14 +103,13 @@ describe("vuelto y distancia", () => {
 });
 
 describe("pedido para otra persona", () => {
-    test("el mensaje no manda la ubicación de quien pide y avisa que es para otra persona", () => {
+    test("el mensaje manda el pin de quien recibe y avisa que es para otra persona", () => {
         const message = buildWhatsappOrderMessage(
             [line],
             { customerName: "Ana", note: "", deliveryAddress: "Villa Real 14", deliveryLat: 8.9, deliveryLng: -79.5, isForSomeoneElse: true },
             "CB1",
             "https://x/pedido/CB1"
         );
-        expect(message).toContain("Entrega en: Villa Real 14\nEs para otra persona: te paso su ubicación por aquí.");
-        expect(message).not.toContain("8.9");
+        expect(message).toContain("Entrega en: Villa Real 14\nUbicación: https://www.google.com/maps?q=8.9,-79.5\nEs para otra persona.");
     });
 });

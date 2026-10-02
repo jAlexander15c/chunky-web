@@ -392,14 +392,14 @@ const PaymentsCard = ({ report }: { report: IFinanceReport }) => {
         { key: "cash", label: "Efectivo", value: payments.cash },
         { key: "card", label: "Tarjeta", value: payments.card },
         { key: "yappy", label: "Yappy en el local", value: payments.yappy },
-        { key: "web", label: "Yappy web", value: Math.max(0, payments.web) },
+        { key: "web", label: "Web (Yappy y tarjeta)", value: Math.max(0, payments.web) },
     ];
     const sum = rows.reduce((total, row) => total + row.value, 0);
 
     return (
         <div className="adm-card">
             <h3 className="script">Cómo pagaron</h3>
-            <p className="adm-note">El local, según los cierres de turno; la web siempre es Yappy.</p>
+            <p className="adm-note">El local, según los cierres de turno; la web junta lo pagado con Yappy y con tarjeta en la página.</p>
 
             {sum === 0 ? (
                 <p className="adm-empty">Sin cobros registrados en este período.</p>

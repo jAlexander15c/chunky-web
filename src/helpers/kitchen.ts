@@ -7,10 +7,10 @@ export interface IKitchenOrder {
     // Las comandas de la caja (mesas y para llevar) llegan sin telefono
     customerPhone: string | null;
     whatsappPhone: string | null;
-    // web: pedido desde la pagina (Yappy o WhatsApp) · mesa: enviado desde la caja de /gestion
+    // web: pedido desde la pagina (Yappy, tarjeta o WhatsApp) · mesa: enviado desde la caja de /gestion
     channel?: "web" | "mesa";
     // Opcionales mientras el API viejo siga en produccion
-    paymentMethod?: "yappy" | "whatsapp";
+    paymentMethod?: "yappy" | "card" | "whatsapp";
     /** Un pedido de WhatsApp confirmado se prepara sin cobrar: se cobra al entregarlo. */
     isPaid?: boolean;
     /** Llegó por WhatsApp y nadie lo ha confirmado: se ve, pero no se prepara todavía. */

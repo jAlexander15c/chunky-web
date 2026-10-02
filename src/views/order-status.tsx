@@ -121,12 +121,13 @@ const useOrderStatus = (orderId: string, onStepChange: (alert: StepAlert) => voi
     return { order, isNotFound };
 };
 
-/** Lo que dice el ticket sobre el pago: pagado con Yappy, cobrado al entregar, o por pagar. */
 /** "con $20.00 · vuelto $13.00", o nada si no dijo con cuánto paga. */
 const formatCashChange = (cash: number | null | undefined, total: number) =>
     cash ? ` con ${formatPrice(cash)}${cash > total + 0.005 ? ` · vuelto ${formatPrice(cash - total)}` : ""}` : "";
 
+/** Lo que dice el ticket sobre el pago: pagado con Yappy o tarjeta, cobrado al entregar, o por pagar. */
 const getTicketPayment = (order: IPublicOrder) => {
+    if (order.paymentMethod === "card") return { total: "Total pagado", foot: "Pagado con tarjeta", time: order.paidAt };
     if (!isWhatsappOrder(order)) return { total: "Total pagado", foot: "Pagado con Yappy", time: order.paidAt };
     if (order.collectedMethod) {
         const change = order.collectedMethod === "efectivo" ? formatCashChange(order.cashReceived, order.total) : "";
@@ -224,7 +225,9 @@ const OrderSteps = ({ order }: { order: IPublicOrder }) => {
                     ? `Pagado en ${COLLECTED_LABEL[order.collectedMethod]}`
                     : `Pagas al recibir${order.confirmedAt ? ` · ${formatTime(order.confirmedAt)}` : ""}`,
           }
-        : { title: "Pago confirmado", detail: `Yappy · confirmación ${order.yappyConfirmation ?? "en camino"}` };
+        : order.paymentMethod === "card"
+          ? { title: "Pago confirmado", detail: "Tarjeta · PagueloFacil" }
+          : { title: "Pago confirmado", detail: `Yappy · confirmación ${order.yappyConfirmation ?? "en camino"}` };
 
     return (
         <ol className="order-steps">
@@ -368,7 +371,7 @@ const FailedOrder = ({ order }: { order: IPublicOrder }) => {
     // La nota ya no viaja a esta página: el mensaje lleva el pedido y su código
     const helpUrl = isWhatsappOrder(order)
         ? getWhatsappOrderChatUrl(order)
-        : getWhatsAppUrl(buildPaymentHelpMessage(lines, { customerName: order.customerName, note: "" }, order.id));
+        : getWhatsAppUrl(buildPaymentHelpMessage(lines, { customerName: order.customerName, note: "" }, order.id, order.paymentMethod));
 
     return (
         <>
@@ -386,6 +389,39 @@ const FailedOrder = ({ order }: { order: IPublicOrder }) => {
                     <PiWhatsappLogoBold aria-hidden /> Escríbenos por WhatsApp
                 </a>
             </div>
+        </>
+    );
+};
+
+/** Tarjeta: el cliente volvió de PagueloFacil sin pagar (denegada o se devolvió). El carrito sigue guardado. */
+const UnpaidCardOrder = ({ order, isDenied }: { order: IPublicOrder; isDenied: boolean }) => {
+    const { setIsOpen } = useCart();
+    const navigate = useNavigate();
+
+    const backToCart = () => {
+        navigate("/menu");
+        setIsOpen(true);
+    };
+
+    return (
+        <>
+            {isDenied ? (
+                <div className="checkout__notice checkout__notice--error" role="alert">
+                    <strong>Tu banco no aprobó el pago. No se hizo ningún cobro.</strong>
+                    <span>Tu carrito sigue guardado: vuelve a intentarlo, paga con Yappy o coordínalo por WhatsApp.</span>
+                </div>
+            ) : (
+                <>
+                    <span className="order-page__spinner" aria-hidden />
+                    <h1 className="order-page__title script">Un momento, {order.customerName}</h1>
+                    <p className="order-page__lede" role="status">
+                        Estamos confirmando tu pago con tarjeta. Si no terminaste de pagar, tu carrito sigue guardado.
+                    </p>
+                </>
+            )}
+            <button type="button" className={`button button--block ${isDenied ? "button--primary" : "button--ghost"}`} onClick={backToCart}>
+                Volver al carrito
+            </button>
         </>
     );
 };
@@ -410,6 +446,8 @@ export const OrderStatusView = () => {
     // El enlace de seguimiento que manda el local trae la llave en ?t=: se guarda antes de la
     // primera consulta y se quita de la barra, para que no quede a la vista al compartir pantalla
     const trackingToken = searchParams.get("t");
+    // El API manda ?pago=denegado cuando el cliente vuelve de PagueloFacil con la tarjeta rechazada
+    const isCardDenied = searchParams.get("pago") === "denegado";
     useState(() => {
         if (orderId && trackingToken) rememberOrderAccess(orderId, trackingToken);
     });
@@ -439,7 +477,7 @@ export const OrderStatusView = () => {
     }, [alert, isDelivery]);
 
     // El carrito y el borrador se vacian una sola vez, cuando sale el pedido que se inicio aqui
-    // (pagado con Yappy o guardado para coordinar por WhatsApp)
+    // (pagado con Yappy o tarjeta, o guardado para coordinar por WhatsApp)
     useEffect(() => {
         if (order && PLACED_ORDER_STATUSES.includes(order.status) && getLastOrderId() === order.id) {
             clearCart();
@@ -473,6 +511,8 @@ export const OrderStatusView = () => {
                     <PlacedOrder order={order} />
                 ) : isFailed ? (
                     <FailedOrder order={order} />
+                ) : order?.paymentMethod === "card" ? (
+                    <UnpaidCardOrder order={order} isDenied={isCardDenied} />
                 ) : (
                     <WaitingOrder order={order} />
                 )}

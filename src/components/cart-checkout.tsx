@@ -1,15 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { useNavigate } from "react-router";
-import { PiCheckCircleBold, PiMapPinBold, PiWhatsappLogoBold } from "react-icons/pi";
+import { PiCheckCircleBold, PiCreditCardBold, PiMapPinBold, PiWhatsappLogoBold } from "react-icons/pi";
 
 import { useCart } from "./use-cart";
 import { YappyButton } from "./yappy-button";
 
 import {
+    CARD_MIN_TOTAL,
     HttpError,
     buildOrderMessage,
     buildWhatsappOrderMessage,
+    createCardOrder,
     createIdempotencyKey,
     createOrder,
     createWhatsappOrder,
@@ -32,6 +34,9 @@ import {
     trackEvent,
 } from "@/helpers";
 import type { CheckoutErrors, Fulfillment, ICheckoutForm, OrderPaymentMethod } from "@/helpers";
+
+// El mapa para marcar dónde recibe otra persona: Leaflet va en su propio chunk, como el del seguimiento
+const LocationPicker = lazy(() => import("./location-picker"));
 
 const EMPTY_FORM: ICheckoutForm = {
     customerName: "",
@@ -72,7 +77,8 @@ const FULFILLMENT_OPTIONS: { value: Fulfillment; label: string; detail: string }
 
 const PAYMENT_OPTIONS: { value: OrderPaymentMethod; label: string; detail: string }[] = [
     { value: "yappy", label: "Yappy", detail: "Pagas ahora" },
-    { value: "whatsapp", label: "Coordinar por WhatsApp", detail: "Pagas al recibir" },
+    { value: "card", label: "Tarjeta", detail: "Visa o Mastercard" },
+    { value: "whatsapp", label: "WhatsApp", detail: "Pagas al recibir" },
 ];
 
 /** source dice desde donde se pidio por WhatsApp (bar cerrado, ayuda con el pago). */
@@ -81,7 +87,7 @@ const openWhatsApp = (message: string, source: string) => {
     window.open(getWhatsAppUrl(message), "_blank", "noopener");
 };
 
-/** Pie del carrito: datos del cliente y el pago, con Yappy o coordinado por WhatsApp. */
+/** Pie del carrito: datos del cliente y el pago, con Yappy, con tarjeta o coordinado por WhatsApp. */
 export const CartCheckout = () => {
     const { lines, setIsOpen } = useCart();
     const navigate = useNavigate();
@@ -99,6 +105,7 @@ export const CartCheckout = () => {
     const [paymentMethod, setPaymentMethod] = useState<OrderPaymentMethod>("yappy");
     const [cashText, setCashText] = useState("");
     const [isSendingWhatsapp, setIsSendingWhatsapp] = useState(false);
+    const [isOpeningCard, setIsOpeningCard] = useState(false);
     const [isLocating, setIsLocating] = useState(false);
     const [locationError, setLocationError] = useState<string | null>(null);
     const orderIdRef = useRef<string | null>(null);
@@ -144,7 +151,7 @@ export const CartCheckout = () => {
 
     /**
      * Guarda la ubicacion del celular. Es obligatoria para delivery: con ella se sabe si llegamos.
-     * Si es para otra persona no hace falta (se ubica a quien recibe por WhatsApp).
+     * Si es para otra persona, en su lugar se marca en el mapa dónde recibe.
      */
     const captureLocation = () => {
         setLocationError(null);
@@ -176,27 +183,34 @@ export const CartCheckout = () => {
 
     const clearLocation = () => setForm((current) => ({ ...current, deliveryLat: null, deliveryLng: null }));
 
-    // Para otra persona se coordina por WhatsApp: no se mide a quien pide y Yappy no aplica
+    // Para otra persona no se mide a quien pide: marca en el mapa dónde recibe. Se paga con cualquier método
     const isForSomeoneElse = requiresDelivery && form.isForSomeoneElse;
     const toggleForSomeoneElse = (event: ChangeEvent<HTMLInputElement>) => {
         const checked = event.target.checked;
-        setForm((current) => ({ ...current, isForSomeoneElse: checked }));
+        // El punto cambia de dueño: la ubicación de quien pide no sirve como pin de quien recibe, ni al revés
+        setForm((current) => ({ ...current, isForSomeoneElse: checked, deliveryLat: null, deliveryLng: null }));
         setErrors((current) => ({ ...current, deliveryLocation: undefined }));
         setLocationError(null);
         setPaymentError(null);
-        if (checked) setPaymentMethod("whatsapp");
     };
 
-    // Si compartió su ubicación, a cuántos km queda y si el delivery llega (el API mide igual)
-    const reach = requiresDelivery && !isForSomeoneElse && form.deliveryLat !== null && form.deliveryLng !== null
+    const markRecipientPoint = (point: { lat: number; lng: number }) => {
+        setForm((current) => ({ ...current, deliveryLat: point.lat, deliveryLng: point.lng }));
+        setErrors((current) => ({ ...current, deliveryLocation: undefined }));
+        setPaymentError(null);
+    };
+
+    // Con el punto (su ubicación o el pin), a cuántos km queda y si el delivery llega (el API mide igual)
+    const reach = requiresDelivery && form.deliveryLat !== null && form.deliveryLng !== null
         ? getDeliveryReach(settings.store, { lat: form.deliveryLat, lng: form.deliveryLng })
         : null;
     const reachError = reach?.reach === "out"
-        ? `Estás a ${reach.km} km: el delivery llega hasta ${settings.store?.deliveryMaxKm ?? 20} km. Puedes elegir retirar.`
+        ? `${isForSomeoneElse ? "Ese punto queda" : "Estás"} a ${reach.km} km: el delivery llega hasta ${settings.store?.deliveryMaxKm ?? 20} km. Puedes elegir retirar.`
         : null;
 
     // "Pagas con": solo con WhatsApp, opcional, y tiene que alcanzar para el total
     const total = getCartTotal(lines);
+    const isCardAvailable = total + 0.005 >= CARD_MIN_TOTAL;
     const cashTendered = parseMoney(cashText);
     const cashError = paymentMethod !== "whatsapp" || !cashText.trim()
         ? null
@@ -231,6 +245,34 @@ export const CartCheckout = () => {
                 ? error.message
                 : "No pudimos conectar con Yappy. Intenta de nuevo o envía tu pedido por WhatsApp.");
             return null;
+        }
+    };
+
+    /**
+     * Guarda el pedido y lleva al cliente a la página de PagueloFacil. Al pagar, PagueloFacil lo devuelve
+     * a nuestro API, que verifica el cobro y lo manda a /pedido. El carrito se vacía allá, al confirmarse.
+     */
+    const payWithCard = async () => {
+        markCheckoutStart();
+        trackEvent("pay_click", "card");
+        setPaymentError(null);
+        if (!validateCheckout()) return;
+
+        setIsOpeningCard(true);
+        try {
+            idempotencyKeyRef.current ??= createIdempotencyKey();
+            const session = await createCardOrder(lines, form, requiresDelivery, idempotencyKeyRef.current);
+            idempotencyKeyRef.current = null;
+            rememberOrderAccess(session.orderId, session.accessToken);
+            setLastOrderId(session.orderId);
+            // El siguiente pedido vuelve a pedir la casilla del aviso
+            setForm((current) => ({ ...current, note: "", privacyConsent: false }));
+            window.location.assign(session.paymentUrl);
+        } catch (error) {
+            setPaymentError(error instanceof HttpError && error.status < 500
+                ? error.message
+                : "No pudimos abrir el pago con tarjeta. Intenta de nuevo o paga con Yappy.");
+            setIsOpeningCard(false);
         }
     };
 
@@ -387,9 +429,22 @@ export const CartCheckout = () => {
                         </label>
 
                         {isForSomeoneElse ? (
-                            <p className="checkout__reach checkout__reach--far" role="status">
-                                Lo coordinamos por WhatsApp: mándanos la ubicación de quien recibe y te confirmamos si llegamos.
-                            </p>
+                            <>
+                                <p className="checkout__section">¿Dónde recibe?</p>
+                                <Suspense fallback={<div className="delivery-map delivery-map--loading location-picker__map" />}>
+                                    <LocationPicker
+                                        value={form.deliveryLat !== null && form.deliveryLng !== null ? { lat: form.deliveryLat, lng: form.deliveryLng } : null}
+                                        store={settings.store?.location ?? null}
+                                        onChange={markRecipientPoint}
+                                    />
+                                </Suspense>
+                                {reach && reach.reach !== "out" && (
+                                    <div className="checkout__location" role="status">
+                                        <PiCheckCircleBold aria-hidden />
+                                        <span>Pin marcado · a {reach.km} km del local</span>
+                                    </div>
+                                )}
+                            </>
                         ) : form.deliveryLat !== null && form.deliveryLng !== null ? (
                             <div className="checkout__location" role="status">
                                 <PiCheckCircleBold aria-hidden />
@@ -402,8 +457,8 @@ export const CartCheckout = () => {
                                 <PiMapPinBold aria-hidden /> {isLocating ? "Buscando tu ubicación…" : "Usar mi ubicación"}
                             </button>
                         )}
-                        {!isForSomeoneElse && (locationError || errors.deliveryLocation) && (
-                            <span className="field__error" role="alert">{locationError ?? errors.deliveryLocation}</span>
+                        {(isForSomeoneElse ? errors.deliveryLocation : locationError ?? errors.deliveryLocation) && (
+                            <span className="field__error" role="alert">{isForSomeoneElse ? errors.deliveryLocation : locationError ?? errors.deliveryLocation}</span>
                         )}
                         {reach?.reach === "far" && (
                             <p className="checkout__reach checkout__reach--far" role="status">
@@ -423,12 +478,12 @@ export const CartCheckout = () => {
                                 name="checkout-payment"
                                 value={option.value}
                                 checked={paymentMethod === option.value}
-                                disabled={isForSomeoneElse && option.value === "yappy"}
+                                disabled={option.value === "card" && !isCardAvailable}
                                 onChange={() => choosePaymentMethod(option.value)}
                             />
                             <span className="checkout__fulfillment-label">{option.label}</span>
                             <span className="checkout__fulfillment-detail">
-                                {isForSomeoneElse && option.value === "yappy" ? "No para otra persona" : option.detail}
+                                {option.value === "card" && !isCardAvailable ? `Mínimo ${formatPrice(CARD_MIN_TOTAL)}` : option.detail}
                             </span>
                         </label>
                     ))}
@@ -597,7 +652,24 @@ export const CartCheckout = () => {
                 />
             </div>
 
-            {paymentMethod === "yappy" ? (
+            {paymentMethod === "card" ? (
+                <>
+                    <p className="carrito__hint">
+                        Te llevamos a la página segura de PagueloFacil para pagar con Visa o Mastercard, y vuelves aquí a ver tu pedido.
+                    </p>
+                    <button
+                        type="button"
+                        className="button button--primary button--block"
+                        onClick={() => void payWithCard()}
+                        disabled={isOpeningCard || !isCardAvailable}
+                    >
+                        <PiCreditCardBold aria-hidden /> {isOpeningCard ? "Abriendo el pago…" : `Pagar con tarjeta · ${formatPrice(total)}`}
+                    </button>
+                    <button type="button" className="checkout__help" onClick={() => choosePaymentMethod("whatsapp")}>
+                        <PiWhatsappLogoBold aria-hidden /> ¿Problemas para pagar? Coordínalo por WhatsApp
+                    </button>
+                </>
+            ) : paymentMethod === "yappy" ? (
                 isYappyOnline ? (
                     <>
                         <p className="carrito__hint">Aprueba el pago en tu app de Yappy. Tienes 5 minutos.</p>

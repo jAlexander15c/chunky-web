@@ -198,13 +198,14 @@ export interface IShiftWebOrder {
     paidAt: string;
     isDelivery: boolean;
     // Opcionales mientras la API vieja siga en línea
-    paymentMethod?: "yappy" | "whatsapp";
+    paymentMethod?: "yappy" | "card" | "whatsapp";
     collectedMethod?: PaymentMethod | null;
     collectedByName?: string | null;
 }
 
-/** "Yappy" o "WhatsApp · efectivo (Carlos)": cómo se pagó un pedido web del turno. */
+/** "Yappy", "Tarjeta" o "WhatsApp · efectivo (Carlos)": cómo se pagó un pedido web del turno. */
 export const getWebOrderPaymentLabel = (order: IShiftWebOrder) => {
+    if (order.paymentMethod === "card") return "Tarjeta";
     if (order.paymentMethod !== "whatsapp") return "Yappy";
     const method = !order.collectedMethod
         ? "sin cobrar"

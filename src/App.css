@@ -2720,6 +2720,39 @@ main {
   background: var(--sky);
 }
 
+/* Yappy, tarjeta y WhatsApp en una fila */
+.checkout__payment {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* Mapa para marcar dónde recibe otra persona */
+.location-picker {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.location-picker__search {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.location-picker__search .field__input {
+  flex: 1;
+  min-width: 0;
+}
+
+.location-picker__map {
+  aspect-ratio: 4 / 3;
+  max-height: 45vh;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.location-picker__hint {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+
 .checkout__fulfillment-option {
   position: relative;
   display: grid;

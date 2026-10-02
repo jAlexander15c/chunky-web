@@ -49,10 +49,12 @@ const STEP_ACTION: Record<KitchenStep, string> = {
     deliver: "Entregado",
 };
 
-/** "#CB… · $10.75 Yappy", "#CB… · $10.75 por cobrar (WhatsApp)" o "Caja" para las comandas del local. */
+/** "#CB… · $10.75 Yappy", "#CB… · $10.75 Tarjeta", "#CB… · $10.75 por cobrar (WhatsApp)" o "Caja" para las comandas del local. */
 const getTicketOrigin = (order: IKitchenOrder) => {
     if (order.channel === "mesa") return "Caja";
-    const payment = isUnpaidOrder(order) ? "por cobrar (WhatsApp)" : order.paymentMethod === "whatsapp" ? "WhatsApp" : "Yappy";
+    const payment = isUnpaidOrder(order)
+        ? "por cobrar (WhatsApp)"
+        : order.paymentMethod === "whatsapp" ? "WhatsApp" : order.paymentMethod === "card" ? "Tarjeta" : "Yappy";
     return `${order.id} · ${formatPrice(order.total)} ${payment}`;
 };
 

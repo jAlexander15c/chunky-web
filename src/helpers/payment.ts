@@ -19,8 +19,14 @@ export type OrderStatus =
     | "EXPIRED"
     | "FAILED";
 
-/** Como paga el cliente de la web: Yappy en la página, o lo coordina por WhatsApp y paga al recibir. */
-export type OrderPaymentMethod = "yappy" | "whatsapp";
+/**
+ * Como paga el cliente de la web: Yappy en la página, tarjeta en la página de PagueloFacil, o lo
+ * coordina por WhatsApp y paga al recibir.
+ */
+export type OrderPaymentMethod = "yappy" | "card" | "whatsapp";
+
+/** Lo mínimo que cobra PagueloFacil con tarjeta (el API exige lo mismo). */
+export const CARD_MIN_TOTAL = 1;
 
 /** Con qué se cobró al entregar un pedido de WhatsApp. */
 export type CollectedMethod = "efectivo" | "tarjeta" | "yappy";
@@ -85,6 +91,15 @@ export interface IWhatsappOrderSession {
     paymentMethod: "whatsapp";
 }
 
+/** Pedido guardado para pagar con tarjeta: el cliente va al enlace de PagueloFacil y vuelve a /pedido. */
+export interface ICardPaymentSession {
+    orderId: string;
+    accessToken: string;
+    paymentMethod: "card";
+    /** Enlace de un solo uso que vence a los 15 minutos. */
+    paymentUrl: string;
+}
+
 export interface IYappyPaymentSession {
     orderId: string;
     /** Llave para consultar el pedido: sin ella, conocer el id no basta. */
@@ -111,7 +126,7 @@ export interface ICheckoutForm {
     deliveryLng: number | null;
     /**
      * A domicilio para otra persona: no se pide la ubicación de quien pide (puede estar lejos);
-     * se coordina por WhatsApp y el local ubica a quien recibe.
+     * deliveryLat/deliveryLng son el pin que marca en el mapa donde recibe.
      */
     isForSomeoneElse: boolean;
     /** Marcó la casilla del aviso de privacidad (Ley 81) en este pedido. Siempre obligatoria. */
@@ -210,9 +225,11 @@ export const getCheckoutErrors = (form: ICheckoutForm, requiresDelivery = false)
     if (requiresDelivery && form.deliveryAddress.trim().length < MIN_ADDRESS_LENGTH) {
         errors.deliveryAddress = "Escribe la dirección donde te llevamos el pedido.";
     }
-    // Sin la ubicación no se sabe si llegamos (el API exige lo mismo)
-    if (requiresDelivery && !form.isForSomeoneElse && (form.deliveryLat === null || form.deliveryLng === null)) {
-        errors.deliveryLocation = "Toca «Usar mi ubicación» para saber si llegamos. Si es para otra persona, márcalo.";
+    // Sin el punto no se sabe si llegamos (el API exige lo mismo): el de quien pide o el pin de quien recibe
+    if (requiresDelivery && (form.deliveryLat === null || form.deliveryLng === null)) {
+        errors.deliveryLocation = form.isForSomeoneElse
+            ? "Marca en el mapa dónde recibe para saber si llegamos."
+            : "Toca «Usar mi ubicación» para saber si llegamos. Si es para otra persona, márcalo.";
     }
     if (form.customerName.trim().length < 2) errors.customerName = "Escribe tu nombre para saber de quién es el pedido.";
     if (!isPanamaMobile(form.customerPhone)) errors.customerPhone = "Escribe un celular de 8 dígitos que empiece en 6.";
@@ -254,6 +271,14 @@ const getIdempotencyOptions = (idempotencyKey?: string) =>
 export const createOrder = (lines: ICartLine[], form: ICheckoutForm, requiresDelivery = false, idempotencyKey?: string) =>
     httpPost<IYappyPaymentSession>("/orders", getOrderBody(lines, form, requiresDelivery), getIdempotencyOptions(idempotencyKey));
 
+/** Guarda el pedido y pide el enlace de PagueloFacil para pagarlo con tarjeta. */
+export const createCardOrder = (lines: ICartLine[], form: ICheckoutForm, requiresDelivery = false, idempotencyKey?: string) =>
+    httpPost<ICardPaymentSession>(
+        "/orders",
+        { ...getOrderBody(lines, form, requiresDelivery), paymentMethod: "card" },
+        getIdempotencyOptions(idempotencyKey)
+    );
+
 /** Guarda el pedido sin cobrar: se confirma por WhatsApp y se paga al recibirlo. */
 export const createWhatsappOrder = (
     lines: ICartLine[],
@@ -280,12 +305,12 @@ export const parseMoney = (value: string) => {
 export const getCashSuggestions = (total: number) =>
     [total, ...[5, 10, 20, 50, 100].filter((bill) => bill > total + 0.005)].slice(0, 4);
 
-// Para otra persona no va el punto de quien pide: no es donde se entrega
+// El punto de entrega: la ubicación de quien pide, o el pin de quien recibe si es para otra persona
 const getDeliveryPayload = (form: ICheckoutForm) => ({
     address: form.deliveryAddress.trim(),
     details: form.deliveryDetails.trim() || undefined,
-    lat: form.isForSomeoneElse ? undefined : form.deliveryLat ?? undefined,
-    lng: form.isForSomeoneElse ? undefined : form.deliveryLng ?? undefined,
+    lat: form.deliveryLat ?? undefined,
+    lng: form.deliveryLng ?? undefined,
 });
 
 /** Direccion y referencias en texto, para el mensaje de WhatsApp. Vacio si no hay entrega. */
@@ -377,11 +402,12 @@ export const setLastOrderId = (orderId: string | null) => {
     }
 };
 
-/** Mensaje de WhatsApp cuando el cliente tuvo un problema pagando con Yappy. */
+/** Mensaje de WhatsApp cuando el cliente tuvo un problema pagando con Yappy o con tarjeta. */
 export const buildPaymentHelpMessage = (
     lines: ICartLine[],
     form: Pick<ICheckoutForm, "customerName" | "note"> & Partial<Pick<ICheckoutForm, "deliveryAddress" | "deliveryDetails" | "deliveryLat" | "deliveryLng">>,
-    orderId?: string | null
+    orderId?: string | null,
+    paymentMethod: OrderPaymentMethod = "yappy"
 ) => {
     const detail = lines.map(formatCartLine).join("\n");
     const delivery = getDeliveryText(form);
@@ -389,7 +415,7 @@ export const buildPaymentHelpMessage = (
     const reference = orderId ? ` (pedido ${orderId})` : "";
     const note = form.note.trim() ? `\n\nNota: ${form.note.trim()}` : "";
     const address = delivery ? `\n\n${delivery}` : "";
-    return `¡Hola! ${who}Tuve un problema pagando con Yappy en la web${reference}. Mi pedido es:\n\n${detail}\n\nTotal: ${formatPrice(getCartTotal(lines))}${address}${note}`;
+    return `¡Hola! ${who}Tuve un problema pagando con ${paymentMethod === "card" ? "tarjeta" : "Yappy"} en la web${reference}. Mi pedido es:\n\n${detail}\n\nTotal: ${formatPrice(getCartTotal(lines))}${address}${note}`;
 };
 
 /** Mensaje que abre WhatsApp al guardar un pedido para coordinar: el código, lo pedido y la entrega. */
@@ -402,13 +428,13 @@ export const buildWhatsappOrderMessage = (
     cashTendered?: number | null
 ) => {
     const detail = lines.map(formatCartLine).join("\n");
-    // Para otra persona no va la ubicación de quien pide: la de quien recibe se manda por el chat
+    // Para otra persona la ubicación es el pin que marcó donde recibe
     const forOther = Boolean(form.isForSomeoneElse && form.deliveryAddress?.trim());
-    const delivery = getDeliveryText(forOther ? { ...form, deliveryLat: null, deliveryLng: null } : form);
+    const delivery = getDeliveryText(form);
     const who = form.customerName.trim() ? `Soy ${form.customerName.trim()}. ` : "";
     const note = form.note.trim() ? `\n\nNota: ${form.note.trim()}` : "";
     const fulfillment = delivery
-        ? `\n\n${delivery}${forOther ? "\nEs para otra persona: te paso su ubicación por aquí." : ""}`
+        ? `\n\n${delivery}${forOther ? "\nEs para otra persona." : ""}`
         : "\n\nPaso a retirarlo.";
     const cash = cashTendered ? `\nPago en efectivo con ${formatPrice(cashTendered)}` : "";
     return `¡Hola! ${who}Quiero coordinar mi pedido ${orderId}:\n\n${detail}\n\nTotal: ${formatPrice(getCartTotal(lines))}${cash}${fulfillment}${note}\n\nVer pedido: ${orderUrl}`;
@@ -424,6 +450,16 @@ export const getWhatsappOrderChatUrl = (order: IPublicOrder) => {
 
 /** Texto del motivo cuando el pedido no siguió. */
 export const getFailedOrderReason = (status: OrderStatus, paymentMethod: OrderPaymentMethod = "yappy") => {
+    if (paymentMethod === "card") {
+        switch (status) {
+            case "REJECTED":
+                return "Tu banco no aprobó el pago con tarjeta.";
+            case "EXPIRED":
+                return "El enlace de pago venció antes de pagar.";
+            default:
+                return "No pudimos abrir el pago con tarjeta.";
+        }
+    }
     if (paymentMethod === "whatsapp") {
         return status === "EXPIRED"
             ? "No alcanzamos a confirmarlo por WhatsApp a tiempo."
