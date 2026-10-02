@@ -1,3 +1,4 @@
+import {ProductArrivalDialog} from "./inventory-arrival-dialog";
 import {ProductRecipeDialog} from "./inventory-product-dialog";
 import {fetchInventoryReceiptFailures,availabilityLabel} from "@/helpers/inventory";
 import type {InventoryReceiptFailure,ProductAvailability} from "@/helpers/inventory";
@@ -370,7 +371,7 @@ const SupplyFormDialog = ({ supply, onSave, onClose }: ISupplyFormProps) => {
 
 type PendingAction =
     | { kind: "purchase" | "count" | "waste" | "edit" | "batches"; supply: ISupplyStatus }
-    | { kind: "production"; product: IProductStatus };
+    | { kind: "production" | "arrival"; product: IProductStatus };
 
 /* ============ Piezas de filtro ============ */
 
@@ -846,6 +847,7 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
                                                             </span>
                                                         </td>
                                                         <td className="adm-actions">
+                                                            {product.productionMode==="BATCH"?<button type="button" className="adm-btn adm-btn--sm" onClick={()=>setPending({kind:"arrival",product})}>Registrar llegada</button>:null}
                                                             <button type="button" className="adm-btn adm-btn--sm" onClick={() => setPending({ kind: "production", product })}>
                                                                 Producción
                                                             </button>
@@ -925,7 +927,7 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
                             {movements.map((movement) => (
                                 <div className="adm-mv" key={movement.id}>
                                     <span className="adm-mv__time">{formatDayClock(movement.createdAt)}</span>
-                                    <span className={`adm-tag is-${movement.type}`}>{MOVEMENT_LABEL[movement.type]}</span>
+                                    <span className={`adm-tag is-${movement.type}`}>{movement.referenceType==="PRODUCT_RECEIPT"?"Llegada":MOVEMENT_LABEL[movement.type]}</span>
                                     <span className="adm-mv__what">{movement.name}</span>
                                     <span className={`adm-mv__qty${movement.quantity < 0 ? " is-neg" : " is-pos"}`}>
                                         {movement.quantity > 0 ? "+" : "−"}
@@ -999,6 +1001,7 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
                 />
             ) : null}
 
+            {pending?.kind==="arrival"?<ProductArrivalDialog token={token} product={pending.product} onSaved={reloadAll} onClose={()=>setPending(null)}/>:null}
             {pending?.kind === "production" && pending.product.productionMode ? <ProductRecipeDialog token={token} product={pending.product} onClose={()=>setPending(null)} onChanged={reloadAll}/> : pending?.kind === "production" ? (
                 <AmountDialog
                     title={`Producción de ${pending.product.name}`}

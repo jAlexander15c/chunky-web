@@ -4,6 +4,8 @@ export type InventoryType = "RAW_MATERIAL" | "PACKAGED_ITEM" | "PREPARED_PRODUCT
 export type ProductionMode = "MADE_TO_ORDER" | "BATCH";
 export type AvailabilityMode = "AUTOMATIC" | "MANUAL_ON" | "MANUAL_OFF";
 export interface ProductAvailability {
+    isPerishable?: boolean;
+    shelfLifeDays?: number | null;
     availabilityMode: AvailabilityMode;
     productionMode: ProductionMode;
     isAvailable: boolean;
@@ -148,3 +150,22 @@ export const fetchInventoryReceiptFailures = (token: string, signal?: AbortSigna
         ...inventoryHeaders(token),
         signal,
     });
+
+export const receiveProductBatch = (
+    token: string,
+    variantId: string,
+    quantity: string,
+    scope: "admin" | "gestion" = "admin",
+    requestId?: string,
+) =>
+    httpPost<{
+        batchId: number;
+        quantity: string;
+        receivedAt: string;
+        expirationDate: string | null;
+        usableStock: string;
+    }>(
+        "/" + scope + "/products/" + encodeURIComponent(variantId) + "/receive",
+        { quantity, requestId },
+        inventoryHeaders(token, scope),
+    );

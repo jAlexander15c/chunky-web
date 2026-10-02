@@ -68,3 +68,50 @@ Los diez casos solicitados están cubiertos. Se añadieron pruebas de conversion
 Se verificaron visualmente compra, inventario, lotes y producción en escritorio (1440 px) y móvil (390 px), con respuestas simuladas y sin llamadas de negocio a producción.
 
 Verificación final: 203 tests de backend, 34 de web y 6 de PostgreSQL real pasaron. Typecheck/build de ambos repositorios y lint de la web pasaron. El backend no define un script lint.
+
+
+## Ajuste posterior: registrar llegada de productos terminados (2026-10-02)
+
+Este ajuste se realizó después de los commits publicados anteriormente y sigue como cambio local; no se publicó automáticamente a dev/staging ni se ejecutó un despliegue.
+
+### Flujo aprobado por la solicitud
+Una persona con rol inventario entra a Gestión → Insumos → Productos, elige Registrar llegada e indica solamente la cantidad recibida. El servidor registra el instante de llegada y calcula el vencimiento con la vida útil previamente configurada en el insumo preparado de salida.
+
+Ejemplo: llegaron 7 galletas, vida útil 5 días → lote nuevo de 7, fecha de llegada del servidor, vencimiento llegada + 5 días y disponibilidad automática basada en esas 7 unidades. Otra llegada de 2 crea otro lote y lleva el stock a 9; no reemplaza el saldo diario.
+
+La llegada no consume ingredientes ni incrementa producedToday: los productos ya llegaron terminados. La producción interna con receta continúa como operación distinta. Los productos no configurados mantienen su flujo anterior y los MADE_TO_ORDER no muestran una acción de llegada.
+
+### Backend
+- Nuevo: src/modules/inventory/product-receipt.service.ts.
+- Modificados: inventory-batches.controller.ts, availability.service.ts, admin.routes.ts, gestion.routes.ts, test/inventory-batches.test.ts, test/gestion.test.ts y test/inventory-postgres.test.ts.
+- POST /gestion/products/:variantId/receive requiere sesión y rol inventario.
+- POST /admin/products/:variantId/receive requiere sesión administrativa.
+- Payload: quantity decimal entero positivo en string y requestId UUID opcional. No acepta receivedAt ni expirationDate del cliente.
+- El servicio exige configuración BATCH y salida preparada activa. Usa inventoryTransaction, crea lote origin=PRODUCT_RECEIPT, movimiento PURCHASE con referenceType=PRODUCT_RECEIPT, actor y referenceId, y actualiza las proyecciones.
+- La fecha se genera en el servidor después de tomar el bloqueo. El vencimiento se calcula desde supplies.is_perishable y supplies.shelf_life_days, que también llegan a la UI en ProductAvailability.
+- Sin datos suficientes de vida útil se registra expirationDate=null; no se inventa una fecha.
+- El requestId estable del diálogo evita duplicación si se perdió la respuesta POST. Bajo bloqueo, el servicio recupera el movimiento/lote anterior y sus fechas. Reutilizarlo para otro producto o cantidad se rechaza.
+- Se reutilizan las tablas/columnas existentes; no se agregó una migración de esquema.
+
+### Web
+- Nuevo: src/views/inventory-arrival-dialog.tsx.
+- Modificados: src/helpers/inventory.ts, src/helpers/admin.ts, src/views/gestion/inventario.tsx, src/views/admin-inventory.tsx y src/components/amount-dialog.css.
+- ProductArrivalDialog reutiliza AmountDialog: un único input de cantidad, explicación de fecha/vida útil y botón Registrar llegada.
+- El requestId se crea una vez al montar el diálogo y se conserva para reintentos; no se muestra al usuario.
+- Gestión reemplaza la acción Cargar producción por Registrar llegada para BATCH y muestra el próximo vencimiento. Administración también ofrece llegada, conservando producción interna.
+- El historial de Gestión presenta esos movimientos como Llegada mediante referenceType.
+- Ajuste mínimo responsive del diálogo compartido: box-sizing, min-width y columna grid limitada al ancho de pantalla. Se detectó y corrigió un desbordamiento en 390 px.
+
+### Validación adicional
+- TDD: los tests iniciales fallaron por endpoint inexistente y servicio ausente antes de implementar.
+- Siete unidades, cinco días, fecha del servidor, ingredientes sin stock y sin consumo.
+- Llegada posterior suma otro lote.
+- Cantidades fraccionadas y productos MADE_TO_ORDER rechazados.
+- Sin vida útil no inventa vencimiento.
+- Permisos: inventario permitido, caja rechazado, sesión ausente rechazada.
+- Payload con fechas alteradas rechazado.
+- Reintento con mismo requestId no duplica; cantidad diferente con esa referencia rechazada.
+- PostgreSQL real: fallo al insertar movimiento revierte el lote; reintentos concurrentes agregan una sola entrada; reiniciar migración no duplica el saldo.
+- Suite backend: 207 aprobados. PostgreSQL separado: 7 aprobados.
+- Verificación visual con componentes/proveedor/estilos reales, datos simulados, escritorio 1440 px y móvil 390 px. Un solo input, vencimiento por vida útil, guardado de 7 y pérdida simulada de respuesta seguida de reintento sin duplicación.
+- Las vistas temporales de verificación se retiraron. No se añadieron dependencias al repositorio.

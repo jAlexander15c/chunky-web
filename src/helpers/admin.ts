@@ -51,6 +51,7 @@ export interface IProductStatus extends Partial<ProductAvailability> {
 }
 
 export interface IMovement {
+    referenceType?: string | null;
     id: number;
     kind: "supply" | "product";
     name: string;
