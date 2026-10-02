@@ -1,3 +1,5 @@
+import {RecipeDialog} from "./inventory-recipe-dialog";
+import {availabilityLabel,expirationLabel} from "@/helpers/inventory";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 
@@ -35,6 +37,7 @@ interface INotice {
 }
 
 type MenuDialog =
+    | {kind:"recipe";editing:IMenuItem}
     | { kind: "category"; editing: IMenuCategory | null }
     | { kind: "item"; editing: IMenuItem | null }
     | { kind: "modifier"; editing: IModifier | null };
@@ -779,7 +782,8 @@ export const AdminMenu = ({ token, onSessionExpired }: { token: string; onSessio
     useEffect(() => {
         const controller = new AbortController();
         void load(controller.signal);
-        return () => controller.abort();
+        const timer=window.setInterval(()=>void load(controller.signal),60000);
+        return () => {controller.abort();window.clearInterval(timer);};
     }, [load]);
 
     const itemsByCategory = useMemo(() => {
@@ -1035,6 +1039,8 @@ export const AdminMenu = ({ token, onSessionExpired }: { token: string; onSessio
                                                                     </span>
                                                                 )}
                                                             </span>
+                                                            <span className="adm-note">{item.variants?.filter(v=>v.availability).map(v=>{const a=v.availability!;return <span key={v.variantId}>{item.variantCount>1?v.name+": ":""}{availabilityLabel(a)} · {a.productionMode==="BATCH"?"Stock: "+a.usableStock:"Se pueden preparar: "+a.maxProducible}{a.limitingIngredient?" · Limitado por: "+a.limitingIngredient:""}{a.nextExpiration?" · "+expirationLabel(a.nextExpiration):""}{a.warning?" · "+a.warning:""}</span>;})}</span>
+                                                            {item.variants?.length?<button type="button" className="adm-btn adm-btn--sm" onClick={()=>setDialog({kind:"recipe",editing:item})}>Receta / Producir lote</button>:null}
                                                             <span className="adm-menu-items__price">
                                                                 {item.price === null ? "Precio libre" : `B/. ${formatMoney(item.price)}`}
                                                                 {item.variantCount > 1 ? <em> y más</em> : null}
@@ -1134,6 +1140,7 @@ export const AdminMenu = ({ token, onSessionExpired }: { token: string; onSessio
                 )}
             </div>
 
+            {dialog?.kind==="recipe"?<RecipeDialog token={token} item={dialog.editing} onClose={()=>setDialog(null)} onChanged={load}/>:null}
             {dialog?.kind === "category" ? (
                 <CategoryDialog
                     editing={dialog.editing}

@@ -25,6 +25,7 @@ import { GestionPasteleria } from "./gestion/pasteleria";
 import { GestionTurno } from "./gestion/turno";
 
 import "./gestion.css";
+import "./admin.css";
 
 const PIN_LENGTH = 6;
 

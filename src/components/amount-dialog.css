@@ -7,12 +7,15 @@
     inset: 0;
     z-index: 60;
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     place-items: center;
     background: rgb(var(--shadow-tint) / 0.45);
     padding: var(--gutter);
 }
 
 .dlg__panel {
+    box-sizing: border-box;
+    min-width: 0;
     background: #fffef6;
     border-radius: var(--radius-panel);
     padding: 1.4rem;

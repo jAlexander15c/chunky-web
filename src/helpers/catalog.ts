@@ -148,17 +148,22 @@ async function fetchCategoriesCached(force = false) {
     return categoriesRequest;
 }
 
+const hasExpiredInventory = (items:IItem[]) => items.some(item=>item.variants?.some(variant=>{
+    const expiration=variant.inventoryAvailability?.nextExpiration;
+    return expiration && new Date(expiration).getTime()<=Date.now();
+}));
+
 function readCachedItems(categoryId: string, scope: CatalogScope) {
     const cacheKey = getItemsCacheKey(categoryId, scope);
     const memoryEntry = itemsCache.get(cacheKey);
-    if (isCacheFresh(memoryEntry)) return memoryEntry!.value;
+    if (isCacheFresh(memoryEntry) && !hasExpiredInventory(memoryEntry!.value)) return memoryEntry!.value;
 
     const sessionEntry = readSessionEntry<IItem[]>(`${ITEMS_CACHE_PREFIX}${cacheKey}`);
 
     // If session storage has an array with items, use it. If it's an empty
     // array (likely from a previous failed fetch), ignore it so we attempt
     // a fresh fetch from the API.
-    if (sessionEntry && Array.isArray(sessionEntry.value) && sessionEntry.value.length > 0) {
+    if (sessionEntry && Array.isArray(sessionEntry.value) && sessionEntry.value.length > 0 && !hasExpiredInventory(sessionEntry.value)) {
         itemsCache.set(cacheKey, sessionEntry);
         return sessionEntry.value;
     }
@@ -320,6 +325,17 @@ export function useItems(categoryId?: string, scope: CatalogScope = "normal", { 
             cancelled = true;
         };
     }, [categoryId, scope]);
+
+    useEffect(()=>{
+        if(!categoryId) return;
+        const expirations=items.flatMap(item=>item.variants?.map(variant=>variant.inventoryAvailability?.nextExpiration).filter(Boolean) ?? []).map(value=>new Date(value!).getTime()).filter(time=>Number.isFinite(time) && time>Date.now());
+        if(expirations.length===0)return;
+        const key=getItemsCacheKey(categoryId,scope);
+        const timer=window.setTimeout(()=>{
+            fetchItemsByCategoryCached(categoryId,scope,true).then(next=>{if(currentKeyRef.current===key)setItems(next);}).catch(()=>undefined);
+        },Math.min(2147483647,Math.max(1,Math.min(...expirations)-Date.now()+50)));
+        return ()=>window.clearTimeout(timer);
+    },[items,categoryId,scope]);
 
     return { items, loading, error };
 }
