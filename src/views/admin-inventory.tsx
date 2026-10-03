@@ -4,6 +4,7 @@ import {fetchInventoryReceiptFailures,availabilityLabel} from "@/helpers/invento
 import type {InventoryReceiptFailure,ProductAvailability} from "@/helpers/inventory";
 import {PurchaseDialog} from "./inventory-purchase-dialog";
 import {InventoryBatchDialog} from "./inventory-batch-dialog";
+import { SupplyUnitDialog } from "./supply-unit-dialog";
 import {compatibleUnits,expirationLabel} from "@/helpers/inventory";
 import type {InventoryType} from "@/helpers/inventory";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -20,7 +21,10 @@ import {
     formatClock,
     formatCountAge,
     formatDayClock,
+    formatInPresentation,
     formatQuantity,
+    getPresentation,
+    isCountUnit,
     getPageSlice,
     getSafePage,
     registerCount,
@@ -188,11 +192,13 @@ const SUPPLY_CATEGORIES: SupplyCategory[] = ["alimento", "limpieza", "mantenimie
 interface ISupplyFormProps {
     /** Con un insumo es edición: el formulario arranca con sus datos. */
     supply?: ISupplyStatus;
+    /** Pasar de "u" a ml o g para usarlo en recetas. */
+    onChangeUnit?: () => void;
     onSave: (supply: ISupplyInput) => Promise<void>;
     onClose: () => void;
 }
 
-const SupplyFormDialog = ({ supply, onSave, onClose }: ISupplyFormProps) => {
+const SupplyFormDialog = ({ supply, onChangeUnit, onSave, onClose }: ISupplyFormProps) => {
     const isEditing = Boolean(supply);
     const [name, setName] = useState(supply?.name ?? "");
     const [unit, setUnit] = useState(supply?.unit ?? "kg");
@@ -286,6 +292,11 @@ const SupplyFormDialog = ({ supply, onSave, onClose }: ISupplyFormProps) => {
                                 <option key={option.value} value={option.value}>{option.label}</option>
                             ))}
                         </select>
+                        {isEditing && onChangeUnit && supply && isCountUnit(supply.unit) && supply.inventoryType !== "PREPARED_PRODUCT" ? (
+                            <button type="button" className="adm-btn adm-btn--sm" onClick={onChangeUnit}>
+                                Cambiar a ml o g
+                            </button>
+                        ) : null}
                     </label>
 
                     <label className="adm-form__row"><span>Tipo</span><select className="adm-form__input" value={inventoryType} onChange={e=>setInventoryType(e.target.value as InventoryType)}><option value="RAW_MATERIAL">Materia prima</option><option value="PACKAGED_ITEM">Producto empacado</option><option value="PREPARED_PRODUCT">Producto preparado</option></select></label>
@@ -370,7 +381,7 @@ const SupplyFormDialog = ({ supply, onSave, onClose }: ISupplyFormProps) => {
 };
 
 type PendingAction =
-    | { kind: "purchase" | "count" | "waste" | "edit" | "batches"; supply: ISupplyStatus }
+    | { kind: "purchase" | "count" | "waste" | "edit" | "batches" | "unit"; supply: ISupplyStatus }
     | { kind: "production" | "arrival"; product: IProductStatus };
 
 /* ============ Piezas de filtro ============ */
@@ -708,7 +719,12 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
                                                     {supply.supplier ? <em>{supply.supplier}</em> : null}
                                                 </td>
                                                 <td data-label="Categoría">{SUPPLY_CATEGORY_LABEL[supply.category]}</td>
-                                                <td className="num adm-card-qty" data-label="Quedan">{formatQuantity(supply.stock)} {supply.unit}</td>
+                                                <td className="num adm-card-qty" data-label="Quedan">
+                                                    {formatQuantity(supply.stock)} {supply.unit}
+                                                    {getPresentation(supply) ? (
+                                                        <small className="adm-qty-pres">{formatInPresentation(supply.stock, getPresentation(supply)!, supply.unit)}</small>
+                                                    ) : null}
+                                                </td>
                                                 <td className="num" data-label="Gasto diario">
                                                     {supply.dailyUse !== null ? (
                                                         `${formatQuantity(supply.dailyUse)} ${supply.unit}`
@@ -961,6 +977,7 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
             {pending?.kind === "edit" ? (
                 <SupplyFormDialog
                     supply={pending.supply}
+                    onChangeUnit={() => setPending({ kind: "unit", supply: pending.supply })}
                     onSave={async (supply) => {
                         await updateSupply(token, pending.supply.id, supply);
                         await reloadAll();
@@ -969,15 +986,19 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
                 />
             ) : null}
 
+            {pending?.kind === "unit" ? (
+                <SupplyUnitDialog token={token} supply={pending.supply} onSaved={reloadAll} onClose={() => setPending(null)} />
+            ) : null}
             {pending?.kind === "purchase" ? <PurchaseDialog token={token} supply={pending.supply} onSaved={reloadAll} onClose={()=>setPending(null)}/> : null}
             {pending?.kind === "batches" ? <InventoryBatchDialog token={token} supply={pending.supply} onChanged={reloadAll} onClose={()=>setPending(null)}/> : null}
 
             {pending?.kind === "count" ? (
                 <AmountDialog
                     title={`Conteo de ${pending.supply.name}`}
-                    hint={`Cuánto hay ahora mismo, en ${pending.supply.unit}. El sistema dice ${formatQuantity(pending.supply.stock)}. Cuenta solo stock utilizable; los vencidos se descartan en Lotes.`}
+                    hint={`El sistema dice ${getPresentation(pending.supply) ? formatInPresentation(pending.supply.stock, getPresentation(pending.supply)!, pending.supply.unit) : formatQuantity(pending.supply.stock) + " " + pending.supply.unit}. Cuenta solo stock utilizable; los vencidos se descartan en Lotes.`}
                     unit={pending.supply.unit}
-                    initial={formatQuantity(pending.supply.stock)}
+                    initial={getPresentation(pending.supply) ? String(pending.supply.stock) : formatQuantity(pending.supply.stock)}
+                    presentation={getPresentation(pending.supply)}
                     confirmLabel="Registrar conteo"
                     onConfirm={async (amount) => {
                         await registerCount(token, pending.supply.id, amount);
@@ -990,8 +1011,9 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
             {pending?.kind === "waste" ? (
                 <AmountDialog
                     title={`Merma de ${pending.supply.name}`}
-                    hint={`Cuánto se perdió o se dañó, en ${pending.supply.unit}. Se resta de los ${formatQuantity(pending.supply.stock)} que hay.`}
+                    hint={`Cuánto se perdió o se dañó. Se resta de los ${formatQuantity(pending.supply.stock)} ${pending.supply.unit} que hay.`}
                     unit={pending.supply.unit}
+                    presentation={getPresentation(pending.supply)}
                     confirmLabel="Registrar merma"
                     onConfirm={async (amount) => {
                         await registerWaste(token, pending.supply.id, amount);

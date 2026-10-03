@@ -12,7 +12,9 @@ import {
     fetchGestionSupplies,
     formatClock,
     formatCountAge,
+    formatInPresentation,
     formatQuantity,
+    getPresentation,
     registerGestionCount,
     registerGestionProduction,
     registerGestionWaste,
@@ -324,6 +326,11 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                                     <div className="ges-qty">
                                         <b>{formatQuantity(supply.stock)}</b>
                                         <span>{supply.unit}</span>
+                                        {getPresentation(supply) ? (
+                                            <small className="ges-qty__pres">
+                                                {formatInPresentation(supply.stock, getPresentation(supply)!, supply.unit)}
+                                            </small>
+                                        ) : null}
                                     </div>
                                 </div>
                                 <div className="ges-acts">
@@ -375,9 +382,12 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
             {pending?.kind === "count" ? (
                 <AmountDialog
                     title={`Conteo de ${pending.supply.name}`}
-                    hint={`Cuánto hay ahora mismo, en ${pending.supply.unit}. El sistema dice ${formatQuantity(pending.supply.stock)}.`}
+                    hint={getPresentation(pending.supply)
+                        ? `Cuenta los enteros y lo que queda abierto. El sistema dice ${formatInPresentation(pending.supply.stock, getPresentation(pending.supply)!, pending.supply.unit)}.`
+                        : `Cuánto hay ahora mismo, en ${pending.supply.unit}. El sistema dice ${formatQuantity(pending.supply.stock)}.`}
                     unit={pending.supply.unit}
-                    initial={formatQuantity(pending.supply.stock)}
+                    initial={getPresentation(pending.supply) ? String(pending.supply.stock) : formatQuantity(pending.supply.stock)}
+                    presentation={getPresentation(pending.supply)}
                     confirmLabel="Guardar conteo"
                     buttonClass="ges-btn"
                     onConfirm={async (amount) => {
@@ -391,8 +401,9 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
             {pending?.kind === "waste" ? (
                 <AmountDialog
                     title={`Merma de ${pending.supply.name}`}
-                    hint={`Cuánto se perdió o se dañó, en ${pending.supply.unit}. Se resta de los ${formatQuantity(pending.supply.stock)} que hay.`}
+                    hint={`Cuánto se perdió o se dañó. Se resta de los ${formatQuantity(pending.supply.stock)} ${pending.supply.unit} que hay.`}
                     unit={pending.supply.unit}
+                    presentation={getPresentation(pending.supply)}
                     confirmLabel="Guardar merma"
                     buttonClass="ges-btn"
                     onConfirm={async (amount) => {

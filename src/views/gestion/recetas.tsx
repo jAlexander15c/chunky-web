@@ -226,6 +226,12 @@ const RecipeSheet = ({ token, product, catalog, supplies, onRulesSaved, onChange
                                     })}
                                 </ul>
                             )}
+                            {recipe.ingredients.some((entry) => ["u", "unit"].includes(entry.baseUnit ?? entry.unit)) ? (
+                                <p className="ropt-hint">
+                                    Lo que se mide en u solo acepta u. Si la receta lo usa en ml o g (ej. leche en cartón), el admin lo
+                                    cambia en el tablero: Inventario → Editar insumo → Cambiar a ml o g.
+                                </p>
+                            ) : null}
                             <label className="ges-field ges-field--sm">
                                 <span className="ges-sr-only">Agregar ingrediente</span>
                                 <select

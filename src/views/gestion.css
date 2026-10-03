@@ -1426,3 +1426,7 @@
 .kit-recipe__row strong { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
 .kit-recipe__row small { grid-column: 1 / -1; font-size: 0.74rem; color: var(--mora); }
 .kit-recipe__removed { margin: 0.4rem 0 0; font-size: 0.78rem; color: var(--ges-text-3); text-decoration: line-through; }
+
+/* Insumo con presentación: "3 cartones y 400 ml" debajo del total */
+.ges-qty:has(.ges-qty__pres) { flex-wrap: wrap; justify-content: flex-end; align-items: baseline; gap: 0 0.15rem; max-width: 9.5rem; }
+.ges-qty__pres { flex-basis: 100%; text-align: right; font-size: 0.72rem; font-weight: 700; color: var(--ges-text-2); line-height: 1.3; }
