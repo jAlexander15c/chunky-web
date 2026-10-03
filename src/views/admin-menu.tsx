@@ -1038,16 +1038,16 @@ export const AdminMenu = ({ token, onSessionExpired }: { token: string; onSessio
                                                                         {item.isAvailable ? "A la venta" : "Oculto"}
                                                                     </span>
                                                                 )}
+                                                                {item.variants?.some(v=>v.availability)?<span className="adm-note adm-menu-items__note">{item.variants.filter(v=>v.availability).map(v=>{const a=v.availability!;return <span key={v.variantId}>{item.variantCount>1?v.name+": ":""}{availabilityLabel(a)} · {a.productionMode==="BATCH"?"Stock: "+a.usableStock:"Se pueden preparar: "+a.maxProducible}{a.limitingIngredient?" · Limitado por: "+a.limitingIngredient:""}{a.nextExpiration?" · "+expirationLabel(a.nextExpiration):""}{a.warning?" · "+a.warning:""}</span>;})}</span>:null}
                                                             </span>
-                                                            <span className="adm-note">{item.variants?.filter(v=>v.availability).map(v=>{const a=v.availability!;return <span key={v.variantId}>{item.variantCount>1?v.name+": ":""}{availabilityLabel(a)} · {a.productionMode==="BATCH"?"Stock: "+a.usableStock:"Se pueden preparar: "+a.maxProducible}{a.limitingIngredient?" · Limitado por: "+a.limitingIngredient:""}{a.nextExpiration?" · "+expirationLabel(a.nextExpiration):""}{a.warning?" · "+a.warning:""}</span>;})}</span>
-                                                            {item.variants?.length?<button type="button" className="adm-btn adm-btn--sm" onClick={()=>setDialog({kind:"recipe",editing:item})}>Receta / Producir lote</button>:null}
+                                                            {item.variants?.length?<button type="button" className="adm-btn adm-btn--sm adm-menu-items__action" onClick={()=>setDialog({kind:"recipe",editing:item})}>Receta / Producir lote</button>:null}
                                                             <span className="adm-menu-items__price">
                                                                 {item.price === null ? "Precio libre" : `B/. ${formatMoney(item.price)}`}
                                                                 {item.variantCount > 1 ? <em> y más</em> : null}
                                                             </span>
                                                             <button
                                                                 type="button"
-                                                                className="adm-btn adm-btn--sm"
+                                                                className="adm-btn adm-btn--sm adm-menu-items__action"
                                                                 onClick={() => setDialog({ kind: "item", editing: item })}
                                                                 aria-label={`Editar ${item.name}`}
                                                             >

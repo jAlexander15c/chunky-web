@@ -1731,11 +1731,21 @@ a.adm-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .adm-menu-items__thumb { flex: none; width: 36px; height: 36px; border-radius: 10px; object-fit: cover; background: var(--adm-panel-2); }
 .adm-menu-items__info { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem 0.6rem; }
 .adm-menu-items__name { min-width: 0; overflow-wrap: break-word; }
+.adm-menu-items__note { flex-basis: 100%; display: grid; gap: 0.1rem; overflow-wrap: anywhere; }
+.adm-menu-items__action { flex: none; }
 .adm-menu-items__price em { font-style: normal; font-weight: 600; color: var(--adm-text-2); }
 .adm-menu-items__price { font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; }
 
 @media (max-width: 520px) {
     .adm-menu-cat__body { padding-left: 0; }
+
+    /* En teléfono: foto + nombre/estado arriba; precio y botones en la fila de abajo */
+    .adm-menu-items { gap: 0; }
+    .adm-menu-items li { flex-wrap: wrap; row-gap: 0.5rem; padding: 0.7rem 0; border-bottom: 1px solid var(--adm-line); }
+    .adm-menu-items li:last-child { border-bottom: 0; }
+    .adm-menu-items__info { flex: 1 1 calc(100% - 36px - 0.7rem); }
+    .adm-menu-items__price { order: 1; margin-left: calc(36px + 0.7rem); margin-right: auto; }
+    .adm-menu-items__action { order: 2; }
 }
 
 /* Formularios del menú */
