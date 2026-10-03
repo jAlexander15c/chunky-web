@@ -4,7 +4,6 @@ import {fetchInventoryReceiptFailures,availabilityLabel} from "@/helpers/invento
 import type {InventoryReceiptFailure,ProductAvailability} from "@/helpers/inventory";
 import {PurchaseDialog} from "./inventory-purchase-dialog";
 import {InventoryBatchDialog} from "./inventory-batch-dialog";
-import { SupplyUnitDialog } from "./supply-unit-dialog";
 import {compatibleUnits,expirationLabel} from "@/helpers/inventory";
 import type {InventoryType} from "@/helpers/inventory";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -23,8 +22,11 @@ import {
     formatDayClock,
     formatInPresentation,
     formatQuantity,
+    changeSupplyUnit,
+    getPlural,
     getPresentation,
     isCountUnit,
+    roundQuantity,
     getPageSlice,
     getSafePage,
     registerCount,
@@ -189,16 +191,21 @@ const SUPPLY_UNITS = [
 
 const SUPPLY_CATEGORIES: SupplyCategory[] = ["alimento", "limpieza", "mantenimiento"];
 
+/** Un insumo en "u" cuya presentación trae ml o g: al guardar pasa a medirse en ml o g. */
+interface ISupplyConversion {
+    unit: string;
+    perUnit: string;
+    presentation: string;
+}
+
 interface ISupplyFormProps {
     /** Con un insumo es edición: el formulario arranca con sus datos. */
     supply?: ISupplyStatus;
-    /** Pasar de "u" a ml o g para usarlo en recetas. */
-    onChangeUnit?: () => void;
-    onSave: (supply: ISupplyInput) => Promise<void>;
+    onSave: (supply: ISupplyInput, conversion?: ISupplyConversion) => Promise<void>;
     onClose: () => void;
 }
 
-const SupplyFormDialog = ({ supply, onChangeUnit, onSave, onClose }: ISupplyFormProps) => {
+const SupplyFormDialog = ({ supply, onSave, onClose }: ISupplyFormProps) => {
     const isEditing = Boolean(supply);
     const [name, setName] = useState(supply?.name ?? "");
     const [unit, setUnit] = useState(supply?.unit ?? "kg");
@@ -215,6 +222,10 @@ const SupplyFormDialog = ({ supply, onChangeUnit, onSave, onClose }: ISupplyForm
     const [isSending, setIsSending] = useState(false);
 
     const toNumber = (value: string) => Number(value.replace(",", "."));
+    // "u" con contenido en ml o g: las recetas lo piden en ml o g, así que al guardar pasa a medirse así
+    const isConverting = isCountUnit(unit) && !isCountUnit(contentUnit) && inventoryType !== "PREPARED_PRODUCT";
+    const contentUnits = isCountUnit(unit) && inventoryType !== "PREPARED_PRODUCT" ? [unit, "ml", "g"] : compatibleUnits(unit);
+    const size = toNumber(purchaseSize);
 
     const submit = async (event: FormEvent) => {
         event.preventDefault();
@@ -236,19 +247,34 @@ const SupplyFormDialog = ({ supply, onChangeUnit, onSave, onClose }: ISupplyForm
             return;
         }
 
+        if (isConverting && (!purchaseUnit.trim() || parsedSize === undefined)) {
+            setError(`Para medirlo en ${contentUnit}, escribe la presentación (ej. cartón) y cuánto trae.`);
+            return;
+        }
+
         setIsSending(true);
         setError("");
 
         try {
-            await onSave({
-                name: name.trim(),
-                unit,
-                category,
-                minStock: parsedMin,
-                supplier: supplier.trim() || undefined,
-                purchaseUnit: purchaseUnit.trim() || undefined,
-                purchaseSize: parsedSize,inventoryType,contentUnit,isPerishable,shelfLifeDays:isPerishable&&shelfLifeDays?Number(shelfLifeDays):null,
-            });
+            await onSave(
+                {
+                    name: name.trim(),
+                    unit,
+                    category,
+                    minStock: parsedMin,
+                    supplier: supplier.trim() || undefined,
+                    // Mientras se convierte queda la presentación anterior: la nueva la guarda el cambio de unidad
+                    purchaseUnit: isConverting ? supply?.purchaseUnit ?? undefined : purchaseUnit.trim() || undefined,
+                    purchaseSize: isConverting ? supply?.purchaseSize ?? undefined : parsedSize,
+                    inventoryType,
+                    contentUnit: isConverting ? unit : contentUnit,
+                    isPerishable,
+                    shelfLifeDays: isPerishable && shelfLifeDays ? Number(shelfLifeDays) : null,
+                },
+                isConverting && parsedSize !== undefined
+                    ? { unit: contentUnit, perUnit: String(parsedSize), presentation: purchaseUnit.trim() }
+                    : undefined
+            );
             onClose();
         } catch (requestError) {
             setError(
@@ -292,11 +318,6 @@ const SupplyFormDialog = ({ supply, onChangeUnit, onSave, onClose }: ISupplyForm
                                 <option key={option.value} value={option.value}>{option.label}</option>
                             ))}
                         </select>
-                        {isEditing && onChangeUnit && supply && isCountUnit(supply.unit) && supply.inventoryType !== "PREPARED_PRODUCT" ? (
-                            <button type="button" className="adm-btn adm-btn--sm" onClick={onChangeUnit}>
-                                Cambiar a ml o g
-                            </button>
-                        ) : null}
                     </label>
 
                     <label className="adm-form__row"><span>Tipo</span><select className="adm-form__input" value={inventoryType} onChange={e=>setInventoryType(e.target.value as InventoryType)}><option value="RAW_MATERIAL">Materia prima</option><option value="PACKAGED_ITEM">Producto empacado</option><option value="PREPARED_PRODUCT">Producto preparado</option></select></label>
@@ -360,11 +381,23 @@ const SupplyFormDialog = ({ supply, onChangeUnit, onSave, onClose }: ISupplyForm
                             placeholder="25"
                         />
                     </label>
-                    <label className="adm-form__row"><span>Unidad del contenido</span><select className="adm-form__input" value={contentUnit} onChange={e=>setContentUnit(e.target.value)}>{compatibleUnits(unit).map(u=><option key={u}>{u}</option>)}</select></label>
+                    <label className="adm-form__row"><span>Unidad del contenido</span><select className="adm-form__input" value={contentUnit} onChange={e=>setContentUnit(e.target.value)}>{contentUnits.map(u=><option key={u}>{u}</option>)}</select></label>
                 </div>
 
                 <p className="adm-form__note">
-                    {purchaseUnit&&purchaseSize ? <>1 {purchaseUnit} contiene {purchaseSize} {contentUnit}. Las compras se convertirán a {unit} antes de agregarse al inventario.</> : "Configura la presentación y su contenido para comprar en paquetes, cajas o sacos."}
+                    {isConverting && purchaseUnit && Number.isFinite(size) && size > 0 ? (
+                        <>
+                            Al guardar, {name || "el insumo"} pasa a medirse en {contentUnit}: 1 {unit} = 1 {purchaseUnit} = {purchaseSize} {contentUnit}.
+                            {supply
+                                ? ` Hoy hay ${formatQuantity(supply.stock)} ${unit}: quedarán ${formatQuantity(roundQuantity(supply.stock * size))} ${contentUnit}, y el mínimo y las recetas se convierten igual.`
+                                : ` El mínimo se escribe en ${unit} y se convierte también.`}{" "}
+                            Se sigue contando como "3 {getPlural(purchaseUnit)} y 400 {contentUnit}".
+                        </>
+                    ) : purchaseUnit && purchaseSize ? (
+                        <>1 {purchaseUnit} contiene {purchaseSize} {contentUnit}. Las compras se convertirán a {unit} antes de agregarse al inventario.</>
+                    ) : (
+                        "Configura la presentación y su contenido para comprar en paquetes, cajas o sacos."
+                    )}
                 </p>
 
                 {error ? <p className="adm-gate__error">{error}</p> : null}
@@ -381,7 +414,7 @@ const SupplyFormDialog = ({ supply, onChangeUnit, onSave, onClose }: ISupplyForm
 };
 
 type PendingAction =
-    | { kind: "purchase" | "count" | "waste" | "edit" | "batches" | "unit"; supply: ISupplyStatus }
+    | { kind: "purchase" | "count" | "waste" | "edit" | "batches"; supply: ISupplyStatus }
     | { kind: "production" | "arrival"; product: IProductStatus };
 
 /* ============ Piezas de filtro ============ */
@@ -966,8 +999,9 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
 
             {isCreatingSupply ? (
                 <SupplyFormDialog
-                    onSave={async (supply) => {
-                        await createSupply(token, supply);
+                    onSave={async (supply, conversion) => {
+                        const created = await createSupply(token, supply);
+                        if (conversion) await changeSupplyUnit(token, created.supply.id, conversion);
                         await reloadAll();
                     }}
                     onClose={() => setIsCreatingSupply(false)}
@@ -977,18 +1011,15 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
             {pending?.kind === "edit" ? (
                 <SupplyFormDialog
                     supply={pending.supply}
-                    onChangeUnit={() => setPending({ kind: "unit", supply: pending.supply })}
-                    onSave={async (supply) => {
+                    onSave={async (supply, conversion) => {
                         await updateSupply(token, pending.supply.id, supply);
+                        if (conversion) await changeSupplyUnit(token, pending.supply.id, conversion);
                         await reloadAll();
                     }}
                     onClose={() => setPending(null)}
                 />
             ) : null}
 
-            {pending?.kind === "unit" ? (
-                <SupplyUnitDialog token={token} supply={pending.supply} onSaved={reloadAll} onClose={() => setPending(null)} />
-            ) : null}
             {pending?.kind === "purchase" ? <PurchaseDialog token={token} supply={pending.supply} onSaved={reloadAll} onClose={()=>setPending(null)}/> : null}
             {pending?.kind === "batches" ? <InventoryBatchDialog token={token} supply={pending.supply} onChanged={reloadAll} onClose={()=>setPending(null)}/> : null}
 
