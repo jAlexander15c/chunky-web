@@ -38,7 +38,8 @@ import { AdminCustomers } from "./admin-customers";
 import { AdminOverview } from "./admin-overview";
 import { PeriodPicker } from "./admin-period";
 import { ADMIN_GROUPS, ADMIN_SECTIONS, getSectionFromParam } from "./admin-sections";
-import type { AdminSection } from "./admin-sections";
+import type { AdminSection, IAdminSectionInfo } from "./admin-sections";
+import { AdminSheet, SheetChevron } from "./admin-sheet";
 import { AccessPanel, FaceIdLoginButton, FaceIdOffer, InstallHint } from "./staff-access";
 
 import "./admin.css";
@@ -454,6 +455,9 @@ const AdminDashboard = ({ token, personName, onLogout, onTokenChange }: IAdminDa
     const [searchParams, setSearchParams] = useSearchParams();
     const section = getSectionFromParam(searchParams.get(SECTION_PARAM));
     const sectionInfo = ADMIN_SECTIONS.find((one) => one.id === section) ?? ADMIN_SECTIONS[0];
+    // En el teléfono el menú es un botón que abre la lista a pantalla completa
+    const [isNavOpen, setIsNavOpen] = useState(false);
+    const closeNav = useCallback(() => setIsNavOpen(false), []);
 
     const loadSummary = useCallback(
         async (signal?: AbortSignal) => {
@@ -524,6 +528,19 @@ const AdminDashboard = ({ token, personName, onLogout, onTokenChange }: IAdminDa
     const range = getSelectionRange(period);
 
     const toBuy = supplies.filter((supply) => supply.state === "comprar");
+
+    /** El número junto a la sección: insumos por comprar o descuadres sin resolver. */
+    const getSectionBadge = (id: AdminSection) => {
+        if (id === "inventario" && toBuy.length > 0)
+            return <span className="adm-menu__badge" aria-label={`${toBuy.length} insumos por comprar`}>{toBuy.length}</span>;
+        if (id === "resumen" && openIncidents > 0)
+            return (
+                <span className="adm-menu__badge is-alert" aria-label={`${openIncidents} descuadres sin resolver`}>
+                    {openIncidents}
+                </span>
+            );
+        return null;
+    };
     const today = dashboard
         ? new Date(dashboard.serverTime).toLocaleDateString("es-PA", { weekday: "short", day: "numeric", month: "short" })
         : "";
@@ -573,32 +590,55 @@ const AdminDashboard = ({ token, personName, onLogout, onTokenChange }: IAdminDa
                                     aria-current={section === one.id}
                                     onClick={() => openSection(one.id)}
                                 >
-                                    <svg
-                                        className="adm-menu__ico"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        aria-hidden="true"
-                                    >
-                                        {one.icon}
-                                    </svg>
+                                    <SectionIcon section={one} />
                                     {one.label}
-                                    {one.id === "inventario" && toBuy.length > 0 ? (
-                                        <span className="adm-menu__badge" aria-label={`${toBuy.length} insumos por comprar`}>{toBuy.length}</span>
-                                    ) : null}
-                                    {one.id === "resumen" && openIncidents > 0 ? (
-                                        <span className="adm-menu__badge is-alert" aria-label={`${openIncidents} descuadres sin resolver`}>
-                                            {openIncidents}
-                                        </span>
-                                    ) : null}
+                                    {getSectionBadge(one.id)}
                                 </button>
                             ))}
                         </div>
                     ))}
                 </nav>
+
+                <button type="button" className="adm-nav-trigger" aria-haspopup="dialog" onClick={() => setIsNavOpen(true)}>
+                    <SectionIcon section={sectionInfo} />
+                    <span className="adm-nav-trigger__text">
+                        <small>{ADMIN_GROUPS.find((group) => group.sections.some((one) => one.id === section))?.label}</small>
+                        <b>{sectionInfo.label}</b>
+                    </span>
+                    {ADMIN_SECTIONS.some((one) => one.id !== section && getSectionBadge(one.id)) ? (
+                        <span className="adm-nav-trigger__dot" aria-label="Hay pendientes en otras secciones" />
+                    ) : null}
+                    {getSectionBadge(section)}
+                    <SheetChevron />
+                </button>
+
+                {isNavOpen ? (
+                    <AdminSheet title="Ir a…" onClose={closeNav}>
+                        {(close) =>
+                            ADMIN_GROUPS.map((group) => (
+                                <div className="adm-sheet__group" role="group" aria-label={group.label} key={group.label}>
+                                    <span className="adm-sheet__label">{group.label}</span>
+                                    {group.sections.map((one) => (
+                                        <button
+                                            key={one.id}
+                                            type="button"
+                                            className="adm-sheet__opt"
+                                            aria-current={section === one.id}
+                                            onClick={() => close(() => openSection(one.id))}
+                                        >
+                                            <span className="adm-sheet__ico"><SectionIcon section={one} /></span>
+                                            <span className="adm-sheet__text">
+                                                <b>{one.label}</b>
+                                                <small>{one.subtitle}</small>
+                                            </span>
+                                            {getSectionBadge(one.id)}
+                                        </button>
+                                    ))}
+                                </div>
+                            ))
+                        }
+                    </AdminSheet>
+                ) : null}
 
                 <main className="adm-wrap" key={section}>
                     <div className="adm-head">
@@ -676,6 +716,22 @@ const AdminDashboard = ({ token, personName, onLogout, onTokenChange }: IAdminDa
 
 /** Lo que se sabe con un API que todavía no tiene /admin/me: sin persona y sin Face ID. */
 const UNKNOWN_ME: IStaffMe = { collaborator: null, mustChangePin: false, isFaceIdAvailable: false };
+
+/** El icono de una sección, igual en el menú lateral y en la hoja del teléfono. */
+const SectionIcon = ({ section }: { section: IAdminSectionInfo }) => (
+    <svg
+        className="adm-menu__ico"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+    >
+        {section.icon}
+    </svg>
+);
 
 export const AdminView = () => {
     const [token, setToken] = useState<string | null>(() => getAdminToken());

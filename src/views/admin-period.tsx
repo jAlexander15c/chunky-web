@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import type { FormEvent } from "react";
 
 import { FINANCE_PERIODS, addDays, formatRange, getPanamaToday, getRangeError, getSelectionRange } from "@/helpers";
 import type { FinancePeriod, PeriodSelection } from "@/helpers";
+
+import { AdminSheet, SheetChevron } from "./admin-sheet";
 
 /* ============ Selector ============ */
 
@@ -23,6 +25,9 @@ export const PeriodPicker = ({ selection, onChange }: IPeriodPickerProps) => {
     const [from, setFrom] = useState("");
     const [to, setTo] = useState("");
     const [error, setError] = useState("");
+    // En el teléfono los atajos no caben en una fila: se eligen en una hoja a pantalla completa
+    const [isSheetOpen, setIsSheetOpen] = useState(false);
+    const closeSheet = useCallback(() => setIsSheetOpen(false), []);
 
     const today = getPanamaToday();
     const isCustom = selection.kind === "custom";
@@ -56,7 +61,46 @@ export const PeriodPicker = ({ selection, onChange }: IPeriodPickerProps) => {
 
     return (
         <>
-            <div className="adm-chips" role="group" aria-label="Período">
+            <button type="button" className="adm-sheet-trigger adm-period-trigger" aria-haspopup="dialog" onClick={() => setIsSheetOpen(true)}>
+                <span className="adm-sheet-trigger__text">
+                    <small>Período</small>
+                    {isCustom
+                        ? formatRange(selection.from, selection.to)
+                        : FINANCE_PERIODS.find((option) => option.id === selection.period)?.label}
+                </span>
+                <SheetChevron />
+            </button>
+
+            {isSheetOpen ? (
+                <AdminSheet title="Período" onClose={closeSheet}>
+                    {(close) => (
+                        <div className="adm-sheet__choices">
+                            {FINANCE_PERIODS.map((option) => (
+                                <button
+                                    key={option.id}
+                                    type="button"
+                                    className="adm-sheet__choice"
+                                    aria-current={selection.kind === "preset" && selection.period === option.id}
+                                    onClick={() => close(() => choosePreset(option.id))}
+                                >
+                                    {option.label}
+                                </button>
+                            ))}
+                            <button
+                                type="button"
+                                className="adm-sheet__choice"
+                                aria-current={isCustom}
+                                onClick={() => close(openPanel)}
+                            >
+                                Elegir fechas
+                                <small>{isCustom ? formatRange(selection.from, selection.to) : "un día o un rango"}</small>
+                            </button>
+                        </div>
+                    )}
+                </AdminSheet>
+            ) : null}
+
+            <div className="adm-chips adm-chips--period" role="group" aria-label="Período">
                 {FINANCE_PERIODS.map((option) => (
                     <button
                         key={option.id}

@@ -686,7 +686,7 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
                     ) : (
                         <>
                             <div className="adm-scroll">
-                                <table className="adm-table adm-table--compact">
+                                <table className="adm-table adm-table--compact adm-table--cards">
                                     <thead>
                                         <tr>
                                             <th>Insumo</th>
@@ -707,26 +707,26 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
                                                     {supply.name}
                                                     {supply.supplier ? <em>{supply.supplier}</em> : null}
                                                 </td>
-                                                <td>{SUPPLY_CATEGORY_LABEL[supply.category]}</td>
-                                                <td className="num">{formatQuantity(supply.stock)} {supply.unit}</td>
-                                                <td className="num">
+                                                <td data-label="Categoría">{SUPPLY_CATEGORY_LABEL[supply.category]}</td>
+                                                <td className="num adm-card-qty" data-label="Quedan">{formatQuantity(supply.stock)} {supply.unit}</td>
+                                                <td className="num" data-label="Gasto diario">
                                                     {supply.dailyUse !== null ? (
                                                         `${formatQuantity(supply.dailyUse)} ${supply.unit}`
                                                     ) : (
                                                         <span className="adm-nodata">sin datos</span>
                                                     )}
                                                 </td>
-                                                <td>
+                                                <td data-label="Alcanza">
                                                     <CoverageBar daysLeft={supply.daysLeft} />
                                                 </td>
-                                                <td className="num">{formatQuantity(supply.minStock)} {supply.unit}</td>
-                                                <td>
+                                                <td className="num" data-label="Mínimo">{formatQuantity(supply.minStock)} {supply.unit}</td>
+                                                <td data-label="Último conteo">
                                                     <span className={`adm-age${supply.countAge !== null && supply.countAge > 7 ? " is-stale" : ""}`}>
                                                         {formatCountAge(supply.countAge)}
                                                     </span>
                                                 </td>
-                                                <td>{expirationLabel(supply.nextExpiration)}</td>
-                                                <td>
+                                                <td data-label="Próximo vencimiento">{expirationLabel(supply.nextExpiration)}</td>
+                                                <td className="adm-card-state">
                                                     {supply.stock<=0?<span className="adm-pill is-crit">Agotado</span>:supply.stock<=supply.minStock?<span className="adm-pill is-warn">Stock bajo</span>:null}
                                                     {Number(supply.expiredStock)>0?<span className="adm-pill is-crit">Stock vencido</span>:null}
                                                     {supply.nextExpiration?<span className="adm-pill is-warn">{expirationLabel(supply.nextExpiration)}</span>:null}
@@ -815,7 +815,7 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
                             ) : (
                                 <>
                                     <div className="adm-scroll">
-                                        <table className="adm-table adm-table--compact">
+                                        <table className="adm-table adm-table--compact adm-table--cards">
                                             <thead>
                                                 <tr>
                                                     <th>Producto</th>
@@ -834,14 +834,14 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
                                                             {product.productionMode ? <em>{product.productionMode==="BATCH"?"Stock: "+product.usableStock:"Se pueden preparar: "+product.maxProducible}{product.limitingIngredient?" · Limitado por: "+product.limitingIngredient:""}{product.nextExpiration?" · "+expirationLabel(product.nextExpiration):""}{product.warning?" · "+product.warning:""}</em> : null}
                                                             {product.soldOutAt ? <em>Se agotó a las {formatClock(product.soldOutAt)}</em> : null}
                                                         </td>
-                                                        <td className="num">{formatQuantity(product.producedToday)}</td>
-                                                        <td className="num">{formatQuantity(product.stock)}</td>
-                                                        <td>
+                                                        <td className="num" data-label="Hecho hoy">{formatQuantity(product.producedToday)}</td>
+                                                        <td className="num adm-card-qty" data-label="Queda">{formatQuantity(product.stock)} <span className="adm-card-unit">u</span></td>
+                                                        <td className="adm-card-state">
                                                             <span className={`adm-pill is-${PRODUCT_STATE_TONE[product.state]}`}>
                                                                 {product.availabilityMode ? availabilityLabel(product as ProductAvailability) : PRODUCT_STATE_LABEL[product.state]}
                                                             </span>
                                                         </td>
-                                                        <td>
+                                                        <td data-label="Loyverse">
                                                             <span className={`adm-age${product.loyverseSynced ? "" : " is-stale"}`}>
                                                                 {product.loyverseSynced ? (product.stock > 0 ? "a la venta" : "apagado ✓") : "sincronizando…"}
                                                             </span>
