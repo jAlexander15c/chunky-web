@@ -39,7 +39,7 @@ import { AdminOverview } from "./admin-overview";
 import { PeriodPicker } from "./admin-period";
 import { ADMIN_GROUPS, ADMIN_SECTIONS, getSectionFromParam } from "./admin-sections";
 import type { AdminSection, IAdminSectionInfo } from "./admin-sections";
-import { AdminSheet, SheetChevron } from "./admin-sheet";
+import { FullSheet, SheetChevron } from "@/components";
 import { AccessPanel, FaceIdLoginButton, FaceIdOffer, InstallHint } from "./staff-access";
 
 import "./admin.css";
@@ -613,21 +613,21 @@ const AdminDashboard = ({ token, personName, onLogout, onTokenChange }: IAdminDa
                 </button>
 
                 {isNavOpen ? (
-                    <AdminSheet title="Ir a…" onClose={closeNav}>
+                    <FullSheet title="Ir a…" onClose={closeNav}>
                         {(close) =>
                             ADMIN_GROUPS.map((group) => (
-                                <div className="adm-sheet__group" role="group" aria-label={group.label} key={group.label}>
-                                    <span className="adm-sheet__label">{group.label}</span>
+                                <div className="fsheet__group" role="group" aria-label={group.label} key={group.label}>
+                                    <span className="fsheet__label">{group.label}</span>
                                     {group.sections.map((one) => (
                                         <button
                                             key={one.id}
                                             type="button"
-                                            className="adm-sheet__opt"
+                                            className="fsheet__opt"
                                             aria-current={section === one.id}
                                             onClick={() => close(() => openSection(one.id))}
                                         >
-                                            <span className="adm-sheet__ico"><SectionIcon section={one} /></span>
-                                            <span className="adm-sheet__text">
+                                            <span className="fsheet__ico"><SectionIcon section={one} /></span>
+                                            <span className="fsheet__text">
                                                 <b>{one.label}</b>
                                                 <small>{one.subtitle}</small>
                                             </span>
@@ -637,7 +637,7 @@ const AdminDashboard = ({ token, personName, onLogout, onTokenChange }: IAdminDa
                                 </div>
                             ))
                         }
-                    </AdminSheet>
+                    </FullSheet>
                 ) : null}
 
                 <main className="adm-wrap" key={section}>

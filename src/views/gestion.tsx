@@ -19,6 +19,8 @@ import { useDeliveryFeed } from "@/hooks/useDeliveryFeed";
 import { useKitchenFeed } from "@/hooks/useKitchenFeed";
 import { shouldOfferFaceId, useChoosePin, useFaceIdLogin } from "@/hooks/useStaffAccess";
 
+import { FullSheet } from "@/components";
+
 import { GestionCaja } from "./gestion/caja";
 import { GestionCocina, KitchenToast } from "./gestion/cocina";
 import { GestionCreditos } from "./gestion/creditos";
@@ -321,6 +323,17 @@ interface IGestionShellProps {
     onTokenChange: (login: IStaffLogin) => void;
 }
 
+/** En el teléfono la barra de abajo muestra hasta cinco; con más, cuatro y "Más" abre el resto a pantalla completa. */
+const MAX_BOTTOM_ITEMS = 5;
+
+const MoreIcon = () => (
+    <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="5" cy="12" r="1.5" />
+        <circle cx="12" cy="12" r="1.5" />
+        <circle cx="19" cy="12" r="1.5" />
+    </svg>
+);
+
 const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGestionShellProps) => {
     const [shift, setShift] = useState<IShiftDetail | null>(null);
 
@@ -343,6 +356,34 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
     const tracking = useCourierTracking(token, myOutOrderIds, onLogout);
     const deliveryBadge = roles.includes("caja") ? delivery.pendingCount : delivery.readyToGoCount;
 
+    const [isMoreOpen, setIsMoreOpen] = useState(false);
+    const closeMore = useCallback(() => setIsMoreOpen(false), []);
+
+    const openSection = (id: Section) => {
+        setSection(id);
+        setDeliveryOpenId(null);
+    };
+
+    /** Pedidos nuevos en Cocina; en Delivery, los que esperan a caja o al repartidor. */
+    const getBadge = (id: Section) => {
+        if (id === "cocina" && kitchen.newCount > 0)
+            return <span className="ges-nav__badge" aria-label={`${kitchen.newCount} pedidos nuevos`}>{kitchen.newCount}</span>;
+        if (id === "delivery" && deliveryBadge > 0)
+            return (
+                <span
+                    className="ges-nav__badge"
+                    aria-label={roles.includes("caja") ? `${deliveryBadge} por coordinar` : `${deliveryBadge} listos para salir`}
+                >
+                    {deliveryBadge}
+                </span>
+            );
+        return null;
+    };
+
+    const hasMore = available.length > MAX_BOTTOM_ITEMS;
+    const overflow = hasMore ? available.slice(MAX_BOTTOM_ITEMS - 1) : [];
+    const currentInOverflow = overflow.find((one) => one.id === current?.id);
+
     if (!current) {
         return (
             <div className="ges ges-gate">
@@ -360,37 +401,64 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
         <div className="ges ges-shell">
             <nav className="ges-nav" aria-label="Secciones de gestión">
                 <div className="ges-nav__brand script">Gestión</div>
-                {available.map((one) => (
+                {available.map((one, index) => (
                     <button
                         key={one.id}
                         type="button"
-                        className="ges-nav__item"
+                        className={`ges-nav__item${hasMore && index >= MAX_BOTTOM_ITEMS - 1 ? " is-overflow" : ""}`}
                         aria-current={current.id === one.id}
-                        onClick={() => {
-                            setSection(one.id);
-                            setDeliveryOpenId(null);
-                        }}
+                        onClick={() => openSection(one.id)}
                     >
                         {one.icon}
                         {one.label}
-                        {one.id === "cocina" && kitchen.newCount > 0 ? (
-                            <span className="ges-nav__badge" aria-label={`${kitchen.newCount} pedidos nuevos`}>{kitchen.newCount}</span>
-                        ) : null}
-                        {one.id === "delivery" && deliveryBadge > 0 ? (
-                            <span
-                                className="ges-nav__badge"
-                                aria-label={roles.includes("caja") ? `${deliveryBadge} por coordinar` : `${deliveryBadge} listos para salir`}
-                            >
-                                {deliveryBadge}
-                            </span>
-                        ) : null}
+                        {getBadge(one.id)}
                     </button>
                 ))}
+                {hasMore ? (
+                    <button
+                        type="button"
+                        className="ges-nav__item ges-nav__more"
+                        aria-current={Boolean(currentInOverflow)}
+                        aria-haspopup="dialog"
+                        onClick={() => setIsMoreOpen(true)}
+                    >
+                        {currentInOverflow ? currentInOverflow.icon : <MoreIcon />}
+                        {currentInOverflow ? currentInOverflow.label : "Más"}
+                        {overflow.some((one) => one.id !== currentInOverflow?.id && getBadge(one.id)) ? (
+                            <span className="ges-nav__dot" aria-label="Hay pendientes en otras secciones" />
+                        ) : null}
+                    </button>
+                ) : null}
                 <div className="ges-nav__foot">
                     {name || "equipo"}
                     <span>{roles.map((role) => ROLE_LABEL[role]).join(" · ") || "sin permisos"}</span>
                 </div>
             </nav>
+
+            {isMoreOpen ? (
+                <FullSheet title="Ir a…" onClose={closeMore}>
+                    {(close) => (
+                        <div className="fsheet__group">
+                            {available.map((one) => (
+                                <button
+                                    key={one.id}
+                                    type="button"
+                                    className="fsheet__opt"
+                                    aria-current={current.id === one.id}
+                                    onClick={() => close(() => openSection(one.id))}
+                                >
+                                    <span className="fsheet__ico">{one.icon}</span>
+                                    <span className="fsheet__text">
+                                        <b>{one.label}</b>
+                                        <small>{one.sub}</small>
+                                    </span>
+                                    {getBadge(one.id)}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </FullSheet>
+            ) : null}
 
             <div className="ges-panel">
                 <header className="ges-top">

@@ -10,6 +10,8 @@ import {
 } from "@/helpers";
 import type { ISaleAvailability } from "@/helpers";
 
+import { SheetSelect } from "@/components";
+
 import { GestionPager } from "./pager";
 
 type StateFilter = "todos" | "disponibles" | "apagados";
@@ -163,7 +165,18 @@ export const GestionDisponibilidad = ({ token, onSessionExpired }: IGestionDispo
                     onChange={(event) => changeFilter(() => setSearch(event.target.value))}
                 />
 
-                <div className="ges-tabs ges-tabs--flush" aria-label="Categoría">
+                <SheetSelect<string>
+                    label="Categoría"
+                    className="ges-select ges-select--flush"
+                    value={categoryId}
+                    options={[
+                        { id: ALL_CATEGORIES, label: "Todas", count: products.length },
+                        ...categories.map((category) => ({ id: category.id, label: category.name, count: category.count })),
+                    ]}
+                    onChange={(id) => changeFilter(() => setCategoryId(id))}
+                />
+
+                <div className="ges-tabs ges-tabs--flush fsheet-wide" aria-label="Categoría">
                     <button
                         type="button"
                         className="ges-tab"

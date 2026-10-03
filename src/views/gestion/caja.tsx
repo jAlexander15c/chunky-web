@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { ModifierPicker } from "@/components";
+import { ModifierPicker, SheetSelect } from "@/components";
 import {
     HttpError,
     PAYMENT_LABEL,
@@ -1437,7 +1437,17 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
         <>
             <div className="ges-account">
                 <div className="ges-account__menu">
-                    <div className="ges-tabs" role="group" aria-label="Categorías">
+                    {currentCategory ? (
+                        <SheetSelect<string>
+                            label="Categoría"
+                            className="ges-select"
+                            value={currentCategory}
+                            options={categories.map((category) => ({ id: category.id, label: category.name }))}
+                            onChange={setCategoryId}
+                        />
+                    ) : null}
+
+                    <div className="ges-tabs fsheet-wide" role="group" aria-label="Categorías">
                         {categories.map((category) => (
                             <button
                                 key={category.id}
@@ -1500,7 +1510,25 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                     </div>
 
                     {tableNumber !== null ? (
-                        <div className="ges-accounts" role="group" aria-label="Cuentas de la mesa">
+                        <SheetSelect<number>
+                            label="Cuenta"
+                            className="ges-select"
+                            value={ticket.id}
+                            options={ticket.tableAccounts.map((one) => ({
+                                id: one.id,
+                                label: getAccountName(one),
+                                count: formatCash(one.id === ticket.id ? ticket.total : one.total),
+                            }))}
+                            onChange={(id) => {
+                                if (id === ticket.id) return;
+                                void run(() => fetchTicket(token, id), "No pudimos abrir esa cuenta.");
+                            }}
+                            action={{ label: "+ Cuenta", disabled: !hasShift, onSelect: () => setIsOpeningAccount(true) }}
+                        />
+                    ) : null}
+
+                    {tableNumber !== null ? (
+                        <div className="ges-accounts fsheet-wide" role="group" aria-label="Cuentas de la mesa">
                             {ticket.tableAccounts.map((one) => (
                                 <button
                                     key={one.id}

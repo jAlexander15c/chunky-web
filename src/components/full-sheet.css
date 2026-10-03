@@ -1,0 +1,195 @@
+/* Hoja a pantalla completa y selector del teléfono, compartidos por /admin y /gestion.
+   En el teléfono una fila de pestañas que no cabe se elige aquí en lugar de deslizarla de lado. */
+
+.fsheet {
+    --fsheet-line: #e4dec6;
+    --fsheet-soft: var(--text-soft);
+    --fsheet-faint: #8d93b4;
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: flex;
+    flex-direction: column;
+    background: #fffef6;
+    color: var(--ink);
+    padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .fsheet { animation: fsheet-in 220ms var(--ease-out); }
+}
+
+@keyframes fsheet-in {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: none; }
+}
+
+.fsheet__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem var(--gutter) 0.6rem;
+}
+
+.fsheet__head h2 { margin: 0; font-size: 1.15rem; font-weight: 800; }
+
+.fsheet__close {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border: 1.5px solid var(--fsheet-line);
+    border-radius: 50%;
+    background: #fff;
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.fsheet__close svg { width: 18px; height: 18px; }
+
+.fsheet__body {
+    flex: 1;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    display: grid;
+    align-content: start;
+    gap: 1rem;
+    padding: 0.2rem calc(var(--gutter) - 0.4rem) 1.4rem;
+}
+
+/* Lista agrupada con icono y descripción (secciones del tablero y de gestión) */
+.fsheet__group { display: grid; gap: 0.15rem; }
+
+.fsheet__label {
+    padding: 0 0.5rem 0.25rem;
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--fsheet-faint);
+}
+
+.fsheet__opt {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    width: 100%;
+    min-height: 56px;
+    padding: 0.55rem 0.6rem;
+    border: 0;
+    border-radius: 14px;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.fsheet__opt[aria-current="true"] { background: var(--sky); }
+
+.fsheet__ico {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: #f6f2df;
+    color: var(--mora);
+}
+
+.fsheet__ico svg { width: 20px; height: 20px; }
+
+.fsheet__opt[aria-current="true"] .fsheet__ico { background: var(--mora); color: var(--crema); }
+
+.fsheet__text { display: grid; flex: 1; min-width: 0; }
+.fsheet__text b { font-size: 0.95rem; font-weight: 800; }
+
+.fsheet__text small {
+    font-size: 0.74rem;
+    color: var(--fsheet-soft);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Lista simple de opciones (período, categoría, cuenta…) */
+.fsheet__choices { display: grid; }
+
+.fsheet__choice {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    min-height: 54px;
+    padding: 0.7rem 0.6rem;
+    border: 0;
+    border-bottom: 1px solid var(--fsheet-line);
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+}
+
+.fsheet__choice > span { flex: 1; min-width: 0; }
+.fsheet__choice small { font-size: 0.78rem; font-weight: 600; color: var(--fsheet-soft); font-variant-numeric: tabular-nums; }
+.fsheet__choice[aria-current="true"] { color: var(--mora); font-weight: 800; }
+.fsheet__choice[aria-current="true"]::after { content: "✓"; font-weight: 900; }
+.fsheet__choice.is-action { color: var(--mora); font-weight: 800; }
+.fsheet__choice:disabled { opacity: 0.45; cursor: default; }
+
+.fsheet__close:focus-visible,
+.fsheet__opt:focus-visible,
+.fsheet__choice:focus-visible,
+.fsheet-select:focus-visible {
+    outline: 3px solid var(--orquidea);
+    outline-offset: 2px;
+}
+
+/* El botón que abre la hoja: solo en el teléfono; la fila de pestañas lleva fsheet-wide */
+.fsheet-select { display: none; }
+.fsheet-select__chevron { flex: none; width: 18px; height: 18px; }
+
+@media (max-width: 720px) {
+    .fsheet-wide { display: none !important; }
+
+    .fsheet-select {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.8rem;
+        width: 100%;
+        min-height: 52px;
+        padding: 0.55rem 0.9rem;
+        border: 1.5px solid #e4dec6;
+        border-radius: 14px;
+        background: #fff;
+        color: var(--ink);
+        font: inherit;
+        font-weight: 800;
+        text-align: left;
+        cursor: pointer;
+    }
+}
+
+.fsheet-select__text { display: grid; min-width: 0; line-height: 1.25; }
+
+.fsheet-select__text small {
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-soft);
+}
+
+.fsheet-select__text em {
+    font-style: normal;
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: var(--text-soft);
+    margin-left: 0.4rem;
+    font-variant-numeric: tabular-nums;
+}

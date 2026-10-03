@@ -3,7 +3,7 @@ import {expirationLabel} from "@/helpers/inventory";
 import {PurchaseDialog} from "../inventory-purchase-dialog";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { AmountDialog } from "@/components";
+import { AmountDialog, SheetSelect } from "@/components";
 import {
     HttpError,
     SUPPLY_CATEGORY_LABEL,
@@ -216,7 +216,15 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
         <>
             {viewSwitch}
 
-            <div className="ges-tabs" role="tablist" aria-label="Qué vas a registrar">
+            <SheetSelect<Tab>
+                label="Qué vas a registrar"
+                className="ges-select"
+                value={tab}
+                options={TABS.map((option) => ({ id: option, label: TAB_LABEL[option], count: counts[option] }))}
+                onChange={openTab}
+            />
+
+            <div className="ges-tabs fsheet-wide" role="tablist" aria-label="Qué vas a registrar">
                 {TABS.map((option) => (
                     <button
                         key={option}

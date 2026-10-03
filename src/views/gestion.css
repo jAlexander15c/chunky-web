@@ -226,8 +226,31 @@
 
 @media (max-width: 899px) {
     .ges-nav__brand, .ges-nav__foot { display: none; }
-    .ges-nav__item { flex: 1; flex-direction: column; gap: 0.1rem; font-size: 0.68rem; padding: 0.45rem 0.25rem; justify-content: center; }
+    .ges-nav__item { flex: 1 1 0; min-width: 0; flex-direction: column; gap: 0.1rem; font-size: 0.68rem; padding: 0.45rem 0.25rem; justify-content: center; }
+    /* Con más de cinco secciones, las últimas se eligen desde "Más" */
+    .ges-nav__item.is-overflow { display: none; }
 }
+
+/* "Más" solo existe en la barra de abajo del teléfono */
+.ges-nav__more { display: none; }
+
+@media (max-width: 899px) {
+    .ges-nav__more { display: flex; }
+}
+
+.ges-nav__dot {
+    position: absolute;
+    top: 6px;
+    right: 22%;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--orquidea);
+}
+
+/* En la hoja de secciones el número va al final de la fila, no flotando como en la barra */
+.fsheet__opt .ges-nav__badge { position: static; margin-left: auto; }
+.fsheet__ico .ges-nav__ico { width: 20px; height: 20px; }
 
 /* ============ Cabecera de la sección ============ */
 
@@ -315,6 +338,14 @@
 }
 
 .ges-tabs--flush { padding: 0; }
+
+/* En el teléfono las pestañas que no caben se eligen en una hoja (components/full-sheet) */
+.fsheet-select.ges-select {
+    width: calc(100% - 2 * var(--gutter));
+    margin: 0.8rem var(--gutter) 0.2rem;
+}
+
+.fsheet-select.ges-select--flush { width: 100%; margin: 0; }
 
 /* ============ Inventario: insumos o disponibilidad ============ */
 
