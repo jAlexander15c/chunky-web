@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { httpGet } from "./getHttp";
 import { keepIfSame, useLiveRefresh } from "./live-refresh";
@@ -13,6 +13,8 @@ export interface IModifierOption {
     isAvailable?: boolean;
     /** Se apagó sola porque a su insumo no le alcanza para una porción. */
     isOutOfStock?: boolean;
+    /** Permanece apagada por decisión manual aunque sus insumos alcancen. */
+    isManuallyDisabled?: boolean;
 }
 
 export const isOptionAvailable = (option: IModifierOption) => option.isAvailable !== false;
@@ -36,65 +38,65 @@ export interface ICartModifier {
 /** Cada tanto se vuelve a pedir: asi una opcion que se agota se ve sin recargar la pagina. */
 const MODIFIERS_TTL_MS = 2 * 60 * 1000;
 
-let modifiersCache: IModifier[] | null = null;
-let modifiersSavedAt = 0;
-let modifiersRequest: Promise<IModifier[]> | null = null;
+type ModifierCacheEntry = { modifiers: IModifier[]; savedAt: number };
+const modifiersCache = new Map<string, ModifierCacheEntry>();
+const modifiersRequests = new Map<string, Promise<IModifier[]>>();
 
-/** Catalogo de modificadores del API, con cache corta en memoria. Con `force` se ignora la cache. */
-const fetchModifiersCached = (force = false) => {
-    if (!force && modifiersCache && Date.now() - modifiersSavedAt < MODIFIERS_TTL_MS) return Promise.resolve(modifiersCache);
-
-    if (!modifiersRequest) {
-        modifiersRequest = httpGet<{ modifiers: IModifier[] }>("/modifiers")
+/** Cada variante tiene su disponibilidad y su cache; la global sigue sirviendo al catálogo. */
+const fetchModifiersCached = (force = false, variantId?: string, options = "") => {
+    const key = JSON.stringify([variantId ?? "", options]);
+    const cached = modifiersCache.get(key);
+    if (!force && cached && Date.now() - cached.savedAt < MODIFIERS_TTL_MS) return Promise.resolve(cached.modifiers);
+    let request = modifiersRequests.get(key);
+    if (!request) {
+        request = httpGet<{ modifiers: IModifier[] }>("/modifiers" + (variantId ? "?variantId=" + encodeURIComponent(variantId) + (options ? "&options=" + encodeURIComponent(options) : "") : ""))
             .then(({ modifiers }) => {
-                modifiersCache = modifiers;
-                modifiersSavedAt = Date.now();
+                modifiersCache.set(key, { modifiers, savedAt: Date.now() });
                 return modifiers;
             })
             .catch((error) => {
                 console.error("[modificadores] error:", error?.status, error?.message);
-                // Sin modificadores el menu sigue funcionando: se agrega sin opciones (o con los ultimos que se tenian)
-                return modifiersCache ?? [];
+                return modifiersCache.get(key)?.modifiers ?? [];
             })
-            .finally(() => {
-                modifiersRequest = null;
-            });
+            .finally(() => { modifiersRequests.delete(key); });
+        modifiersRequests.set(key, request);
     }
-
-    return modifiersRequest;
+    return request;
 };
 
-/** `live`: para la caja, que queda abierta todo el dia y tiene que ver los cambios del tablero. */
-export const useModifiers = ({ live = false }: { live?: boolean } = {}) => {
-    const [modifiers, setModifiers] = useState<IModifier[]>(() => modifiersCache ?? []);
-
+/** Caja refresca en vivo; variantId aplica las cantidades propias de su receta. */
+export const useModifiers = ({ live = false, variantId, optionIds = [] }: { live?: boolean; variantId?: string; optionIds?: string[] } = {}) => {
+    const options = [...new Set(optionIds)].sort().join(",");
+    const key = JSON.stringify([variantId ?? "", options]);
+    const latestKey = useRef(key);
+    useEffect(() => { latestKey.current = key; }, [key]);
+    const [state, setState] = useState<{ variantId?: string; modifiers: IModifier[] }>(() => ({ variantId, modifiers: modifiersCache.get(key)?.modifiers ?? [] }));
     useLiveRefresh(() => {
-        void fetchModifiersCached(true).then((next) => setModifiers((current) => keepIfSame(current, next)));
+        void fetchModifiersCached(true, variantId, options).then((next) => {
+            if (latestKey.current === key) setState((current) => ({ variantId, modifiers: current.variantId === variantId ? keepIfSame(current.modifiers, next) : next }));
+        });
     }, live);
-
     useEffect(() => {
         let cancelled = false;
-        void fetchModifiersCached().then((next) => {
-            if (!cancelled) setModifiers(next);
+        void fetchModifiersCached(Boolean(variantId), variantId, options).then((next) => {
+            if (!cancelled && latestKey.current === key) setState({ variantId, modifiers: next });
         });
-        return () => {
-            cancelled = true;
-        };
-    }, []);
-
-    return modifiers;
+        return () => { cancelled = true; };
+    }, [key, variantId, options]);
+    // Conserva los controles mientras cambia la selección, sin compartir estados entre variantes.
+    return state.variantId === variantId ? state.modifiers : modifiersCache.get(key)?.modifiers ?? [];
 };
 
 /**
  * Los modificadores de un producto, en el orden que tiene Loyverse.
  * Ojo: el campo de Loyverse es `modifier_ids`, no `modifiers_ids`.
  */
-export const getItemModifiers = (item: IItem, modifiers: IModifier[]): IModifier[] =>
+export const getItemModifiers = (item: IItem, modifiers: IModifier[], selectedOptionIds: string[] = []): IModifier[] =>
     (item.modifier_ids ?? [])
         .map((id) => modifiers.find((modifier) => modifier.id === id))
         .filter((modifier): modifier is IModifier => Boolean(modifier))
         // Con todas sus opciones agotadas, el modificador no se ofrece
-        .filter((modifier) => modifier.options.some(isOptionAvailable));
+        .filter((modifier) => modifier.options.some((option) => isOptionAvailable(option) || selectedOptionIds.includes(option.id)));
 
 export const hasItemModifiers = (item: IItem, modifiers: IModifier[]) => getItemModifiers(item, modifiers).length > 0;
 

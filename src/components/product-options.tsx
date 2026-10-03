@@ -7,7 +7,7 @@ import { ModifierPicker } from "./modifier-picker";
 import { Stamp } from "./stamp";
 import { useCart } from "./use-cart";
 
-import { formatCartModifiers, formatPrice, getAvailableQuantity, getItemCartQuantity, getItemPrice, getLineMax, getModifiersPrice, getStockNote } from "@/helpers";
+import { formatCartModifiers, formatPrice, getAvailableQuantity, getItemCartQuantity, getItemPrice, getLineMax, getModifiersPrice, getStockNote, getItemModifiers, useModifiers } from "@/helpers";
 import type { ICartModifier, IModifier } from "@/helpers";
 import type { IItem } from "@/interfaces";
 
@@ -23,6 +23,7 @@ interface IProductOptionsProps {
 const ProductOptionsForm = ({ item, modifiers, onClose }: { item: IItem; modifiers: IModifier[]; onClose: () => void }) => {
     const { lines, addItem, setIsOpen } = useCart();
     const [chosen, setChosen] = useState<ICartModifier[]>([]);
+    const contextualModifiers = useModifiers({ variantId: item.variants?.[0]?.variant_id, optionIds: chosen.map((entry) => entry.modifierOptionId) });
     const [quantity, setQuantity] = useState(1);
     // Por lotes: lo que ya está en el carrito sale del mismo stock
     const room = getLineMax(lines, item, "");
@@ -47,7 +48,7 @@ const ProductOptionsForm = ({ item, modifiers, onClose }: { item: IItem; modifie
                 </div>
             </div>
 
-            <ModifierPicker modifiers={modifiers} chosen={chosen} onChange={setChosen} />
+            <ModifierPicker modifiers={getItemModifiers(item, contextualModifiers.length ? contextualModifiers : modifiers, chosen.map((entry) => entry.modifierOptionId))} chosen={chosen} onChange={setChosen} />
 
             {chosen.length > 0 && (
                 <div className="opts__summary" aria-live="polite">

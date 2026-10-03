@@ -9,6 +9,8 @@ interface IModifierPickerProps {
     onChange: (next: ICartModifier[]) => void;
 }
 
+const getSoldOutLabel = (option: IModifierOption) => option.isManuallyDisabled ? "Apagado manualmente" : option.isOutOfStock ? "Sin insumo" : "Agotado";
+
 const getExtraLabel = (option: IModifierOption) => (option.price > 0 ? `+${formatPrice(option.price)}` : "");
 
 /**
@@ -34,19 +36,21 @@ export const ModifierPicker = ({ modifiers, chosen, onChange }: IModifierPickerP
                 if (isSingleOptionModifier(modifier)) {
                     const option = modifier.options[0];
                     const isChecked = chosenOptionId === option.id;
+                    const isSoldOut = !isOptionAvailable(option);
 
                     return (
                         <label key={modifier.id} className={`modifier-check ${isChecked ? "modifier-check--on" : ""}`}>
                             <input
                                 type="checkbox"
                                 checked={isChecked}
+                                disabled={!isChecked && isSoldOut}
                                 onChange={() => toggleOption(modifier, option)}
                             />
                             <span className="modifier-check__box" aria-hidden>
                                 <PiCheckBold />
                             </span>
                             <span className="modifier-check__name">{modifier.name} {option.name}</span>
-                            {option.price > 0 && <span className="modifier-check__price">{getExtraLabel(option)}</span>}
+                            {isSoldOut ? <span className="modifier-check__price">{getSoldOutLabel(option)}</span> : option.price > 0 && <span className="modifier-check__price">{getExtraLabel(option)}</span>}
                         </label>
                     );
                 }
@@ -67,15 +71,15 @@ export const ModifierPicker = ({ modifiers, chosen, onChange }: IModifierPickerP
                                         type="button"
                                         role="radio"
                                         aria-checked={isChecked}
-                                        aria-disabled={isSoldOut || undefined}
-                                        disabled={isSoldOut}
+                                        aria-disabled={(!isChecked && isSoldOut) || undefined}
+                                        disabled={!isChecked && isSoldOut}
                                         className={`opt-chip ${isChecked ? "opt-chip--on" : ""} ${isSoldOut ? "opt-chip--sold" : ""}`}
                                         onClick={() => toggleOption(modifier, option)}
                                     >
                                         {isChecked && <PiCheckBold aria-hidden />}
                                         {isSoldOut ? <s>{option.name}</s> : option.name}
                                         {isSoldOut ? (
-                                            <span className="opt-chip__sold">Agotado</span>
+                                            <span className="opt-chip__sold">{getSoldOutLabel(option)}</span>
                                         ) : (
                                             option.price > 0 && <small>{getExtraLabel(option)}</small>
                                         )}

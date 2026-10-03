@@ -45,6 +45,7 @@ import type {
     PaymentMethod,
 } from "@/helpers";
 import type { IItem } from "@/interfaces";
+import { InventoryExitDialog } from "./inventory-exit-dialog";
 
 /** El mapa de mesas se relee solo: dos dispositivos tienen que ver lo mismo. */
 const TABLES_REFRESH_MS = 8000;
@@ -817,12 +818,16 @@ interface IOptionsDialogProps {
 }
 
 const OptionsDialog = ({ item, onAdd, onClose }: IOptionsDialogProps) => {
-    const modifiers = useModifiers();
     const [chosen, setChosen] = useState<ICartModifier[]>([]);
+    const modifiers = useModifiers({
+        live: true,
+        variantId: item.variants?.[0]?.variant_id,
+        optionIds: chosen.map((entry) => entry.modifierOptionId),
+    });
     const [note, setNote] = useState("");
     const [isSending, setIsSending] = useState(false);
 
-    const itemModifiers = getItemModifiers(item, modifiers);
+    const itemModifiers = getItemModifiers(item, modifiers, chosen.map((entry) => entry.modifierOptionId));
 
     return (
         <div className="ges-modal" role="dialog" aria-modal="true" aria-label={`Opciones de ${item.item_name}`}>
@@ -1197,6 +1202,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
     const [isVoiding, setIsVoiding] = useState(false);
     const [isReleasing, setIsReleasing] = useState(false);
     const [isConfirmingRelease, setIsConfirmingRelease] = useState(false);
+    const [isRegisteringExit, setIsRegisteringExit] = useState(false);
     const [isOpeningTogo, setIsOpeningTogo] = useState(false);
     const [isOpeningAccount, setIsOpeningAccount] = useState(false);
     const [moving, setMoving] = useState<ITicketLine | null>(null);
@@ -1338,6 +1344,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
 
         return (
             <>
+                <button type="button" className="ges-btn" onClick={() => setIsRegisteringExit(true)}>Registrar salida</button>
                 {error ? <p className="ges-error" role="alert">{error}</p> : null}
                 {!hasShift && !isLoading ? (
                     <p className="ges-warning">
@@ -1370,6 +1377,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                     </>
                 )}
 
+                {isRegisteringExit ? <InventoryExitDialog token={token} onClose={() => setIsRegisteringExit(false)} onSessionExpired={onSessionExpired} /> : null}
                 {isOpeningTogo ? <TogoDialog onOpen={openTogo} onClose={() => setIsOpeningTogo(false)} /> : null}
             </>
         );
@@ -1435,6 +1443,8 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
 
     return (
         <>
+            {isRegisteringExit ? <InventoryExitDialog token={token} onClose={() => setIsRegisteringExit(false)} onSessionExpired={onSessionExpired} /> : null}
+            <button type="button" className="ges-btn" onClick={() => setIsRegisteringExit(true)}>Registrar salida</button>
             <div className="ges-account">
                 <div className="ges-account__menu">
                     {currentCategory ? (

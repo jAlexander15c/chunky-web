@@ -66,7 +66,7 @@ export const GestionOpciones = ({ token, onSessionExpired, onSoldOutCountChange 
         setModifiers((current) =>
             current.map((modifier) => ({
                 ...modifier,
-                options: modifier.options.map((option) => (option.id === optionId ? { ...option, isAvailable } : option)),
+                options: modifier.options.map((option) => (option.id === optionId ? { ...option, isAvailable, isManuallyDisabled: !isAvailable } : option)),
             }))
         );
 
@@ -91,8 +91,7 @@ export const GestionOpciones = ({ token, onSessionExpired, onSoldOutCountChange 
     return (
         <main className="ges-main">
             <p className="ges-avail-hint">
-                Apaga una opción cuando se acabe (ej. leche de avena). En la web y en la caja se ve como “Agotado”.
-                No se prende sola: vuelve a prenderla cuando haya.
+                Las opciones con receta siguen el inventario. Si apagas una manualmente, seguirá apagada hasta que la actives.
             </p>
 
             {error ? <p className="ges-error" role="alert">{error}</p> : null}
@@ -114,14 +113,16 @@ export const GestionOpciones = ({ token, onSessionExpired, onSoldOutCountChange 
                                     <li key={option.id} className={`ges-avail${isAvailable ? "" : " is-off"}`}>
                                         <div className="ges-avail__body">
                                             <div className="ges-avail__name">{option.name}</div>
-                                            {option.isOutOfStock ? (
+                                            {option.isManuallyDisabled ? (
+                                                <div className="ges-avail__meta">Apagado manualmente · actívalo cuando quieras ofrecerlo</div>
+                                            ) : option.isOutOfStock ? (
                                                 <div className="ges-avail__meta">Sin insumo · vuelve al comprar o contar</div>
                                             ) : option.price > 0 ? (
                                                 <div className="ges-avail__meta">+{formatCash(option.price)}</div>
                                             ) : null}
                                         </div>
                                         <label className={`ges-check${isPending ? " is-busy" : ""}`}>
-                                            <span className="ges-check__label">{isAvailable ? "Disponible" : option.isOutOfStock ? "Sin insumo" : "Agotado"}</span>
+                                            <span className="ges-check__label">{isAvailable ? "Disponible" : option.isManuallyDisabled ? "Apagado manualmente" : option.isOutOfStock ? "Sin insumo" : "Agotado"}</span>
                                             <input
                                                 id={`ges-option-${option.id}`}
                                                 type="checkbox"
