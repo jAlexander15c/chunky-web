@@ -157,6 +157,8 @@ export const receiveProductBatch = (
     quantity: string,
     scope: "admin" | "gestion" = "admin",
     requestId?: string,
+    /** Días que dura cada lote; null para que no venza. Sin mandarlo se conservan los guardados. */
+    shelfLifeDays?: number | null,
 ) =>
     httpPost<{
         batchId: number;
@@ -166,6 +168,6 @@ export const receiveProductBatch = (
         usableStock: string;
     }>(
         "/" + scope + "/products/" + encodeURIComponent(variantId) + "/receive",
-        { quantity, requestId },
+        { quantity, requestId, ...(shelfLifeDays !== undefined && { shelfLifeDays }) },
         inventoryHeaders(token, scope),
     );

@@ -448,6 +448,22 @@
 
 .ges-main { flex: 1; padding: 0 var(--gutter); }
 
+/* Productos: el lote que llegó se registra desde arriba, para cualquier producto del menú */
+.ges-lot-lead {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.8rem;
+    padding: 0.7rem 0.9rem;
+    background: var(--ges-panel-2);
+    border-radius: 16px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--ges-text-2);
+}
+
 .ges-row {
     padding: 0.9rem 0;
     border-bottom: 1px solid var(--ges-line);

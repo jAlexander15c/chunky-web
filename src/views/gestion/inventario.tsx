@@ -1,4 +1,4 @@
-import {ProductArrivalDialog} from "../inventory-arrival-dialog";
+import {ProductLotDialog} from "../inventory-arrival-dialog";
 import {expirationLabel} from "@/helpers/inventory";
 import {PurchaseDialog} from "../inventory-purchase-dialog";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -73,7 +73,9 @@ const getPageSlice = <T,>(items: T[], page: number) => items.slice((page - 1) * 
 
 type PendingAction =
     | { kind: "purchase" | "count" | "waste"; supply: ISupplyStatus }
-    | { kind: "production" | "arrival"; product: IProductStatus };
+    | { kind: "production"; product: IProductStatus }
+    // Sin producto: se elige del menú (el primer lote activa una galleta o un postre)
+    | { kind: "arrival"; product?: IProductStatus };
 
 interface IGestionInventarioProps {
     token: string;
@@ -104,7 +106,8 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                     fetchGestionMovements(token, signal),
                 ]);
 
-                setSupplies(suppliesData.supplies);
+                // Las galletas y postres por lotes se manejan en Productos, no como insumos
+                setSupplies(suppliesData.supplies.filter((supply) => supply.inventoryType !== "PREPARED_PRODUCT"));
                 setProducts(productsData.products);
                 setMovements(movementsData.movements);
                 setError("");
@@ -232,12 +235,21 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
             <main className="ges-main">
                 {error ? <p className="ges-error" role="alert">{error}</p> : null}
 
+                {tab === "productos" ? (
+                    <div className="ges-lot-lead">
+                        <span>¿Llegaron galletas o postres?</span>
+                        <button type="button" className="ges-btn ges-btn--solid" onClick={() => setPending({ kind: "arrival" })}>
+                            Registrar lote
+                        </button>
+                    </div>
+                ) : null}
+
                 {isLoading ? (
                     <p className="ges-empty">Cargando…</p>
                 ) : isEmpty ? (
                     <p className="ges-empty">
                         {tab === "productos"
-                            ? "Ningún producto está bajo control de stock todavía."
+                            ? "Ningún producto lleva stock todavía. Registra el primer lote de una galleta o un postre."
                             : `Todavía no hay insumos de ${TAB_LABEL[tab].toLowerCase()}. El administrador los da de alta desde el tablero.`}
                     </p>
                 ) : tab === "productos" ? (
@@ -247,7 +259,7 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                                 <div>
                                     <div className="ges-row__name">{product.name}</div>
                                     <div className="ges-row__meta">
-                                        {product.productionMode==="BATCH" ? (product.nextExpiration ? expirationLabel(product.nextExpiration) : "Sin vencimiento") : product.productionMode==="MADE_TO_ORDER" ? "Preparado al momento" : "Producidos hoy: "+formatQuantity(product.producedToday)}
+                                        {product.productionMode==="BATCH" ? (product.nextExpiration ? expirationLabel(product.nextExpiration) : "Sin vencimiento")+(product.shelfLifeDays ? " · dura "+product.shelfLifeDays+" días" : "") : product.productionMode==="MADE_TO_ORDER" ? "Preparado al momento" : "Producidos hoy: "+formatQuantity(product.producedToday)}
                                     </div>
                                     <div className="ges-row__facts">
                                         Se mide en <b>unidades</b> · Mínimo <b>{formatQuantity(product.lowStock)} u</b>
@@ -264,7 +276,7 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                                     className="ges-btn ges-btn--solid"
                                     onClick={() => setPending({ kind: product.productionMode==="BATCH" ? "arrival" : "production", product })}
                                 >
-                                    {product.productionMode==="BATCH"?"Registrar llegada":"Cargar producción"}
+                                    {product.productionMode==="BATCH"?"Registrar lote":"Cargar producción"}
                                 </button>
                             </div> : null}
                         </article>
@@ -324,7 +336,7 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                         {getPageSlice(movements, currentMinePage).map((movement) => (
                             <li key={movement.id}>
                                 <span>
-                                    <b>{movement.referenceType==="PRODUCT_RECEIPT"?"Llegada":MOVEMENT_LABEL[movement.type] ?? movement.type}</b> · {movement.name}{" "}
+                                    <b>{movement.referenceType==="PRODUCT_RECEIPT"?"Lote":MOVEMENT_LABEL[movement.type] ?? movement.type}</b> · {movement.name}{" "}
                                     <em>
                                         {/* En un conteo importa lo que se contó, no la diferencia que corrigió */}
                                         {movement.type === "conteo"
@@ -373,7 +385,15 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                 />
             ) : null}
 
-            {pending?.kind==="arrival"?<ProductArrivalDialog token={token} scope="gestion" product={pending.product} onSaved={loadAll} onClose={()=>setPending(null)}/>:null}
+            {pending?.kind === "arrival" ? (
+                <ProductLotDialog
+                    token={token}
+                    scope="gestion"
+                    product={pending.product}
+                    onSaved={loadAll}
+                    onClose={() => setPending(null)}
+                />
+            ) : null}
 
             {pending?.kind === "production" ? (
                 <AmountDialog

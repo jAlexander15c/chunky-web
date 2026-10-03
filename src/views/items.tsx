@@ -23,6 +23,10 @@ import {
     useModifiers,
     useSettings,
     trackEvent,
+    getAvailableQuantity,
+    getItemCartQuantity,
+    getLineMax,
+    getStockNote,
 } from "@/helpers";
 import type { IModifier } from "@/helpers";
 import type { IItem } from "@/interfaces";
@@ -58,7 +62,7 @@ interface IProductCardProps {
 }
 
 const ProductCard = ({ item, index, closedLabel, modifiers, onChooseOptions }: IProductCardProps) => {
-    const { addItem, setQuantity, getQuantity } = useCart();
+    const { lines, addItem, setQuantity, getQuantity } = useCart();
     const quantity = getQuantity(item.id);
     const description = getPlainText(item.description);
     // Con modificadores se elige antes de agregar, asi que la tarjeta no lleva contador
@@ -91,7 +95,13 @@ const ProductCard = ({ item, index, closedLabel, modifiers, onChooseOptions }: I
                             Elegir
                         </button>
                     ) : quantity > 0 ? (
-                        <QuantityStepper quantity={quantity} itemName={item.item_name} onChange={(value) => setQuantity(item.id, value)} />
+                        <QuantityStepper
+                            quantity={quantity}
+                            itemName={item.item_name}
+                            onChange={(value) => setQuantity(item.id, value)}
+                            max={getLineMax(lines, item, item.id)}
+                            note={getStockNote(getAvailableQuantity(item), getItemCartQuantity(lines, item))}
+                        />
                     ) : (
                         <button type="button" className="button button--primary button--sm" onClick={() => addItem(item)}>
                             <PiPlusBold aria-hidden /> Agregar

@@ -7,7 +7,7 @@ import { ModifierPicker } from "./modifier-picker";
 import { Stamp } from "./stamp";
 import { useCart } from "./use-cart";
 
-import { formatCartModifiers, formatPrice, getItemPrice, getModifiersPrice } from "@/helpers";
+import { formatCartModifiers, formatPrice, getAvailableQuantity, getItemCartQuantity, getItemPrice, getLineMax, getModifiersPrice, getStockNote } from "@/helpers";
 import type { ICartModifier, IModifier } from "@/helpers";
 import type { IItem } from "@/interfaces";
 
@@ -21,14 +21,18 @@ interface IProductOptionsProps {
 }
 
 const ProductOptionsForm = ({ item, modifiers, onClose }: { item: IItem; modifiers: IModifier[]; onClose: () => void }) => {
-    const { addItem, setIsOpen } = useCart();
+    const { lines, addItem, setIsOpen } = useCart();
     const [chosen, setChosen] = useState<ICartModifier[]>([]);
     const [quantity, setQuantity] = useState(1);
+    // Por lotes: lo que ya está en el carrito sale del mismo stock
+    const room = getLineMax(lines, item, "");
+    const max = Math.min(MAX_QUANTITY, room);
+    const note = getStockNote(getAvailableQuantity(item), getItemCartQuantity(lines, item) + quantity);
 
     const unitPrice = getItemPrice(item) + getModifiersPrice(chosen);
 
     const addToCart = () => {
-        for (let count = 0; count < quantity; count++) addItem(item, undefined, chosen);
+        for (let count = 0; count < Math.min(quantity, max); count++) addItem(item, undefined, chosen);
         onClose();
         setIsOpen(true);
     };
@@ -67,17 +71,18 @@ const ProductOptionsForm = ({ item, modifiers, onClose }: { item: IItem; modifie
                     <button
                         type="button"
                         className="stepper__button"
-                        onClick={() => setQuantity((current) => Math.min(MAX_QUANTITY, current + 1))}
-                        disabled={quantity === MAX_QUANTITY}
+                        onClick={() => setQuantity((current) => Math.min(max, current + 1))}
+                        disabled={quantity >= max}
                         aria-label="Agregar otro"
                     >
                         <PiPlusBold aria-hidden />
                     </button>
                 </div>
-                <button type="button" className="button button--primary opts__add" onClick={addToCart}>
+                <button type="button" className="button button--primary opts__add" onClick={addToCart} disabled={max <= 0}>
                     Agregar · <AnimatedPrice value={unitPrice * quantity} />
                 </button>
             </div>
+            {note && <p className="opts__hint stepper__note" role="status">{note}</p>}
         </>
     );
 };

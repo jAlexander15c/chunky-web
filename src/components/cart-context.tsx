@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 import { CartContext } from "./use-cart";
 
-import { MAX_LINE_QUANTITY, getCartCount, getCartTotal, getLineKey, trackEvent } from "@/helpers";
+import { getCartCount, getCartTotal, getLineKey, getLineMax, trackEvent } from "@/helpers";
 import type { ICartLine, ICartModifier, IPastaOptions } from "@/helpers";
 import type { IItem } from "@/interfaces";
 
@@ -46,12 +46,15 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         trackEvent("add_to_cart", item.id, item.item_name);
         const lineKey = getLineKey(item.id, options, modifiers);
         setLines((current) => {
+            // Galletas y postres por lotes: no se agrega lo que no existe
+            const max = getLineMax(current, item, lineKey);
             const existing = current.find((line) => line.lineKey === lineKey);
             if (existing) {
                 return current.map((line) =>
-                    line.lineKey === lineKey ? { ...line, quantity: Math.min(MAX_LINE_QUANTITY, line.quantity + 1) } : line
+                    line.lineKey === lineKey ? { ...line, quantity: Math.min(max, line.quantity + 1) } : line
                 );
             }
+            if (max <= 0) return current;
             return [...current, { lineKey, item, quantity: 1, options, ...(modifiers?.length && { modifiers }) }];
         });
     }, []);
@@ -59,7 +62,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     const setQuantity = useCallback((lineKey: string, quantity: number) => {
         setLines((current) => quantity <= 0
             ? current.filter((line) => line.lineKey !== lineKey)
-            : current.map((line) => line.lineKey === lineKey ? { ...line, quantity: Math.min(MAX_LINE_QUANTITY, quantity) } : line));
+            : current.map((line) => line.lineKey === lineKey ? { ...line, quantity: Math.min(getLineMax(current, line.item, lineKey), quantity) } : line));
     }, []);
 
     const getQuantity = useCallback(

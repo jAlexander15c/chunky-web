@@ -24,3 +24,4 @@ export * from "./app-version";
 export * from "./live-refresh";
 export * from "./pagination";
 export * from "./delivery-orders";
+export * from "./stock";

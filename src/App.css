@@ -1479,6 +1479,23 @@ main {
   height: 34px;
 }
 
+/* Galletas y postres por lotes: el aviso va pegado al contador que frena */
+.stepper-wrap {
+  display: inline-grid;
+  justify-items: end;
+  gap: 4px;
+}
+
+.stepper__note {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #8d5d0c;
+  background: var(--mantequilla);
+  border-radius: var(--radius-pill);
+  padding: 2px 10px;
+  white-space: nowrap;
+}
+
 /* ============ Precio animado ============ */
 /* El recorte deja aire arriba y abajo: el trazo del "$" sobresale de la altura de mayusculas */
 .animated-price {

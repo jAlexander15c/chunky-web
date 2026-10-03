@@ -11,7 +11,7 @@ import { Mascot } from "./mascot";
 import { QuantityStepper } from "./quantity-stepper";
 import { Stamp } from "./stamp";
 
-import { formatCartLineDetails, formatPrice, getCartLinePrice, useSettings } from "@/helpers";
+import { formatCartLineDetails, formatPrice, getAvailableQuantity, getCartLinePrice, getItemCartQuantity, getLineMax, getStockNote, useSettings } from "@/helpers";
 import type { ICartLine, IPublicSettings } from "@/helpers";
 
 /**
@@ -117,6 +117,8 @@ export const Cart = () => {
                                                     quantity={line.quantity}
                                                     itemName={formatCartLineDetails(line) ? `${line.item.item_name} (${formatCartLineDetails(line)})` : line.item.item_name}
                                                     onChange={(quantity) => setQuantity(line.lineKey, quantity)}
+                                                    max={getLineMax(lines, line.item, line.lineKey)}
+                                                    note={getStockNote(getAvailableQuantity(line.item), getItemCartQuantity(lines, line.item))}
                                                 />
                                             </div>
                                             <span className="carrito__price">{formatPrice(getCartLinePrice(line) * line.quantity)}</span>

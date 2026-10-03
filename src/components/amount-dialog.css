@@ -102,3 +102,115 @@
         font-size: 0.9rem;
     }
 }
+
+/* ============ Registrar lote (galletas y postres) ============ */
+
+.lot__label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-soft);
+    margin-bottom: 0.3rem;
+}
+
+.lot__pick { margin-bottom: 1rem; }
+
+.lot__input {
+    box-sizing: border-box;
+    width: 100%;
+    font: inherit;
+    padding: 0.6rem 0.8rem;
+    border: 2px solid var(--sky);
+    border-radius: 14px;
+    background: var(--crema);
+    color: var(--ink);
+}
+
+.lot__input:focus-visible,
+.lot__option:focus-visible,
+.lot__change:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 1px;
+}
+
+.lot__options {
+    list-style: none;
+    margin: 0.5rem 0 0;
+    padding: 0;
+    border: 1px solid #e4dec6;
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.lot__options li + li { border-top: 1px solid #e4dec6; }
+
+.lot__option {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.6rem 0.8rem;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+}
+
+.lot__option span { display: grid; min-width: 0; }
+
+.lot__option small,
+.lot__chosen small {
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: var(--text-soft);
+    white-space: nowrap;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .lot__option:hover { background: var(--sky); }
+}
+
+.lot__empty {
+    padding: 0.7rem 0.8rem;
+    font-size: 0.85rem;
+    color: var(--text-soft);
+}
+
+.lot__chosen {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.6rem;
+    background: var(--sky);
+    border-radius: 14px;
+    padding: 0.6rem 0.8rem;
+    margin-bottom: 1rem;
+}
+
+.lot__chosen span { display: grid; min-width: 0; }
+
+.lot__change {
+    border: 0;
+    background: transparent;
+    color: var(--mora);
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 800;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.lot__fields {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    gap: 0.6rem;
+}
+
+.lot__fields .dlg__field { margin-bottom: 0.6rem; }
