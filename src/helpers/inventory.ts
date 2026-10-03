@@ -94,6 +94,12 @@ export interface IOptionRule {
     /** Por unidad vendida. En un cambio, null = la misma cantidad de cada receta. */
     quantity: string | null;
 }
+export interface IOptionRuleOverride {
+    variantId: string;
+    optionId: string;
+    /** Vacías: esta opción no cambia la receta de este producto. */
+    rules: IOptionRule[];
+}
 export interface IOptionRuleInput {
     supplyId: number;
     replacesSupplyId?: number | null;
@@ -119,18 +125,25 @@ export interface IRecipeCatalog {
     products: IRecipeCatalogProduct[];
     modifiers: IModifier[];
     rules: IOptionRule[];
+    ruleOverrides: IOptionRuleOverride[];
 }
 export const fetchRecipeCatalog = (token: string, scope: Scope, signal?: AbortSignal) =>
     httpGet<IRecipeCatalog>("/" + scope + "/recipes/catalog", { ...inventoryHeaders(token, scope), signal });
 export const fetchOptionRules = (token: string, scope: Scope, signal?: AbortSignal) =>
-    httpGet<{ rules: IOptionRule[] }>("/" + scope + "/modifier-option-rules", {
+    httpGet<{ rules: IOptionRule[]; ruleOverrides: IOptionRuleOverride[] }>("/" + scope + "/modifier-option-rules", {
         ...inventoryHeaders(token, scope),
         signal,
     });
-export const saveOptionRules = (token: string, scope: Scope, optionId: string, rules: IOptionRuleInput[]) =>
+export const saveOptionRules = (
+    token: string,
+    scope: Scope,
+    optionId: string,
+    rules: IOptionRuleInput[],
+    variantId?: string,
+) =>
     httpPut<{ rules: IOptionRule[] }>(
         "/" + scope + "/modifier-options/" + encodeURIComponent(optionId) + "/rules",
-        { rules },
+        { rules, ...(variantId !== undefined && { variantId }) },
         inventoryHeaders(token, scope),
     );
 /** La receta de una línea ya resuelta con sus opciones. `removed`: lo que una opción cambió. */

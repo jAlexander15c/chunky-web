@@ -6,6 +6,8 @@ import type { ISupplyStatus } from "@/helpers";
 import { compatibleUnits, deleteRecipe, fetchRecipe, fetchRecipeCatalog, saveRecipe } from "@/helpers/inventory";
 import type { IOptionRule, IRecipeCatalog, IRecipeCatalogProduct, ProductAvailability, Recipe } from "@/helpers/inventory";
 
+import { setOptionRuleOverride } from "@/helpers/recipe-option-rules";
+
 import { RecipeOptions } from "../recipe-options";
 import { GestionPager } from "./pager";
 
@@ -344,11 +346,14 @@ const RecipeSheet = ({ token, product, catalog, supplies, onRulesSaved, onChange
                     <RecipeOptions
                         token={token}
                         scope="gestion"
+                        key={product.variantId}
+                        variantId={product.variantId}
                         modifiers={productModifiers}
                         usedBy={usedBy}
                         supplies={supplies}
                         recipeSupplyIds={recipe.ingredients.map((entry) => entry.inventoryItemId)}
                         rules={catalog.rules}
+                        ruleOverrides={catalog.ruleOverrides ?? []}
                         onRulesSaved={onRulesSaved}
                         isBatch={isBatch}
                     />
@@ -497,13 +502,17 @@ export const GestionRecetas = ({ token, onSessionExpired }: IGestionRecetasProps
 
             {openProduct && catalog ? (
                 <RecipeSheet
+                    key={openProduct.variantId}
                     token={token}
                     product={openProduct}
                     catalog={catalog}
                     supplies={supplies}
                     onRulesSaved={(optionId, rules) =>
                         setCatalog((current) =>
-                            current ? { ...current, rules: [...current.rules.filter((rule) => rule.optionId !== optionId), ...rules] } : current
+                            current ? {
+                                ...current,
+                                ruleOverrides: setOptionRuleOverride(current.ruleOverrides ?? [], openProduct.variantId, optionId, rules),
+                            } : current
                         )
                     }
                     onChanged={() => load()}

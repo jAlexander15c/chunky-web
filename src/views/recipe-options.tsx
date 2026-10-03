@@ -2,7 +2,8 @@ import { useState } from "react";
 
 import { HttpError } from "@/helpers/getHttp";
 import { compatibleUnits, saveOptionRules } from "@/helpers/inventory";
-import type { IOptionRule, IOptionRuleInput } from "@/helpers/inventory";
+import { getEffectiveOptionRules } from "@/helpers/recipe-option-rules";
+import type { IOptionRule, IOptionRuleInput, IOptionRuleOverride } from "@/helpers/inventory";
 import type { IModifier, IModifierOption } from "@/helpers/modifiers";
 
 import "./recipe-options.css";
@@ -42,6 +43,7 @@ const getRuleSummary = (rule: IOptionRule) =>
 interface IOptionRuleModalProps {
     token: string;
     scope: "admin" | "gestion";
+    variantId: string;
     modifier: IModifier;
     option: IModifierOption;
     rules: IOptionRule[];
@@ -55,6 +57,7 @@ interface IOptionRuleModalProps {
 const OptionRuleModal = ({
     token,
     scope,
+    variantId,
     modifier,
     option,
     rules,
@@ -141,7 +144,7 @@ const OptionRuleModal = ({
         }
         setBusy(true);
         try {
-            const result = await saveOptionRules(token, scope, option.id, inputs);
+            const result = await saveOptionRules(token, scope, option.id, inputs, variantId);
             onSaved(result.rules);
             onClose();
         } catch (requestError) {
@@ -159,6 +162,7 @@ const OptionRuleModal = ({
                 <h3>
                     {modifier.name} · {option.name}
                 </h3>
+                <p className="ropt-hint">Solo se aplica a este producto.</p>
                 <div className="ropt-seg" role="radiogroup" aria-label="Qué hace esta opción">
                     {(
                         [
@@ -311,13 +315,15 @@ const OptionRuleModal = ({
 interface IRecipeOptionsProps {
     token: string;
     scope: "admin" | "gestion";
+    variantId: string;
     /** Los modificadores del producto, en el orden de Loyverse. */
     modifiers: IModifier[];
-    /** Por modificador, los productos que lo usan: la regla aplica en todos. */
+    /** Por modificador, los productos que lo comparten. */
     usedBy?: Record<string, string[]>;
     supplies: IRuleSupply[];
     recipeSupplyIds: number[];
     rules: IOptionRule[];
+    ruleOverrides: IOptionRuleOverride[];
     /** Las reglas nuevas de esa opción, ya guardadas. */
     onRulesSaved: (optionId: string, rules: IOptionRule[]) => void;
     /** Por lotes: la receta base ya se gastó al producir, solo cuentan las sumas. */
@@ -328,11 +334,13 @@ interface IRecipeOptionsProps {
 export const RecipeOptions = ({
     token,
     scope,
+    variantId,
     modifiers,
     usedBy,
     supplies,
     recipeSupplyIds,
     rules,
+    ruleOverrides,
     onRulesSaved,
     isBatch = false,
 }: IRecipeOptionsProps) => {
@@ -343,6 +351,7 @@ export const RecipeOptions = ({
 
     return (
         <div className="ropt">
+            <p className="ropt-hint">Solo se aplica a este producto.</p>
             {isBatch ? (
                 <p className="ropt-hint">
                     Se prepara por lotes: la receta ya se gastó al producir. Aquí solo cuentan las opciones que suman, como
@@ -355,11 +364,11 @@ export const RecipeOptions = ({
                     <section key={modifier.id} className="ropt-mod">
                         <h4>{modifier.name}</h4>
                         {products.length > 1 ? (
-                            <p className="ropt-mod__note">Aplica en todos los productos con este modificador: {products.join(", ")}.</p>
+                            <p className="ropt-mod__note">Modificador compartido con: {products.join(", ")}.</p>
                         ) : null}
                         <ul className="ropt-list">
                             {modifier.options.map((option) => {
-                                const optionRules = rules.filter((rule) => rule.optionId === option.id);
+                                const optionRules = getEffectiveOptionRules(rules, ruleOverrides, variantId, option.id);
                                 return (
                                     <li key={option.id} className="ropt-opt">
                                         <div className="ropt-opt__body">
@@ -389,11 +398,13 @@ export const RecipeOptions = ({
             })}
             {editing ? (
                 <OptionRuleModal
+                    key={`${variantId}:${editing.option.id}`}
                     token={token}
+                    variantId={variantId}
                     scope={scope}
                     modifier={editing.modifier}
                     option={editing.option}
-                    rules={rules.filter((rule) => rule.optionId === editing.option.id)}
+                    rules={getEffectiveOptionRules(rules, ruleOverrides, variantId, editing.option.id)}
                     supplies={supplies}
                     recipeSupplyIds={recipeSupplyIds}
                     onSaved={(saved) => onRulesSaved(editing.option.id, saved)}

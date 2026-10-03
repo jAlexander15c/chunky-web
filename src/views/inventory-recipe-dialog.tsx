@@ -14,7 +14,8 @@ import {
     deleteRecipe,
     fetchOptionRules,
 } from "@/helpers/inventory";
-import type { IOptionRule } from "@/helpers/inventory";
+import { setOptionRuleOverride } from "@/helpers/recipe-option-rules";
+import type { IOptionRule, IOptionRuleOverride } from "@/helpers/inventory";
 import type { IModifier } from "@/helpers/modifiers";
 import { RecipeOptions } from "./recipe-options";
 import type { AvailabilityMode, ProductAvailability, ProductionPreview, Recipe } from "@/helpers/inventory";
@@ -62,11 +63,16 @@ export const RecipeDialog = ({
     const [preview, setPreview] = useState<ProductionPreview | null>(null),
         [saved, setSaved] = useState(false);
     const [rules, setRules] = useState<IOptionRule[]>([]);
+    const [ruleOverrides, setRuleOverrides] = useState<IOptionRuleOverride[]>([]);
     useEffect(() => {
         if (!modifiers.length) return;
         const c = new AbortController();
         fetchOptionRules(token, "admin", c.signal)
-            .then((r) => setRules(r.rules))
+            .then((r) => {
+                if (c.signal.aborted) return;
+                setRules(r.rules);
+                setRuleOverrides(r.ruleOverrides ?? []);
+            })
             .catch(() => undefined);
         return () => c.abort();
     }, [token, modifiers.length]);
@@ -394,14 +400,17 @@ export const RecipeDialog = ({
                                 <RecipeOptions
                                     token={token}
                                     scope="admin"
+                                    key={variantId}
+                                    variantId={variantId}
                                     modifiers={modifiers}
                                     usedBy={usedBy}
                                     supplies={supplies}
                                     recipeSupplyIds={recipe.ingredients.map((i) => i.inventoryItemId)}
                                     rules={rules}
+                                    ruleOverrides={ruleOverrides}
                                     isBatch={recipe.productionMode === "BATCH"}
                                     onRulesSaved={(optionId, next) =>
-                                        setRules((current) => [...current.filter((r) => r.optionId !== optionId), ...next])
+                                        setRuleOverrides((current) => setOptionRuleOverride(current, variantId, optionId, next))
                                     }
                                 />
                             </>
