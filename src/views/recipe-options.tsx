@@ -84,12 +84,11 @@ const OptionRuleModal = ({
     const inRecipe = supplies.filter((supply) => recipeSupplyIds.includes(supply.id));
     const others = supplies.filter((supply) => !recipeSupplyIds.includes(supply.id));
 
-    const supplyOptions = (exclude?: number | "") => (
+    const supplyOptions = () => (
         <>
             {inRecipe.length ? (
                 <optgroup label="En esta receta">
                     {inRecipe
-                        .filter((supply) => supply.id !== exclude)
                         .map((supply) => (
                             <option key={supply.id} value={supply.id}>
                                 {supply.name} · {supply.unit}
@@ -99,7 +98,6 @@ const OptionRuleModal = ({
             ) : null}
             <optgroup label="Otros insumos">
                 {others
-                    .filter((supply) => supply.id !== exclude)
                     .map((supply) => (
                         <option key={supply.id} value={supply.id}>
                             {supply.name} · {supply.unit}
@@ -247,7 +245,7 @@ const OptionRuleModal = ({
                                 onChange={(event) => setSwap({ ...swap, replacesSupplyId: Number(event.target.value) || "" })}
                             >
                                 <option value="">Elegir…</option>
-                                {supplyOptions(swap.supplyId)}
+                                {supplyOptions()}
                             </select>
                         </label>
                         <label className="ropt-field">
@@ -260,7 +258,7 @@ const OptionRuleModal = ({
                                 }}
                             >
                                 <option value="">Elegir…</option>
-                                {supplyOptions(swap.replacesSupplyId)}
+                                {supplyOptions()}
                             </select>
                         </label>
                         <div className="ropt-row">
@@ -285,7 +283,8 @@ const OptionRuleModal = ({
                             ) : null}
                         </div>
                         <p className="ropt-hint">
-                            Vacía, cambia la misma cantidad que trae cada receta. Si un producto no lleva el insumo que se quita,
+                            Elige el mismo insumo en ambos campos para cambiar solo su cantidad. La cantidad indicada reemplaza la de la receta.
+                            Vacía, conserva la misma cantidad que trae cada receta. Si un producto no lleva el insumo que se quita,
                             esta opción no descuenta nada en ese producto.
                         </p>
                     </div>
