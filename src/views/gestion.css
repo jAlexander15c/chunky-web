@@ -1430,3 +1430,130 @@
 /* Insumo con presentación: "3 cartones y 400 ml" debajo del total */
 .ges-qty:has(.ges-qty__pres) { flex-wrap: wrap; justify-content: flex-end; align-items: baseline; gap: 0 0.15rem; max-width: 9.5rem; }
 .ges-qty__pres { flex-basis: 100%; text-align: right; font-size: 0.72rem; font-weight: 700; color: var(--ges-text-2); line-height: 1.3; }
+
+/* ============ Inventario: primero lo que pasó ============ */
+
+.ges-happened { padding: 1rem var(--gutter) 0; }
+.ges-happened h2 { margin: 0 0 0.7rem; font-size: 1.05rem; font-weight: 800; }
+
+.ges-happened__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; }
+
+.ges-happened__btn {
+    font: inherit;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 0.4rem 0.7rem;
+    text-align: left;
+    padding: 0.8rem 0.9rem;
+    min-height: 76px;
+    border: 2px solid var(--sky);
+    border-radius: 18px;
+    background: var(--ges-panel);
+    color: var(--ink);
+    cursor: pointer;
+    transition: transform 160ms var(--ease-out), background-color 150ms ease;
+}
+
+.ges-happened__btn svg { width: 24px; height: 24px; }
+.ges-happened__btn b { display: block; font-size: 0.95rem; font-weight: 800; line-height: 1.2; }
+.ges-happened__btn small { display: block; font-size: 0.74rem; font-weight: 600; color: var(--ges-text-2); line-height: 1.3; }
+
+.ges-happened__btn.is-main { grid-column: 1 / -1; background: var(--mora); border-color: var(--mora); color: var(--crema); }
+.ges-happened__btn.is-main svg { width: 30px; height: 30px; }
+.ges-happened__btn.is-main b { font-size: 1.05rem; }
+.ges-happened__btn.is-main small { color: var(--crema); opacity: 0.85; }
+
+.ges-happened__btn.is-exit { background: #fbf0d2; border-color: var(--mantequilla); }
+.ges-happened__btn.is-exit small { color: var(--ges-warn); }
+
+.ges-happened__btn:active { transform: scale(0.97); }
+.ges-happened__btn:focus-visible { outline: 3px solid var(--mora); outline-offset: 2px; }
+
+@media (hover: hover) and (pointer: fine) {
+    .ges-happened__btn:hover { background: var(--sky); }
+    .ges-happened__btn.is-main:hover { background: var(--ink); }
+    .ges-happened__btn.is-exit:hover { background: var(--mantequilla); }
+}
+
+/* Cuatro listas: 2 × 2 en el teléfono, en una fila cuando cabe */
+.ges-seg--four { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; border-radius: 18px; max-width: 520px; }
+.ges-seg--four button { border-radius: 14px; min-height: 44px; }
+
+@media (min-width: 560px) {
+    .ges-seg--four { grid-template-columns: repeat(4, minmax(0, 1fr)); border-radius: var(--radius-pill); }
+    .ges-seg--four button { border-radius: var(--radius-pill); }
+}
+
+.ges-list-search { margin-top: 0.8rem; }
+
+.ges-acts--two { grid-template-columns: repeat(2, 1fr); }
+
+@media (min-width: 720px) {
+    .ges-happened { max-width: 640px; margin-inline: auto; width: 100%; box-sizing: border-box; padding-inline: 0; }
+    .ges-happened__grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .ges-acts--two { grid-template-columns: repeat(2, minmax(0, 140px)); }
+}
+
+/* Elegir el insumo de una compra, un conteo o una merma */
+.ges-pick { display: grid; gap: 0.6rem; }
+.ges-pick .fsheet__choice small { white-space: nowrap; }
+
+/* ============ Salida sin venta ============ */
+
+.ges-exit-reasons { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
+
+.ges-exit-reason {
+    font: inherit;
+    display: grid;
+    justify-items: center;
+    gap: 0.35rem;
+    padding: 0.7rem 0.3rem;
+    min-height: 76px;
+    border: 2px solid var(--sky);
+    border-radius: 16px;
+    background: transparent;
+    color: var(--ink);
+    font-size: 0.85rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform 160ms var(--ease-out), background-color 150ms ease;
+}
+
+.ges-exit-reason svg { width: 24px; height: 24px; }
+.ges-exit-reason[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--crema); }
+.ges-exit-reason:disabled { cursor: default; }
+.ges-exit-reason:disabled:not([aria-pressed="true"]) { opacity: 0.5; }
+.ges-exit-reason:active:not(:disabled) { transform: scale(0.96); }
+.ges-exit-reason:focus-visible { outline: 3px solid var(--mora); outline-offset: 2px; }
+
+.ges-stepper { display: inline-flex; align-items: center; gap: 0.4rem; flex: none; }
+.ges-stepper .ges-btn { min-width: 44px; min-height: 44px; padding-inline: 0; font-size: 1.1rem; }
+.ges-stepper b { min-width: 1.6rem; text-align: center; font-size: 1rem; }
+
+@media (prefers-reduced-motion: reduce) {
+    .ges-happened__btn, .ges-exit-reason { transition: none; }
+}
+
+/* Las listas del diálogo de salida, con el mismo trazo que los campos */
+.ges-field select {
+    font: inherit;
+    font-size: 16px;
+    font-weight: 700;
+    padding: 0.6rem 0.8rem;
+    border: 2px solid var(--sky);
+    border-radius: 14px;
+    background: var(--crema);
+    color: var(--ink);
+    width: 100%;
+    min-height: 48px;
+}
+
+.ges-field select:focus-visible { outline: 3px solid var(--mora); outline-offset: 1px; }
+
+/* Inventario en pantalla ancha: "¿Qué pasó?", las listas y la búsqueda en una sola columna centrada */
+@media (min-width: 720px) {
+    .ges-seg--four { width: 100%; max-width: 640px; margin-inline: auto; box-sizing: border-box; }
+    .ges-main--inv { width: 100%; box-sizing: border-box; padding-inline: 0; }
+    .ges-tabs--inv { width: 100%; max-width: 640px; margin-inline: auto; box-sizing: border-box; padding-inline: 0; }
+}

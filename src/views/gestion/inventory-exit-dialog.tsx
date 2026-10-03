@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { ModifierPicker } from "@/components";
 import { HttpError, getItemModifiers, useCategories, useModifiers } from "@/helpers";
 import type { ICartModifier } from "@/helpers";
@@ -7,14 +8,25 @@ import { INVENTORY_EXIT_LABELS, fetchInventoryExitCatalog, fetchInventoryExits, 
 import type { IInventoryExit, IInventoryExitRequest, InventoryExitReason } from "@/helpers/inventory-exits";
 
 interface IExitDraftLine { key: string; variantId: string; name: string; quantity: number; modifiers: ICartModifier[] }
-interface IInventoryExitDialogProps { token: string; onClose: () => void; onSessionExpired: () => void }
+interface IInventoryExitDialogProps {
+    token: string;
+    onClose: () => void;
+    onSessionExpired: () => void;
+    /** Desde la tarjeta de un producto: ya viene elegido. */
+    initialVariantId?: string;
+}
+const REASON_ICONS: Record<InventoryExitReason, ReactNode> = {
+    pruebas: <path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3" />,
+    marketing: <><rect x="3" y="6" width="18" height="14" rx="3" /><circle cx="12" cy="13" r="3.5" /><path d="M8 6l1.5-2h5L16 6" /></>,
+    pedidos_externos: <><circle cx="6" cy="17" r="3" /><circle cx="18" cy="17" r="3" /><path d="M9 17h6l-2-7H9M13 10h3l2 7M5 10h4" /></>,
+};
 const formatDate = (date: string) => new Date(date).toLocaleString("es-PA", { dateStyle: "short", timeStyle: "short" });
 
-export const InventoryExitDialog = ({ token, onClose, onSessionExpired }: IInventoryExitDialogProps) => {
+export const InventoryExitDialog = ({ token, onClose, onSessionExpired, initialVariantId = "" }: IInventoryExitDialogProps) => {
     const [reason, setReason] = useState<InventoryExitReason>("pruebas");
     const [note, setNote] = useState("");
     const [categoryId, setCategoryId] = useState("");
-    const [variantId, setVariantId] = useState("");
+    const [variantId, setVariantId] = useState(initialVariantId);
     const [quantity, setQuantity] = useState("1");
     const [chosen, setChosen] = useState<ICartModifier[]>([]);
     const [lines, setLines] = useState<IExitDraftLine[]>([]);
@@ -89,6 +101,12 @@ export const InventoryExitDialog = ({ token, onClose, onSessionExpired }: IInven
         setError("");
         setRegistered(null);
     };
+    // Bajar de 1 quita la línea
+    const changeLineQuantity = (key: string, delta: number) => {
+        setLines((current) => current.flatMap((one) => one.key !== key ? [one] : one.quantity + delta < 1 ? [] : [{ ...one, quantity: Math.min(1000, one.quantity + delta) }]));
+        setRegistered(null);
+    };
+    const unitCount = lines.reduce((total, line) => total + line.quantity, 0);
     const submit = async () => {
         if (pending || !lines.length) return;
         const request = prepareInventoryExitRequest({ reason, note: note.trim() || null, lines: lines.map((line) => ({ variantId: line.variantId, quantity: line.quantity, modifierOptionIds: line.modifiers.map((one) => one.modifierOptionId) })) }, lastRequest.current);
@@ -111,15 +129,25 @@ export const InventoryExitDialog = ({ token, onClose, onSessionExpired }: IInven
     };
 
     return (
-        <div className="ges-modal" role="dialog" aria-modal="true" aria-label="Registrar salida">
+        <div className="ges-modal" role="dialog" aria-modal="true" aria-label="Salida sin venta">
             <div className="ges-modal__panel">
-                <h3 className="script">Registrar salida</h3>
-                <p className="ges-note">Descuenta los productos y sus opciones del inventario. Sin cobro.</p>
+                <h3 className="script">Salida sin venta</h3>
+                <p className="ges-note">Descuenta inventario. No es venta ni cobro.</p>
                 {registered ? <div className="ges-note" role="status"><b>Salida #{registered.id} registrada</b><br />{registered.actorName} · {formatDate(registered.createdAt)}</div> : null}
                 <fieldset disabled={pending} style={{ border: 0, padding: 0, margin: 0, display: "grid", gap: "0.7rem", minWidth: 0 }}>
-                    <label className="ges-field"><span>Motivo</span><select value={reason} disabled={reviewing} onChange={(event) => setReason(event.target.value as InventoryExitReason)}>{Object.entries(INVENTORY_EXIT_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-                    {reason === "pedidos_externos" ? <p className="ges-note">Usa este motivo para pedidos cuyo inventario no se haya descontado en Caja, web o Loyverse.</p> : null}
-                    <label className="ges-field"><span>Nota o referencia del pedido (opcional)</span><input value={note} maxLength={500} disabled={reviewing} onChange={(event) => setNote(event.target.value)} placeholder="Ej. pedido Instagram de Ana" /></label>
+                    <div className="ges-field" role="group" aria-label="¿Para qué?">
+                        <span>¿Para qué?</span>
+                        <div className="ges-exit-reasons">
+                            {(Object.keys(INVENTORY_EXIT_LABELS) as InventoryExitReason[]).map((value) => (
+                                <button key={value} type="button" className="ges-exit-reason" aria-pressed={reason === value} disabled={reviewing} onClick={() => setReason(value)}>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{REASON_ICONS[value]}</svg>
+                                    {INVENTORY_EXIT_LABELS[value]}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    {reason === "pedidos_externos" ? <p className="ges-warning">PedidosYa: úsalo solo si ese pedido no pasó ya por Caja, la web o Loyverse; si no, se descuenta dos veces.</p> : null}
+                    <label className="ges-field"><span>Nota (opcional)</span><input value={note} maxLength={500} disabled={reviewing} onChange={(event) => setNote(event.target.value)} placeholder={reason === "pedidos_externos" ? "Ej. número del pedido" : reason === "marketing" ? "Ej. video para Instagram" : "Ej. receta nueva"} /></label>
                     {!reviewing ? <>
                         <label className="ges-field"><span>Categoría</span><select value={categoryId} onChange={(event) => { setCategoryId(event.target.value); setVariantId(""); setChosen([]); }}><option value="">Todos los productos</option><option value="__none__">Sin categoría</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
                         <label className="ges-field"><span>Producto / variante</span><select value={variantId} onChange={(event) => { setVariantId(event.target.value); setChosen([]); }}><option value="">{isLoading ? "Cargando productos…" : "Elige un producto"}</option>{items.flatMap((item) => item.variants.filter((variant) => variant.variant_id && !variant.deleted_at).map((variant) => { const label = [variant.option1_value, variant.option2_value, variant.option3_value].filter(Boolean).join(" / "); return <option key={variant.variant_id} value={variant.variant_id}>{item.item_name}{label ? ` · ${label}` : ""}</option>; }))}</select></label>
@@ -130,10 +158,10 @@ export const InventoryExitDialog = ({ token, onClose, onSessionExpired }: IInven
                         <button type="button" className="ges-btn" disabled={!selectedItem || !validQuantity || lines.length >= 50} onClick={addLine}>Agregar a la salida</button>
                         {lines.length >= 50 ? <p className="ges-note">Máximo 50 líneas por salida.</p> : null}
                     </> : <p className="ges-note">Revisa los productos, las cantidades y el motivo antes de confirmar.</p>}
-                    {lines.length ? <div className="ges-rows" aria-label="Productos de la salida">{lines.map((line) => <div className="ges-r" key={line.key}><span><b>{line.quantity} × {line.name}</b>{line.modifiers.length ? <><br /><em>{line.modifiers.map((one) => `${one.name}: ${one.option}`).join(", ")}</em></> : null}</span>{!reviewing ? <button type="button" className="ges-btn ges-btn--sm" onClick={() => setLines((current) => current.filter((one) => one.key !== line.key))}>Quitar</button> : null}</div>)}</div> : null}
+                    {lines.length ? <div className="ges-rows" aria-label="Productos de la salida">{lines.map((line) => <div className="ges-r" key={line.key}><span><b>{reviewing ? `${line.quantity} × ` : ""}{line.name}</b>{line.modifiers.length ? <><br /><em>{line.modifiers.map((one) => `${one.name}: ${one.option}`).join(", ")}</em></> : null}</span>{!reviewing ? <span className="ges-stepper"><button type="button" className="ges-btn ges-btn--sm" aria-label={line.quantity > 1 ? `Uno menos de ${line.name}` : `Quitar ${line.name}`} onClick={() => changeLineQuantity(line.key, -1)}>−</button><b>{line.quantity}</b><button type="button" className="ges-btn ges-btn--sm" aria-label={`Uno más de ${line.name}`} disabled={line.quantity >= 1000} onClick={() => changeLineQuantity(line.key, 1)}>+</button></span> : null}</div>)}</div> : null}
                 </fieldset>
                 {error ? <p className="ges-error" role="alert">{error}</p> : null}
-                <div className="ges-modal__acts"><button type="button" className="ges-btn" disabled={pending} onClick={() => reviewing ? setReviewing(false) : onClose()}>{reviewing ? "Editar" : "Cerrar"}</button><button type="button" className="ges-btn ges-btn--solid" disabled={pending || !lines.length} onClick={() => reviewing ? void submit() : setReviewing(true)}>{pending ? "Registrando…" : reviewing ? "Confirmar salida" : "Revisar salida"}</button></div>
+                <div className="ges-modal__acts"><button type="button" className="ges-btn" disabled={pending} onClick={() => reviewing ? setReviewing(false) : onClose()}>{reviewing ? "Editar" : "Cerrar"}</button><button type="button" className="ges-btn ges-btn--solid" disabled={pending || !lines.length} onClick={() => reviewing ? void submit() : setReviewing(true)}>{pending ? "Registrando…" : reviewing ? "Confirmar salida" : lines.length ? `Revisar salida · ${unitCount} ${unitCount === 1 ? "producto" : "productos"}` : "Revisar salida"}</button></div>
                 <details open><summary>Salidas recientes</summary><div className="ges-rows" style={{ marginTop: "0.7rem" }}>{loadingHistory ? <p className="ges-empty">Cargando salidas…</p> : null}{historyError ? <><p className="ges-error" role="alert">{historyError}</p><button type="button" className="ges-btn" disabled={pending} onClick={() => void loadHistory()}>Reintentar historial</button></> : null}{!loadingHistory && !historyError && !history.length ? <p className="ges-empty">Todavía no hay salidas registradas.</p> : null}{history.map((exit) => <div className="ges-note" key={exit.id}><b>#{exit.id} · {INVENTORY_EXIT_LABELS[exit.reason]}</b><br />{exit.actorName} · {formatDate(exit.createdAt)}{exit.note ? <p>{exit.note}</p> : null}<ul>{exit.lines.map((line, index) => <li key={index}>{line.quantity} × {line.name}{line.modifiers.length ? ` · ${line.modifiers.map((one) => one.option).join(", ")}` : ""}</li>)}</ul></div>)}</div></details>
             </div>
         </div>

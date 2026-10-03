@@ -2,8 +2,9 @@ import {ProductLotDialog} from "../inventory-arrival-dialog";
 import {expirationLabel} from "@/helpers/inventory";
 import {PurchaseDialog} from "../inventory-purchase-dialog";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 
-import { AmountDialog, SheetSelect } from "@/components";
+import { AmountDialog, FullSheet, SheetSelect } from "@/components";
 import {
     HttpError,
     SUPPLY_CATEGORY_LABEL,
@@ -23,25 +24,26 @@ import type { IMovement, IProductStatus, ISupplyStatus, SupplyCategory } from "@
 
 import { GestionDisponibilidad } from "./disponibilidad";
 import { GestionOpciones } from "./disponibilidad-opciones";
+import { InventoryExitDialog } from "./inventory-exit-dialog";
 import { GestionPager } from "./pager";
 import { GestionRecetas } from "./recetas";
 
-/** Insumos y producción; prender o apagar productos del menú; y las recetas de lo que se prepara en el local. */
-type View = "insumos" | "disponibilidad" | "recetas";
+/** Productos (lotes y producción), insumos, prender o apagar del menú, y las recetas de lo que se prepara en el local. */
+type View = "productos" | "insumos" | "disponibilidad" | "recetas";
 
-const VIEWS: View[] = ["insumos", "disponibilidad", "recetas"];
+const VIEWS: View[] = ["productos", "insumos", "disponibilidad", "recetas"];
 
-const VIEW_LABEL: Record<View, string> = { insumos: "Insumos", disponibilidad: "Disponibilidad", recetas: "Recetas" };
+const VIEW_LABEL: Record<View, string> = {
+    productos: "Productos",
+    insumos: "Insumos",
+    disponibilidad: "Disponibilidad",
+    recetas: "Recetas",
+};
 
 /** Dentro de Disponibilidad: productos (en Loyverse) u opciones de modificador (en nuestra base). */
 type AvailabilityView = "productos" | "opciones";
 
-/** Las pestañas: las tres categorías de insumo más los productos terminados. */
-type Tab = SupplyCategory | "productos";
-
-const TABS: Tab[] = ["alimento", "limpieza", "mantenimiento", "productos"];
-
-const TAB_LABEL: Record<Tab, string> = { ...SUPPLY_CATEGORY_LABEL, productos: "Productos" };
+const CATEGORIES: SupplyCategory[] = ["alimento", "limpieza", "mantenimiento"];
 
 const STATE_LABEL: Record<ISupplyStatus["state"], string> = {
     comprar: "Comprar ya",
@@ -64,6 +66,15 @@ const MOVEMENT_LABEL: Record<string, string> = {
     produccion: "Producción",
 };
 
+/** Lo que se registra sobre un insumo: desde su fila o desde "¿Qué pasó?" eligiéndolo primero. */
+type SupplyAction = "purchase" | "count" | "waste";
+
+const SUPPLY_ACTION_TITLE: Record<SupplyAction, string> = {
+    purchase: "¿Qué compraste?",
+    count: "¿Qué contaste?",
+    waste: "¿Qué se dañó?",
+};
+
 /** Pasado este plazo el conteo dejó de ser confiable. Mismo umbral que usa el API. */
 const STALE_COUNT_DAYS = 7;
 
@@ -74,11 +85,65 @@ const getPageCount = (total: number) => Math.max(1, Math.ceil(total / PAGE_SIZE)
 
 const getPageSlice = <T,>(items: T[], page: number) => items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
+const matchesSearch = (name: string, query: string) => name.toLocaleLowerCase("es").includes(query.trim().toLocaleLowerCase("es"));
+
 type PendingAction =
-    | { kind: "purchase" | "count" | "waste"; supply: ISupplyStatus }
+    | { kind: SupplyAction; supply: ISupplyStatus }
+    | { kind: "pick"; action: SupplyAction }
     | { kind: "production"; product: IProductStatus }
     // Sin producto: se elige del menú (el primer lote activa una galleta o un postre)
-    | { kind: "arrival"; product?: IProductStatus };
+    | { kind: "arrival"; product?: IProductStatus }
+    | { kind: "exit"; variantId?: string };
+
+const QuickIcon = ({ children }: { children: ReactNode }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {children}
+    </svg>
+);
+
+/** Antes de una compra, un conteo o una merma desde "¿Qué pasó?": cuál insumo. */
+const SupplyPicker = ({
+    supplies,
+    action,
+    onPick,
+    onClose,
+}: {
+    supplies: ISupplyStatus[];
+    action: SupplyAction;
+    onPick: (supply: ISupplyStatus) => void;
+    onClose: () => void;
+}) => {
+    const [search, setSearch] = useState("");
+    const matches = supplies.filter((supply) => matchesSearch(supply.name, search));
+
+    return (
+        <FullSheet title={SUPPLY_ACTION_TITLE[action]} onClose={onClose}>
+            {(close) => (
+                <div className="ges-pick">
+                    <input
+                        className="ges-search"
+                        type="search"
+                        placeholder="Buscar insumo"
+                        aria-label="Buscar insumo"
+                        value={search}
+                        onChange={(event) => setSearch(event.target.value)}
+                    />
+                    <div className="fsheet__choices">
+                        {matches.length === 0 ? <p className="ges-empty">Ningún insumo coincide.</p> : null}
+                        {matches.map((supply) => (
+                            <button key={supply.id} type="button" className="fsheet__choice" onClick={() => close(() => onPick(supply))}>
+                                <span>{supply.name}</span>
+                                <small>
+                                    {formatQuantity(supply.stock)} {supply.unit}
+                                </small>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </FullSheet>
+    );
+};
 
 interface IGestionInventarioProps {
     token: string;
@@ -89,11 +154,12 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
     const [supplies, setSupplies] = useState<ISupplyStatus[]>([]);
     const [products, setProducts] = useState<IProductStatus[]>([]);
     const [movements, setMovements] = useState<IMovement[]>([]);
-    const [view, setView] = useState<View>("insumos");
+    const [view, setView] = useState<View>("productos");
     const [availabilityView, setAvailabilityView] = useState<AvailabilityView>("productos");
     // Se muestra en la pestaña Opciones; se conoce recien al abrirla
     const [soldOutOptions, setSoldOutOptions] = useState<number | null>(null);
-    const [tab, setTab] = useState<Tab>("alimento");
+    const [category, setCategory] = useState<SupplyCategory>("alimento");
+    const [search, setSearch] = useState("");
     const [pending, setPending] = useState<PendingAction | null>(null);
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(true);
@@ -133,40 +199,106 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
         return () => controller.abort();
     }, [loadAll]);
 
-    // Se cuenta por pestaña para que se vea dónde hay trabajo sin entrar a cada una
+    // Se cuenta por categoría para que se vea dónde hay trabajo sin entrar a cada una
     const counts = useMemo(() => {
-        const byCategory = { alimento: 0, limpieza: 0, mantenimiento: 0 };
+        const byCategory: Record<SupplyCategory, number> = { alimento: 0, limpieza: 0, mantenimiento: 0 };
         supplies.forEach((supply) => {
             byCategory[supply.category] += 1;
         });
-        return { ...byCategory, productos: products.length };
-    }, [supplies, products]);
+        return byCategory;
+    }, [supplies]);
 
     const visibleSupplies = useMemo(
-        () => (tab === "productos" ? [] : supplies.filter((supply) => supply.category === tab)),
-        [supplies, tab]
+        () => supplies.filter((supply) => supply.category === category && matchesSearch(supply.name, search)),
+        [supplies, category, search]
     );
 
-    const isEmpty = tab === "productos" ? products.length === 0 : visibleSupplies.length === 0;
+    const visibleProducts = useMemo(() => products.filter((product) => matchesSearch(product.name, search)), [products, search]);
+
+    const listLength = view === "productos" ? visibleProducts.length : visibleSupplies.length;
 
     // Tras recargar la lista puede achicarse: la página actual no puede quedar fuera
-    const pageCount = getPageCount(tab === "productos" ? products.length : visibleSupplies.length);
+    const pageCount = getPageCount(listLength);
     const currentPage = Math.min(page, pageCount);
     const minePageCount = getPageCount(movements.length);
     const currentMinePage = Math.min(minePage, minePageCount);
 
-    const openTab = (next: Tab) => {
-        setTab(next);
+    const openCategory = (next: SupplyCategory) => {
+        setCategory(next);
         setPage(1);
     };
 
     const openView = (next: View) => {
         setView(next);
+        setSearch("");
         setPage(1);
     };
 
+    const closePending = useCallback(() => setPending(null), []);
+
+    // Lo que pasó va primero: no hay que saber en qué lista vive cada cosa
+    const quickActions = (
+        <section className="ges-happened" aria-labelledby="ges-happened-title">
+            <h2 id="ges-happened-title">¿Qué pasó?</h2>
+            <div className="ges-happened__grid">
+                <button type="button" className="ges-happened__btn is-main" onClick={() => setPending({ kind: "arrival" })}>
+                    <QuickIcon>
+                        <path d="M3 7l9-4 9 4v10l-9 4-9-4z" />
+                        <path d="M3 7l9 4 9-4M12 11v10" />
+                    </QuickIcon>
+                    <span>
+                        <b>Llegó un lote</b>
+                        <small>Galletas, postres o lo que llega listo</small>
+                    </span>
+                </button>
+                <button type="button" className="ges-happened__btn" onClick={() => setPending({ kind: "pick", action: "purchase" })}>
+                    <QuickIcon>
+                        <path d="M6 6h15l-1.5 9h-12z" />
+                        <path d="M6 6L5 3H2" />
+                        <circle cx="9" cy="20" r="1.4" />
+                        <circle cx="18" cy="20" r="1.4" />
+                    </QuickIcon>
+                    <span>
+                        <b>Compré insumos</b>
+                        <small>Leche, café, vasos…</small>
+                    </span>
+                </button>
+                <button type="button" className="ges-happened__btn" onClick={() => setPending({ kind: "pick", action: "count" })}>
+                    <QuickIcon>
+                        <path d="M9 11l3 3 8-8" />
+                        <path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9" />
+                    </QuickIcon>
+                    <span>
+                        <b>Conté</b>
+                        <small>Lo que hay ahora</small>
+                    </span>
+                </button>
+                <button type="button" className="ges-happened__btn" onClick={() => setPending({ kind: "pick", action: "waste" })}>
+                    <QuickIcon>
+                        <path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15" />
+                    </QuickIcon>
+                    <span>
+                        <b>Se dañó</b>
+                        <small>Merma, se botó</small>
+                    </span>
+                </button>
+                <button type="button" className="ges-happened__btn is-exit" onClick={() => setPending({ kind: "exit" })}>
+                    <QuickIcon>
+                        <path d="M20 12v9H4v-9" />
+                        <path d="M2 7h20v5H2zM12 21V7" />
+                        <path d="M12 7H8a2.5 2.5 0 0 1 0-5c3 0 4 5 4 5zM12 7h4a2.5 2.5 0 0 0 0-5c-3 0-4 5-4 5z" />
+                    </QuickIcon>
+                    <span>
+                        <b>Salida sin venta</b>
+                        <small>Pruebas, Marketing, PedidosYa</small>
+                    </span>
+                </button>
+            </div>
+        </section>
+    );
+
     const viewSwitch = (
-        <div className="ges-seg" role="tablist" aria-label="Qué vas a ver">
+        <div className="ges-seg ges-seg--four" role="tablist" aria-label="Qué vas a ver">
             {VIEWS.map((option) => (
                 <button
                     key={option}
@@ -181,19 +313,102 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
         </div>
     );
 
-    if (view === "recetas") {
-        return (
-            <>
-                {viewSwitch}
-                <GestionRecetas token={token} onSessionExpired={onSessionExpired} />
-            </>
-        );
-    }
+    const renderProduct = (product: IProductStatus) => {
+        const isBatch = product.productionMode === "BATCH";
+        const isMadeToOrder = product.productionMode === "MADE_TO_ORDER";
 
-    if (view === "disponibilidad") {
         return (
+            <article className="ges-row" key={product.variantId}>
+                <div className="ges-row__top">
+                    <div>
+                        <div className="ges-row__name">{product.name}</div>
+                        <div className="ges-row__meta">
+                            {isBatch
+                                ? "Por lotes · " + (product.nextExpiration ? expirationLabel(product.nextExpiration) : "sin vencimiento") + (product.shelfLifeDays ? " · dura " + product.shelfLifeDays + " días" : "")
+                                : isMadeToOrder
+                                  ? "Se prepara al momento · descuenta su receta"
+                                  : "Producidos hoy: " + formatQuantity(product.producedToday)}
+                        </div>
+                        {!isMadeToOrder && product.stock <= product.lowStock ? (
+                            <span className="ges-pill is-warn">Quedan pocos</span>
+                        ) : null}
+                    </div>
+                    <div className="ges-qty">
+                        <b>{formatQuantity(product.stock)}</b>
+                        <span>{isMadeToOrder ? "alcanzan" : "quedan"}</span>
+                    </div>
+                </div>
+                {!isMadeToOrder ? (
+                    <div className="ges-acts ges-acts--two">
+                        <button
+                            type="button"
+                            className="ges-btn ges-btn--solid"
+                            onClick={() => setPending({ kind: isBatch ? "arrival" : "production", product })}
+                        >
+                            {isBatch ? "+ Lote" : "Cargar producción"}
+                        </button>
+                        <button type="button" className="ges-btn" onClick={() => setPending({ kind: "exit", variantId: product.variantId })}>
+                            Salida
+                        </button>
+                    </div>
+                ) : null}
+            </article>
+        );
+    };
+
+    const renderSupply = (supply: ISupplyStatus) => {
+        const isStale = supply.countAge !== null && supply.countAge > STALE_COUNT_DAYS;
+
+        return (
+            <article className="ges-row" key={supply.id}>
+                <div className="ges-row__top">
+                    <div>
+                        <div className="ges-row__name">{supply.name}</div>
+                        <div className={`ges-row__meta${isStale ? " is-stale" : ""}`}>
+                            {supply.countAge === null
+                                ? "Nunca se ha contado"
+                                : `Contado ${formatCountAge(supply.countAge)}${isStale ? " · toca contar" : ""}`}
+                        </div>
+                        <div className="ges-row__facts">
+                            Se mide en <b>{supply.unit}</b> · Mínimo{" "}
+                            <b>{formatQuantity(supply.minStock)} {supply.unit}</b>
+                        </div>
+                        <span className={`ges-pill is-${STATE_TONE[supply.state]}`}>
+                            {STATE_LABEL[supply.state]}
+                        </span>
+                    </div>
+                    <div className="ges-qty">
+                        <b>{formatQuantity(supply.stock)}</b>
+                        <span>{supply.unit}</span>
+                        {getPresentation(supply) ? (
+                            <small className="ges-qty__pres">
+                                {formatInPresentation(supply.stock, getPresentation(supply)!, supply.unit)}
+                            </small>
+                        ) : null}
+                    </div>
+                </div>
+                <div className="ges-acts">
+                    <button type="button" className="ges-btn" onClick={() => setPending({ kind: "purchase", supply })}>
+                        Compra
+                    </button>
+                    <button type="button" className="ges-btn" onClick={() => setPending({ kind: "count", supply })}>
+                        Conteo
+                    </button>
+                    <button type="button" className="ges-btn" onClick={() => setPending({ kind: "waste", supply })}>
+                        Merma
+                    </button>
+                </div>
+            </article>
+        );
+    };
+
+    let content: ReactNode;
+
+    if (view === "recetas") {
+        content = <GestionRecetas token={token} onSessionExpired={onSessionExpired} />;
+    } else if (view === "disponibilidad") {
+        content = (
             <>
-                {viewSwitch}
                 <div className="ges-tabs ges-avail-kind" role="tablist" aria-label="Qué vas a prender o apagar">
                     <button
                         type="button"
@@ -222,135 +437,81 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                 )}
             </>
         );
+    } else {
+        const isProducts = view === "productos";
+
+        content = (
+            <>
+                {!isProducts ? (
+                    <>
+                        <SheetSelect<SupplyCategory>
+                            label="Qué insumos"
+                            className="ges-select"
+                            value={category}
+                            options={CATEGORIES.map((option) => ({ id: option, label: SUPPLY_CATEGORY_LABEL[option], count: counts[option] }))}
+                            onChange={openCategory}
+                        />
+
+                        <div className="ges-tabs ges-tabs--inv fsheet-wide" role="tablist" aria-label="Qué insumos">
+                            {CATEGORIES.map((option) => (
+                                <button
+                                    key={option}
+                                    type="button"
+                                    role="tab"
+                                    className="ges-tab"
+                                    aria-selected={category === option}
+                                    onClick={() => openCategory(option)}
+                                >
+                                    {SUPPLY_CATEGORY_LABEL[option]}
+                                    <small>{counts[option]}</small>
+                                </button>
+                            ))}
+                        </div>
+                    </>
+                ) : null}
+
+                <main className="ges-main ges-main--inv">
+                    <input
+                        className="ges-search ges-list-search"
+                        type="search"
+                        placeholder={isProducts ? "Buscar producto" : "Buscar insumo"}
+                        aria-label={isProducts ? "Buscar producto" : "Buscar insumo"}
+                        value={search}
+                        onChange={(event) => {
+                            setSearch(event.target.value);
+                            setPage(1);
+                        }}
+                    />
+
+                    {error ? <p className="ges-error" role="alert">{error}</p> : null}
+
+                    {isLoading ? (
+                        <p className="ges-empty">Cargando…</p>
+                    ) : listLength === 0 ? (
+                        <p className="ges-empty">
+                            {search.trim()
+                                ? "Nada coincide con la búsqueda."
+                                : isProducts
+                                  ? "Ningún producto lleva stock todavía. Toca «Llegó un lote» para registrar el primero."
+                                  : `Todavía no hay insumos de ${SUPPLY_CATEGORY_LABEL[category].toLowerCase()}. El administrador los da de alta desde el tablero.`}
+                        </p>
+                    ) : isProducts ? (
+                        getPageSlice(visibleProducts, currentPage).map(renderProduct)
+                    ) : (
+                        getPageSlice(visibleSupplies, currentPage).map(renderSupply)
+                    )}
+
+                    {!isLoading && listLength > 0 ? <GestionPager page={currentPage} pageCount={pageCount} onChange={setPage} /> : null}
+                </main>
+            </>
+        );
     }
 
     return (
         <>
+            {quickActions}
             {viewSwitch}
-
-            <SheetSelect<Tab>
-                label="Qué vas a registrar"
-                className="ges-select"
-                value={tab}
-                options={TABS.map((option) => ({ id: option, label: TAB_LABEL[option], count: counts[option] }))}
-                onChange={openTab}
-            />
-
-            <div className="ges-tabs fsheet-wide" role="tablist" aria-label="Qué vas a registrar">
-                {TABS.map((option) => (
-                    <button
-                        key={option}
-                        type="button"
-                        role="tab"
-                        className="ges-tab"
-                        aria-selected={tab === option}
-                        onClick={() => openTab(option)}
-                    >
-                        {TAB_LABEL[option]}
-                        <small>{counts[option]}</small>
-                    </button>
-                ))}
-            </div>
-
-            <main className="ges-main">
-                {error ? <p className="ges-error" role="alert">{error}</p> : null}
-
-                {tab === "productos" ? (
-                    <div className="ges-lot-lead">
-                        <span>¿Llegaron galletas o postres?</span>
-                        <button type="button" className="ges-btn ges-btn--solid" onClick={() => setPending({ kind: "arrival" })}>
-                            Registrar lote
-                        </button>
-                    </div>
-                ) : null}
-
-                {isLoading ? (
-                    <p className="ges-empty">Cargando…</p>
-                ) : isEmpty ? (
-                    <p className="ges-empty">
-                        {tab === "productos"
-                            ? "Ningún producto lleva stock todavía. Registra el primer lote de una galleta o un postre."
-                            : `Todavía no hay insumos de ${TAB_LABEL[tab].toLowerCase()}. El administrador los da de alta desde el tablero.`}
-                    </p>
-                ) : tab === "productos" ? (
-                    getPageSlice(products, currentPage).map((product) => (
-                        <article className="ges-row" key={product.variantId}>
-                            <div className="ges-row__top">
-                                <div>
-                                    <div className="ges-row__name">{product.name}</div>
-                                    <div className="ges-row__meta">
-                                        {product.productionMode==="BATCH" ? (product.nextExpiration ? expirationLabel(product.nextExpiration) : "Sin vencimiento")+(product.shelfLifeDays ? " · dura "+product.shelfLifeDays+" días" : "") : product.productionMode==="MADE_TO_ORDER" ? "Preparado al momento" : "Producidos hoy: "+formatQuantity(product.producedToday)}
-                                    </div>
-                                    <div className="ges-row__facts">
-                                        Se mide en <b>unidades</b> · Mínimo <b>{formatQuantity(product.lowStock)} u</b>
-                                    </div>
-                                </div>
-                                <div className="ges-qty">
-                                    <b>{formatQuantity(product.stock)}</b>
-                                    <span>{product.productionMode==="MADE_TO_ORDER"?"se pueden preparar":"u"}</span>
-                                </div>
-                            </div>
-                            {product.productionMode!=="MADE_TO_ORDER" ? <div className="ges-acts ges-acts--one">
-                                <button
-                                    type="button"
-                                    className="ges-btn ges-btn--solid"
-                                    onClick={() => setPending({ kind: product.productionMode==="BATCH" ? "arrival" : "production", product })}
-                                >
-                                    {product.productionMode==="BATCH"?"Registrar lote":"Cargar producción"}
-                                </button>
-                            </div> : null}
-                        </article>
-                    ))
-                ) : (
-                    getPageSlice(visibleSupplies, currentPage).map((supply) => {
-                        const isStale = supply.countAge !== null && supply.countAge > STALE_COUNT_DAYS;
-
-                        return (
-                            <article className="ges-row" key={supply.id}>
-                                <div className="ges-row__top">
-                                    <div>
-                                        <div className="ges-row__name">{supply.name}</div>
-                                        <div className={`ges-row__meta${isStale ? " is-stale" : ""}`}>
-                                            {supply.countAge === null
-                                                ? "Nunca se ha contado"
-                                                : `Contado ${formatCountAge(supply.countAge)}${isStale ? " · toca contar" : ""}`}
-                                        </div>
-                                        <div className="ges-row__facts">
-                                            Se mide en <b>{supply.unit}</b> · Mínimo{" "}
-                                            <b>{formatQuantity(supply.minStock)} {supply.unit}</b>
-                                        </div>
-                                        <span className={`ges-pill is-${STATE_TONE[supply.state]}`}>
-                                            {STATE_LABEL[supply.state]}
-                                        </span>
-                                    </div>
-                                    <div className="ges-qty">
-                                        <b>{formatQuantity(supply.stock)}</b>
-                                        <span>{supply.unit}</span>
-                                        {getPresentation(supply) ? (
-                                            <small className="ges-qty__pres">
-                                                {formatInPresentation(supply.stock, getPresentation(supply)!, supply.unit)}
-                                            </small>
-                                        ) : null}
-                                    </div>
-                                </div>
-                                <div className="ges-acts">
-                                    <button type="button" className="ges-btn" onClick={() => setPending({ kind: "purchase", supply })}>
-                                        Compra
-                                    </button>
-                                    <button type="button" className="ges-btn" onClick={() => setPending({ kind: "count", supply })}>
-                                        Conteo
-                                    </button>
-                                    <button type="button" className="ges-btn" onClick={() => setPending({ kind: "waste", supply })}>
-                                        Merma
-                                    </button>
-                                </div>
-                            </article>
-                        );
-                    })
-                )}
-
-                {!isLoading && !isEmpty ? <GestionPager page={currentPage} pageCount={pageCount} onChange={setPage} /> : null}
-            </main>
+            {content}
 
             <section className="ges-mine">
                 <h2>Lo que registraste hoy</h2>
@@ -361,7 +522,14 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                         {getPageSlice(movements, currentMinePage).map((movement) => (
                             <li key={movement.id}>
                                 <span>
-                                    <b>{movement.referenceType==="PRODUCT_RECEIPT"?"Lote":MOVEMENT_LABEL[movement.type] ?? movement.type}</b> · {movement.name}{" "}
+                                    <b>
+                                        {movement.referenceType === "PRODUCT_RECEIPT"
+                                            ? "Lote"
+                                            : movement.referenceType === "INVENTORY_EXIT"
+                                              ? `Salida${movement.reference ? ` · ${movement.reference}` : ""}`
+                                              : MOVEMENT_LABEL[movement.type] ?? movement.type}
+                                    </b>{" "}
+                                    · {movement.name}{" "}
                                     <em>
                                         {/* En un conteo importa lo que se contó, no la diferencia que corrigió */}
                                         {movement.type === "conteo"
@@ -376,6 +544,27 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                 )}
                 <GestionPager page={currentMinePage} pageCount={minePageCount} onChange={setMinePage} />
             </section>
+
+            {pending?.kind === "pick" ? (
+                <SupplyPicker
+                    supplies={supplies}
+                    action={pending.action}
+                    onPick={(supply) => setPending({ kind: pending.action, supply })}
+                    onClose={closePending}
+                />
+            ) : null}
+
+            {pending?.kind === "exit" ? (
+                <InventoryExitDialog
+                    token={token}
+                    initialVariantId={pending.variantId}
+                    onSessionExpired={onSessionExpired}
+                    onClose={() => {
+                        setPending(null);
+                        void loadAll();
+                    }}
+                />
+            ) : null}
 
             {pending?.kind==="purchase"?<PurchaseDialog token={token} scope="gestion" supply={pending.supply} onSaved={loadAll} onClose={()=>setPending(null)}/>:null}
 

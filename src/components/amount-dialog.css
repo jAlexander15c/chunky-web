@@ -236,3 +236,63 @@
 
 .dlg__plus { padding-bottom: 0.8rem; font-weight: 800; color: var(--text-soft); }
 .dlg__total { margin: 0 0 1rem; font-size: 0.78rem; color: var(--text-soft); font-variant-numeric: tabular-nums; }
+
+/* Unidades con − / + y días con atajos: se llena con el pulgar */
+.lot__fields--stack { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+
+.lot__stepper {
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr) 56px;
+    gap: 0.5rem;
+}
+
+.lot__stepper .dlg__input { text-align: center; }
+
+.lot__step,
+.lot__day {
+    font: inherit;
+    font-weight: 800;
+    color: var(--ink);
+    background: transparent;
+    border: 2px solid var(--sky);
+    cursor: pointer;
+    transition: transform 160ms var(--ease-out), background-color 150ms ease;
+}
+
+.lot__step { min-height: 56px; border-radius: 16px; font-size: 1.5rem; }
+.lot__step:disabled { opacity: 0.45; cursor: default; }
+
+.lot__days {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.6fr);
+    gap: 0.4rem;
+}
+
+.lot__day { min-height: 44px; border-radius: var(--radius-pill); font-size: 0.9rem; padding: 0 0.3rem; }
+.lot__day[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--crema); }
+
+.lot__step:active:not(:disabled),
+.lot__day:active { transform: scale(0.96); }
+
+.lot__step:focus-visible,
+.lot__day:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+.lot__label small { font-weight: 600; text-transform: none; letter-spacing: 0; }
+
+.lot__other { margin: 0.6rem 0 0; }
+.lot__other .lot__label { margin: 0; }
+.lot__other .dlg__input { font-size: 1.1rem; padding: 0.35rem 0.7rem; max-width: 7rem; }
+
+.lot__summary {
+    margin: 0 0 0.6rem;
+    padding: 0.7rem 0.9rem;
+    border-radius: 14px;
+    background: #dfeee4;
+    color: #2f6f4c;
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lot__step, .lot__day { transition: none; }
+}

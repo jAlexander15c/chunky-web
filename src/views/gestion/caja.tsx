@@ -1344,7 +1344,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
 
         return (
             <>
-                <button type="button" className="ges-btn" onClick={() => setIsRegisteringExit(true)}>Registrar salida</button>
+                <button type="button" className="ges-btn" onClick={() => setIsRegisteringExit(true)}>Salida sin venta</button>
                 {error ? <p className="ges-error" role="alert">{error}</p> : null}
                 {!hasShift && !isLoading ? (
                     <p className="ges-warning">
@@ -1444,7 +1444,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
     return (
         <>
             {isRegisteringExit ? <InventoryExitDialog token={token} onClose={() => setIsRegisteringExit(false)} onSessionExpired={onSessionExpired} /> : null}
-            <button type="button" className="ges-btn" onClick={() => setIsRegisteringExit(true)}>Registrar salida</button>
+            <button type="button" className="ges-btn" onClick={() => setIsRegisteringExit(true)}>Salida sin venta</button>
             <div className="ges-account">
                 <div className="ges-account__menu">
                     {currentCategory ? (

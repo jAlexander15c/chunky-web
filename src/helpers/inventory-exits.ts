@@ -3,7 +3,7 @@ import type { IItem } from "@/interfaces";
 import type { ICartModifier } from "./modifiers";
 
 export type InventoryExitReason = "pruebas" | "marketing" | "pedidos_externos";
-export const INVENTORY_EXIT_LABELS: Record<InventoryExitReason, string> = { pruebas: "Pruebas", marketing: "Marketing", pedidos_externos: "Pedidos externos" };
+export const INVENTORY_EXIT_LABELS: Record<InventoryExitReason, string> = { pruebas: "Pruebas", marketing: "Marketing", pedidos_externos: "PedidosYa" };
 export interface IInventoryExitPayload {
     reason: InventoryExitReason;
     note: string | null;

@@ -15,6 +15,9 @@ export interface ILotTarget {
 
 const MAX_SHELF_LIFE_DAYS = 3650;
 
+/** Lo más común en galletas y postres; otro número se escribe a mano. */
+const SHELF_LIFE_CHOICES = [2, 3, 5, 7];
+
 /** En el teléfono se ve la lista sin tener que hacer scroll dentro del diálogo. */
 const MAX_OPTIONS = 6;
 
@@ -103,6 +106,8 @@ export const ProductLotDialog = ({
     const isShelfLifeValid = shelfLife === null || (Number.isInteger(shelfLife) && shelfLife >= 1 && shelfLife <= MAX_SHELF_LIFE_DAYS);
     const expiration = shelfLife && isShelfLifeValid ? expirationFormatter.format(openedAt + shelfLife * 86400000) : null;
 
+    const stepQuantity = (delta: number) => setQuantity(String(Math.max(0, (isAmountValid ? amount : 0) + delta) || ""));
+
     const submit = async (event: FormEvent) => {
         event.preventDefault();
         if (!target) return setError("Elige el producto que llegó.");
@@ -122,9 +127,9 @@ export const ProductLotDialog = ({
     };
 
     return (
-        <div className="dlg" role="dialog" aria-modal="true" aria-label="Registrar lote">
+        <div className="dlg" role="dialog" aria-modal="true" aria-label="Llegó un lote">
             <form className="dlg__panel lot" onSubmit={submit}>
-                <h3 className="script">Registrar lote</h3>
+                <h3 className="script">Llegó un lote</h3>
 
                 {target ? (
                     <div className="lot__chosen">
@@ -174,10 +179,13 @@ export const ProductLotDialog = ({
                     </div>
                 )}
 
-                <div className="lot__fields">
+                <div className="lot__fields lot__fields--stack">
                     <div>
-                        <label className="lot__label" htmlFor="lot-quantity">Llegaron</label>
-                        <div className="dlg__field">
+                        <label className="lot__label" htmlFor="lot-quantity">¿Cuántas unidades?</label>
+                        <div className="lot__stepper">
+                            <button type="button" className="lot__step" aria-label="Una menos" disabled={!isAmountValid} onClick={() => stepQuantity(-1)}>
+                                −
+                            </button>
                             <input
                                 id="lot-quantity"
                                 className="dlg__input"
@@ -187,12 +195,27 @@ export const ProductLotDialog = ({
                                 value={quantity}
                                 onChange={(event) => setQuantity(event.target.value.replace(/\D/g, ""))}
                             />
-                            <span className="dlg__unit">u</span>
+                            <button type="button" className="lot__step" aria-label="Una más" onClick={() => stepQuantity(1)}>
+                                +
+                            </button>
                         </div>
                     </div>
                     <div>
-                        <label className="lot__label" htmlFor="lot-days">Dura (días)</label>
-                        <div className="dlg__field">
+                        <span className="lot__label" id="lot-days-label">
+                            ¿Cuántos días dura? <small>(opcional)</small>
+                        </span>
+                        <div className="lot__days" role="group" aria-labelledby="lot-days-label">
+                            {SHELF_LIFE_CHOICES.map((choice) => (
+                                <button key={choice} type="button" className="lot__day" aria-pressed={shelfLife === choice} onClick={() => setDays(String(choice))}>
+                                    {choice}
+                                </button>
+                            ))}
+                            <button type="button" className="lot__day" aria-pressed={shelfLife === null} onClick={() => setDays("")}>
+                                No vence
+                            </button>
+                        </div>
+                        <div className="dlg__field lot__other">
+                            <label className="lot__label" htmlFor="lot-days">Otro</label>
                             <input
                                 id="lot-days"
                                 className="dlg__input"
@@ -202,9 +225,17 @@ export const ProductLotDialog = ({
                                 value={days}
                                 onChange={(event) => setDays(event.target.value.replace(/\D/g, ""))}
                             />
+                            <span className="dlg__unit">días</span>
                         </div>
                     </div>
                 </div>
+
+                {target && isAmountValid ? (
+                    <p className="lot__summary">
+                        {target.stock != null ? `Quedarán ${target.stock + amount} de ${target.name}` : `Empiezan ${amount} de ${target.name}`}
+                        {expiration ? ` · este lote vence el ${expiration}` : " · no vence"}
+                    </p>
+                ) : null}
 
                 <p className="dlg__hint">
                     {expiration ? `Vence el ${expiration}. ` : "Sin días, el lote no vence. "}
@@ -221,8 +252,8 @@ export const ProductLotDialog = ({
                         {isSending
                             ? "Guardando…"
                             : target && isAmountValid
-                              ? `Registrar ${amount}`
-                              : "Registrar lote"}
+                              ? `Guardar lote · ${amount}`
+                              : "Guardar lote"}
                     </button>
                 </div>
             </form>
