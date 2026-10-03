@@ -1140,7 +1140,23 @@ export const AdminMenu = ({ token, onSessionExpired }: { token: string; onSessio
                 )}
             </div>
 
-            {dialog?.kind==="recipe"?<RecipeDialog token={token} item={dialog.editing} onClose={()=>setDialog(null)} onChanged={load}/>:null}
+            {dialog?.kind === "recipe" ? (
+                <RecipeDialog
+                    token={token}
+                    item={dialog.editing}
+                    onClose={() => setDialog(null)}
+                    onChanged={load}
+                    modifiers={dialog.editing.modifierIds
+                        .map((id) => modifiers.find((modifier) => modifier.id === id))
+                        .filter((modifier): modifier is IModifier => Boolean(modifier))}
+                    usedBy={Object.fromEntries(
+                        modifiers.map((modifier) => [
+                            modifier.id,
+                            items.filter((entry) => entry.modifierIds.includes(modifier.id)).map((entry) => entry.name),
+                        ])
+                    )}
+                />
+            ) : null}
             {dialog?.kind === "category" ? (
                 <CategoryDialog
                     editing={dialog.editing}

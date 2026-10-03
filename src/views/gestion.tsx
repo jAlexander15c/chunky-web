@@ -506,7 +506,7 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
                     ) : current.id === "creditos" ? (
                         <GestionCreditos token={token} onSessionExpired={onLogout} onShiftChange={setShift} />
                     ) : current.id === "cocina" ? (
-                        <GestionCocina feed={kitchen} onSessionExpired={onLogout} onOpenDelivery={(orderId) => {
+                        <GestionCocina feed={kitchen} token={token} onSessionExpired={onLogout} onOpenDelivery={(orderId) => {
                             setDeliveryOpenId(orderId ?? null);
                             setSection("delivery");
                         }} />

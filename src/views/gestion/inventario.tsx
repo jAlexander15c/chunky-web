@@ -22,13 +22,14 @@ import type { IMovement, IProductStatus, ISupplyStatus, SupplyCategory } from "@
 import { GestionDisponibilidad } from "./disponibilidad";
 import { GestionOpciones } from "./disponibilidad-opciones";
 import { GestionPager } from "./pager";
+import { GestionRecetas } from "./recetas";
 
-/** Insumos y producción por un lado; prender o apagar productos del menú por otro. */
-type View = "insumos" | "disponibilidad";
+/** Insumos y producción; prender o apagar productos del menú; y las recetas de lo que se prepara en el local. */
+type View = "insumos" | "disponibilidad" | "recetas";
 
-const VIEWS: View[] = ["insumos", "disponibilidad"];
+const VIEWS: View[] = ["insumos", "disponibilidad", "recetas"];
 
-const VIEW_LABEL: Record<View, string> = { insumos: "Insumos", disponibilidad: "Disponibilidad" };
+const VIEW_LABEL: Record<View, string> = { insumos: "Insumos", disponibilidad: "Disponibilidad", recetas: "Recetas" };
 
 /** Dentro de Disponibilidad: productos (en Loyverse) u opciones de modificador (en nuestra base). */
 type AvailabilityView = "productos" | "opciones";
@@ -177,6 +178,15 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
             ))}
         </div>
     );
+
+    if (view === "recetas") {
+        return (
+            <>
+                {viewSwitch}
+                <GestionRecetas token={token} onSessionExpired={onSessionExpired} />
+            </>
+        );
+    }
 
     if (view === "disponibilidad") {
         return (

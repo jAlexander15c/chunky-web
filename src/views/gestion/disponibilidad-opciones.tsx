@@ -114,19 +114,22 @@ export const GestionOpciones = ({ token, onSessionExpired, onSoldOutCountChange 
                                     <li key={option.id} className={`ges-avail${isAvailable ? "" : " is-off"}`}>
                                         <div className="ges-avail__body">
                                             <div className="ges-avail__name">{option.name}</div>
-                                            {option.price > 0 ? (
+                                            {option.isOutOfStock ? (
+                                                <div className="ges-avail__meta">Sin insumo · vuelve al comprar o contar</div>
+                                            ) : option.price > 0 ? (
                                                 <div className="ges-avail__meta">+{formatCash(option.price)}</div>
                                             ) : null}
                                         </div>
                                         <label className={`ges-check${isPending ? " is-busy" : ""}`}>
-                                            <span className="ges-check__label">{isAvailable ? "Disponible" : "Agotado"}</span>
+                                            <span className="ges-check__label">{isAvailable ? "Disponible" : option.isOutOfStock ? "Sin insumo" : "Agotado"}</span>
                                             <input
                                                 id={`ges-option-${option.id}`}
                                                 type="checkbox"
                                                 checked={isAvailable}
                                                 aria-label={`${modifier.name} ${option.name} disponible`}
                                                 aria-busy={isPending}
-                                                disabled={isPending}
+                                                // Se apagó sola por falta de insumo: prenderla a mano no la devuelve
+                                                disabled={isPending || option.isOutOfStock}
                                                 onChange={() => void toggleOption(modifier.name, option.id, option.name, isAvailable)}
                                             />
                                         </label>

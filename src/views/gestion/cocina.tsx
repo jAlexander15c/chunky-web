@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 
+import { fetchRecipeView } from "@/helpers/inventory";
+import type { IRecipeView } from "@/helpers/inventory";
+
 import { HttpError, KITCHEN_LATE_MINUTES, formatPastaOptions, formatPhone, formatPrice, getMinutesSince, isUnpaidOrder } from "@/helpers";
 import type { IKitchenOrder, KitchenStep } from "@/helpers";
 import type { IKitchenFeed } from "@/hooks/useKitchenFeed";
@@ -58,14 +61,81 @@ const getTicketOrigin = (order: IKitchenOrder) => {
     return `${order.id} · ${formatPrice(order.total)} ${payment}`;
 };
 
+type KitchenLine = IKitchenOrder["lines"][number];
+
+/** Las opciones de la línea como se leen en la comanda: "Leche Almendra · Extras Extra shot". */
+const getLineDetails = (line: KitchenLine) =>
+    [
+        ...(line.options ? [formatPastaOptions(line.options)] : []),
+        ...(line.modifiers ?? []).map((modifier) => `${modifier.name} ${modifier.option}`),
+    ].join(" · ");
+
+/** "Ver receta": lo que lleva la línea con sus opciones, ya multiplicado. Solo lectura. */
+const KitchenRecipeModal = ({ token, line, onClose }: { token: string; line: KitchenLine; onClose: () => void }) => {
+    const [recipe, setRecipe] = useState<IRecipeView | null>(null);
+    const [error, setError] = useState("");
+
+    useEffect(() => {
+        const controller = new AbortController();
+        fetchRecipeView(token, line.variantId ?? "", line.modifierOptionIds ?? [], line.quantity, controller.signal)
+            .then((data) => setRecipe(data.recipe))
+            .catch((requestError) => {
+                if (!controller.signal.aborted)
+                    setError(requestError instanceof HttpError ? requestError.message : "No pudimos cargar la receta.");
+            });
+        return () => controller.abort();
+    }, [token, line]);
+
+    const details = getLineDetails(line);
+
+    return (
+        <div className="ges-modal" role="dialog" aria-modal="true" aria-label={`Receta de ${line.name}`} onClick={onClose}>
+            <div className="ges-modal__panel kit-recipe" onClick={(event) => event.stopPropagation()}>
+                <h3>
+                    {line.quantity}× {line.name}
+                </h3>
+                {details ? <p className="kit-recipe__sub">{details}</p> : null}
+                {error ? <p className="ges-error" role="alert">{error}</p> : null}
+                {!recipe && !error ? <p className="ges-empty">Cargando…</p> : null}
+                {recipe?.lines.map((entry) => (
+                    <div key={entry.supplyId} className="kit-recipe__row">
+                        <b>{entry.name}</b>
+                        <strong>
+                            {entry.quantity} {entry.unit}
+                        </strong>
+                        {entry.replaces ? (
+                            <small>En lugar de {entry.replaces}</small>
+                        ) : entry.fromOptions !== "0" && entry.fromRecipe !== "0" ? (
+                            <small>
+                                {entry.fromRecipe} {entry.unit} de la receta + {entry.fromOptions} {entry.unit} de las opciones
+                            </small>
+                        ) : entry.fromOptions !== "0" ? (
+                            <small>Por las opciones</small>
+                        ) : null}
+                    </div>
+                ))}
+                {recipe?.removed.map((entry) => (
+                    <p key={entry.name} className="kit-recipe__removed">
+                        {entry.name} {entry.quantity} {entry.unit}
+                    </p>
+                ))}
+                <button type="button" className="ges-btn ges-btn--block" onClick={onClose}>
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    );
+};
+
 interface IKitchenTicketProps {
     order: IKitchenOrder;
     now: number;
     onStep: (order: IKitchenOrder, step: KitchenStep) => void;
     onOpenDelivery?: (orderId?: string) => void;
+    onOpenRecipe?: (line: KitchenLine) => void;
 }
 
-const KitchenTicket = ({ order, now, onStep, onOpenDelivery }: IKitchenTicketProps) => {
+const KitchenTicket = ({ order, now, onStep, onOpenDelivery, onOpenRecipe }: IKitchenTicketProps) => {
     const isNew = !order.acceptedAt;
     const isReady = Boolean(order.readyAt);
     const step: KitchenStep = isNew ? "accept" : isReady ? "deliver" : "ready";
@@ -100,13 +170,13 @@ const KitchenTicket = ({ order, now, onStep, onOpenDelivery }: IKitchenTicketPro
                 {order.lines.map((line, index) => (
                     <li key={`${line.name}-${index}`}>
                         <b>{line.quantity}×</b>{line.name}
+                        {line.hasRecipe && line.variantId && onOpenRecipe ? (
+                            <button type="button" className="kit-recipe-btn" onClick={() => onOpenRecipe(line)}>
+                                Ver receta
+                            </button>
+                        ) : null}
                         {(line.options || line.modifiers?.length) && (
-                            <span className="kitchen-ticket__options">
-                                {[
-                                    ...(line.options ? [formatPastaOptions(line.options)] : []),
-                                    ...(line.modifiers ?? []).map((modifier) => `${modifier.name} ${modifier.option}`),
-                                ].join(" · ")}
-                            </span>
+                            <span className="kitchen-ticket__options">{getLineDetails(line)}</span>
                         )}
                         {line.note && <span className="kitchen-ticket__line-note">{line.note}</span>}
                     </li>
@@ -153,7 +223,7 @@ const KitchenTicket = ({ order, now, onStep, onOpenDelivery }: IKitchenTicketPro
     );
 };
 
-const KitchenColumn = ({ title, orders, empty, isNew, now, onStep, onOpenDelivery }: {
+const KitchenColumn = ({ title, orders, empty, isNew, now, onStep, onOpenDelivery, onOpenRecipe }: {
     title: string;
     orders: IKitchenOrder[];
     empty: string;
@@ -161,26 +231,31 @@ const KitchenColumn = ({ title, orders, empty, isNew, now, onStep, onOpenDeliver
     now: number;
     onStep: (order: IKitchenOrder, step: KitchenStep) => void;
     onOpenDelivery?: (orderId?: string) => void;
+    onOpenRecipe?: (line: KitchenLine) => void;
 }) => (
     <section className={`kitchen-col ${isNew ? "kitchen-col--new" : ""}`} aria-label={title}>
         <h2 className="kitchen-col__head">{title} <span className="kitchen-count">{orders.length}</span></h2>
         <div className="kitchen-col__list">
             {orders.length === 0
                 ? <p className="kitchen-empty">{empty}</p>
-                : orders.map((order) => <KitchenTicket key={order.id} order={order} now={now} onStep={onStep} onOpenDelivery={onOpenDelivery} />)}
+                : orders.map((order) => <KitchenTicket key={order.id} order={order} now={now} onStep={onStep} onOpenDelivery={onOpenDelivery} onOpenRecipe={onOpenRecipe} />)}
         </div>
     </section>
 );
 
 interface IGestionCocinaProps {
     feed: IKitchenFeed;
+    /** Para "Ver receta". Sin token no se muestra el botón. */
+    token?: string;
     onSessionExpired: () => void;
     /** Lleva a la pestaña Delivery (cobro al entregar y pedidos a domicilio). */
     onOpenDelivery?: (orderId?: string) => void;
 }
 
-export const GestionCocina = ({ feed, onSessionExpired, onOpenDelivery }: IGestionCocinaProps) => {
+export const GestionCocina = ({ feed, token, onSessionExpired, onOpenDelivery }: IGestionCocinaProps) => {
     const [now, setNow] = useState(() => Date.now());
+    const [recipeLine, setRecipeLine] = useState<KitchenLine | null>(null);
+    const openRecipe = token ? setRecipeLine : undefined;
     const [stepError, setStepError] = useState<string | null>(null);
     useWakeLock();
 
@@ -225,12 +300,13 @@ export const GestionCocina = ({ feed, onSessionExpired, onOpenDelivery }: IGesti
 
             <div className={`kitchen-board${awaitingOrders.length > 0 ? " kitchen-board--four" : ""}`}>
                 {awaitingOrders.length > 0 ? (
-                    <KitchenColumn title="Por confirmar" orders={awaitingOrders} empty="" isNew now={now} onStep={runStep} onOpenDelivery={onOpenDelivery} />
+                    <KitchenColumn title="Por confirmar" orders={awaitingOrders} empty="" isNew now={now} onStep={runStep} onOpenDelivery={onOpenDelivery} onOpenRecipe={openRecipe} />
                 ) : null}
-                <KitchenColumn title="Nuevos" orders={newOrders} empty="Sin pedidos nuevos" isNew now={now} onStep={runStep} />
-                <KitchenColumn title="Preparando" orders={preparingOrders} empty="Nada en preparación" now={now} onStep={runStep} />
-                <KitchenColumn title="Listos para retirar o enviar" orders={readyOrders} empty="Nada por entregar" now={now} onStep={runStep} onOpenDelivery={onOpenDelivery} />
+                <KitchenColumn title="Nuevos" orders={newOrders} empty="Sin pedidos nuevos" isNew now={now} onStep={runStep} onOpenRecipe={openRecipe} />
+                <KitchenColumn title="Preparando" orders={preparingOrders} empty="Nada en preparación" now={now} onStep={runStep} onOpenRecipe={openRecipe} />
+                <KitchenColumn title="Listos para retirar o enviar" orders={readyOrders} empty="Nada por entregar" now={now} onStep={runStep} onOpenDelivery={onOpenDelivery} onOpenRecipe={openRecipe} />
             </div>
+            {recipeLine && token ? <KitchenRecipeModal token={token} line={recipeLine} onClose={() => setRecipeLine(null)} /> : null}
         </div>
     );
 };

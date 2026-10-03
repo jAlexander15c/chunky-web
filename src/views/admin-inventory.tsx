@@ -117,10 +117,10 @@ const MOVEMENT_LABEL: Record<MovementType, string> = {
     venta: "Venta",
     merma: "Merma",
     ajuste: "Ajuste",
-    consumo:"Consumo de receta",vencimiento:"Vencimiento",
+    consumo:"Consumo de receta",vencimiento:"Vencimiento",faltante:"Faltante",
 };
 
-const MOVEMENT_TYPES: MovementType[] = ["compra", "conteo", "produccion", "venta", "merma", "ajuste","consumo","vencimiento"];
+const MOVEMENT_TYPES: MovementType[] = ["compra", "conteo", "produccion", "venta", "merma", "ajuste","consumo","vencimiento","faltante"];
 
 const getMovementOrigin = (movement: IMovement) => {
     const from = movement.source === "web" ? "web" : movement.source === "loyverse" ? "mostrador" : "local";

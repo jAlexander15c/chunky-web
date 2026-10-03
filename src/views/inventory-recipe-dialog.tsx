@@ -12,7 +12,11 @@ import {
     produceBatch,
     saveRecipe,
     deleteRecipe,
+    fetchOptionRules,
 } from "@/helpers/inventory";
+import type { IOptionRule } from "@/helpers/inventory";
+import type { IModifier } from "@/helpers/modifiers";
+import { RecipeOptions } from "./recipe-options";
 import type { AvailabilityMode, ProductAvailability, ProductionPreview, Recipe } from "@/helpers/inventory";
 import { HttpError } from "@/helpers/getHttp";
 const blank = (item: IMenuItem, variantId: string): Recipe => ({
@@ -32,11 +36,16 @@ export const RecipeDialog = ({
     item,
     onClose,
     onChanged,
+    modifiers = [],
+    usedBy,
 }: {
     token: string;
     item: IMenuItem;
     onClose: () => void;
     onChanged: () => Promise<void>;
+    /** Los modificadores del producto: con ellos aparece la sección Opciones. */
+    modifiers?: IModifier[];
+    usedBy?: Record<string, string[]>;
 }) => {
     const variants = item.variants ?? [];
     const [variantId, setVariantId] = useState(variants[0]?.variantId ?? "");
@@ -52,6 +61,15 @@ export const RecipeDialog = ({
         [expiration, setExpiration] = useState("");
     const [preview, setPreview] = useState<ProductionPreview | null>(null),
         [saved, setSaved] = useState(false);
+    const [rules, setRules] = useState<IOptionRule[]>([]);
+    useEffect(() => {
+        if (!modifiers.length) return;
+        const c = new AbortController();
+        fetchOptionRules(token, "admin", c.signal)
+            .then((r) => setRules(r.rules))
+            .catch(() => undefined);
+        return () => c.abort();
+    }, [token, modifiers.length]);
     useEffect(() => {
         const c = new AbortController();
         void Promise.all([fetchSupplies(token, c.signal), fetchRecipe(token, variantId, c.signal)])
@@ -370,6 +388,24 @@ export const RecipeDialog = ({
                                 </button>
                             ) : null}
                         </div>
+                        {modifiers.length ? (
+                            <>
+                                <h4>Opciones</h4>
+                                <RecipeOptions
+                                    token={token}
+                                    scope="admin"
+                                    modifiers={modifiers}
+                                    usedBy={usedBy}
+                                    supplies={supplies}
+                                    recipeSupplyIds={recipe.ingredients.map((i) => i.inventoryItemId)}
+                                    rules={rules}
+                                    isBatch={recipe.productionMode === "BATCH"}
+                                    onRulesSaved={(optionId, next) =>
+                                        setRules((current) => [...current.filter((r) => r.optionId !== optionId), ...next])
+                                    }
+                                />
+                            </>
+                        ) : null}
                         {saved ? (
                             <>
                                 <label className="adm-form__row">

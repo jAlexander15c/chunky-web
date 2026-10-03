@@ -26,7 +26,17 @@ export interface IKitchenOrder {
     courierName?: string | null;
     note: string | null;
     // note: lo que la caja anotó en ese plato ("sin cebolla")
-    lines: { name: string; quantity: number; options?: IPastaOptions; modifiers?: { name: string; option: string }[]; note?: string }[];
+    lines: {
+        name: string;
+        quantity: number;
+        options?: IPastaOptions;
+        modifiers?: { name: string; option: string }[];
+        note?: string;
+        // "Ver receta": opcionales mientras el API viejo siga en produccion
+        variantId?: string;
+        modifierOptionIds?: string[];
+        hasRecipe?: boolean;
+    }[];
     // mapUrl ya viene armado por el API (coordenadas o busqueda de la direccion)
     delivery: { address: string; details: string | null; lat: number | null; lng: number | null; mapUrl: string } | null;
     total: number;

@@ -11,6 +11,8 @@ export interface IModifierOption {
     price: number;
     /** Agotada en nuestra base (Loyverse no lo soporta). Si falta, esta disponible. */
     isAvailable?: boolean;
+    /** Se apagó sola porque a su insumo no le alcanza para una porción. */
+    isOutOfStock?: boolean;
 }
 
 export const isOptionAvailable = (option: IModifierOption) => option.isAvailable !== false;

@@ -8,7 +8,7 @@ import type { IStaffLogin } from "./staff-access";
 
 export type SupplyState = "comprar" | "pedir" | "contar" | "bien";
 export type ProductState = "agotado" | "poco" | "disponible" | "sin-control";
-export type MovementType = "compra" | "conteo" | "produccion" | "venta" | "merma" | "ajuste" | "consumo" | "vencimiento";
+export type MovementType = "compra" | "conteo" | "produccion" | "venta" | "merma" | "ajuste" | "consumo" | "vencimiento" | "faltante";
 type MovementSource = "local" | "loyverse" | "web";
 export type SupplyCategory = "alimento" | "limpieza" | "mantenimiento";
 

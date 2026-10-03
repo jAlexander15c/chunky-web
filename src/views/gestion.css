@@ -351,7 +351,8 @@
 
 .ges-seg {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
     margin: 0.9rem var(--gutter) 0;
     padding: 4px;
     border-radius: var(--radius-pill);
@@ -1343,3 +1344,85 @@
 .ges-age { display: inline-block; margin-left: 0.35rem; padding: 0.12rem 0.45rem; border-radius: var(--radius-pill); background: var(--sky); color: var(--mora); font-size: 0.64rem; font-weight: 800; vertical-align: 1px; }
 .ges-age.is-old { background: var(--ges-warn-bg); color: var(--ges-warn); }
 .ges-debt:disabled { cursor: default; opacity: 0.7; transform: none; }
+
+/* ============ Recetas ============ */
+
+/* La fila entera abre la receta */
+.ges-rec-row {
+    width: 100%;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--ges-line);
+    cursor: pointer;
+}
+
+.ges-avail-list li:last-child .ges-rec-row { border-bottom: 0; }
+.ges-rec-row:focus-visible { outline: 3px solid var(--mora); outline-offset: 2px; border-radius: 8px; }
+.ges-rec-row .ges-avail__body { display: grid; }
+.ges-rec-row .ges-chip { flex: none; }
+.ges-rec-row__cat { font-size: 0.64rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ges-text-3); }
+.ges-chip.is-idle { background: var(--ges-panel-2); color: var(--ges-text-2); }
+
+.ges-rec-sheet { display: grid; gap: 0.8rem; padding-inline: 0.4rem; max-width: 640px; width: 100%; margin-inline: auto; }
+.ges-rec-head { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.ges-rec-static { margin: 0; padding: 0.55rem 0.1rem; font-weight: 800; }
+
+.ges-rec-ings { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; }
+
+.ges-rec-ing {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: 1.5px solid var(--ges-line);
+    border-radius: 12px;
+    padding: 0.4rem 0.2rem 0.4rem 0.7rem;
+    min-width: 0;
+}
+
+.ges-rec-ing b { flex: 1; min-width: 0; font-size: 0.88rem; overflow-wrap: anywhere; }
+.ges-rec-ing__qty { width: 5.2rem; flex: none; }
+.ges-rec-ing__unit { width: 4.4rem; flex: none; }
+
+.ges-rec-state { margin: 0; font-size: 0.8rem; font-weight: 700; color: var(--ges-good); }
+.ges-rec-state.is-off { color: var(--ges-crit); }
+
+.ges-rec-acts { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.ges-rec-acts .ges-btn { flex: 1 1 10rem; }
+
+.ges-rec-confirm { border: 1.5px dashed var(--ges-crit); border-radius: 14px; padding: 0.7rem; display: grid; gap: 0.6rem; }
+.ges-rec-confirm p { margin: 0; font-size: 0.82rem; line-height: 1.45; }
+
+/* Cocina: "Ver receta" en cada línea que tiene receta */
+.kit-recipe-btn {
+    font: inherit;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: var(--mora);
+    background: transparent;
+    border: 1.5px solid var(--mora);
+    border-radius: 999px;
+    padding: 0.2rem 0.65rem;
+    min-height: 32px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.kitchen-ticket__items .kit-recipe-btn { grid-column: 2; justify-self: start; }
+.kit-recipe { display: grid; gap: 0; }
+.kit-recipe__sub { margin: -0.4rem 0 0.4rem; font-size: 0.8rem; color: var(--ges-text-2); }
+
+.kit-recipe__row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.1rem 0.8rem;
+    padding: 0.6rem 0;
+    border-top: 1px solid var(--ges-line);
+}
+
+.kit-recipe__row b { font-size: 0.95rem; }
+.kit-recipe__row strong { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.kit-recipe__row small { grid-column: 1 / -1; font-size: 0.74rem; color: var(--mora); }
+.kit-recipe__removed { margin: 0.4rem 0 0; font-size: 0.78rem; color: var(--ges-text-3); text-decoration: line-through; }

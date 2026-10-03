@@ -1,5 +1,6 @@
 import { httpGet, httpPost, httpPut, httpDelete } from "./getHttp";
 import type { ISupplyStatus } from "./admin";
+import type { IModifier } from "./modifiers";
 export type InventoryType = "RAW_MATERIAL" | "PACKAGED_ITEM" | "PREPARED_PRODUCT";
 export type ProductionMode = "MADE_TO_ORDER" | "BATCH";
 export type AvailabilityMode = "AUTOMATIC" | "MANUAL_ON" | "MANUAL_OFF";
@@ -69,16 +70,101 @@ export interface PurchaseInput {
 export const inventoryHeaders = (token: string, scope: "admin" | "gestion" = "admin") => ({
     headers: { [scope === "admin" ? "x-admin-token" : "x-gestion-token"]: token },
 });
-const productPath = (variantId: string) => "/admin/products/" + encodeURIComponent(variantId);
-export const fetchRecipe = (token: string, variantId: string, signal?: AbortSignal) =>
-    httpGet<{ recipe: Recipe | null; availability: ProductAvailability | null }>(productPath(variantId) + "/recipe", {
-        ...inventoryHeaders(token),
+type Scope = "admin" | "gestion";
+const productPath = (variantId: string, scope: Scope = "admin") =>
+    "/" + scope + "/products/" + encodeURIComponent(variantId);
+export const fetchRecipe = (token: string, variantId: string, signal?: AbortSignal, scope: Scope = "admin") =>
+    httpGet<{ recipe: Recipe | null; availability: ProductAvailability | null }>(
+        productPath(variantId, scope) + "/recipe",
+        { ...inventoryHeaders(token, scope), signal },
+    );
+export const saveRecipe = (token: string, variantId: string, recipe: Recipe, scope: Scope = "admin") =>
+    httpPut<{ recipe: Recipe }>(productPath(variantId, scope) + "/recipe", recipe, inventoryHeaders(token, scope));
+export const deleteRecipe = (token: string, variantId: string, scope: Scope = "admin") =>
+    httpDelete(productPath(variantId, scope) + "/recipe", inventoryHeaders(token, scope));
+
+/** Lo que hace una opción de modificador en las recetas. Sin `replacesSupplyId` suma; con él, cambia ese insumo. */
+export interface IOptionRule {
+    optionId: string;
+    supplyId: number;
+    name: string;
+    unit: string;
+    replacesSupplyId: number | null;
+    replacesName: string | null;
+    /** Por unidad vendida. En un cambio, null = la misma cantidad de cada receta. */
+    quantity: string | null;
+}
+export interface IOptionRuleInput {
+    supplyId: number;
+    replacesSupplyId?: number | null;
+    quantity?: string | null;
+    unit?: string;
+}
+export interface IRecipeCatalogProduct {
+    itemId: string;
+    variantId: string;
+    name: string;
+    variantName: string;
+    categoryName: string;
+    modifierIds: string[];
+    hasRecipe: boolean;
+    productionMode?: ProductionMode;
+    availabilityMode?: AvailabilityMode;
+    isAvailable: boolean;
+    usableStock?: string;
+    maxProducible?: string;
+    limitingIngredient?: string | null;
+}
+export interface IRecipeCatalog {
+    products: IRecipeCatalogProduct[];
+    modifiers: IModifier[];
+    rules: IOptionRule[];
+}
+export const fetchRecipeCatalog = (token: string, scope: Scope, signal?: AbortSignal) =>
+    httpGet<IRecipeCatalog>("/" + scope + "/recipes/catalog", { ...inventoryHeaders(token, scope), signal });
+export const fetchOptionRules = (token: string, scope: Scope, signal?: AbortSignal) =>
+    httpGet<{ rules: IOptionRule[] }>("/" + scope + "/modifier-option-rules", {
+        ...inventoryHeaders(token, scope),
         signal,
     });
-export const saveRecipe = (token: string, variantId: string, recipe: Recipe) =>
-    httpPut<{ recipe: Recipe }>(productPath(variantId) + "/recipe", recipe, inventoryHeaders(token));
-export const deleteRecipe = (token: string, variantId: string) =>
-    httpDelete(productPath(variantId) + "/recipe", inventoryHeaders(token));
+export const saveOptionRules = (token: string, scope: Scope, optionId: string, rules: IOptionRuleInput[]) =>
+    httpPut<{ rules: IOptionRule[] }>(
+        "/" + scope + "/modifier-options/" + encodeURIComponent(optionId) + "/rules",
+        { rules },
+        inventoryHeaders(token, scope),
+    );
+/** La receta de una línea ya resuelta con sus opciones. `removed`: lo que una opción cambió. */
+export interface IRecipeView {
+    variantId: string;
+    name: string;
+    productionMode: ProductionMode;
+    quantity: string;
+    lines: {
+        supplyId: number;
+        name: string;
+        unit: string;
+        quantity: string;
+        fromRecipe: string;
+        fromOptions: string;
+        replaces: string | null;
+    }[];
+    removed: { name: string; unit: string; quantity: string }[];
+}
+export const fetchRecipeView = (
+    token: string,
+    variantId: string,
+    optionIds: string[],
+    quantity: number,
+    signal?: AbortSignal,
+) =>
+    httpGet<{ recipe: IRecipeView }>(
+        "/gestion/recipes/" +
+            encodeURIComponent(variantId) +
+            "/view?quantity=" +
+            quantity +
+            (optionIds.length ? "&options=" + encodeURIComponent(optionIds.join(",")) : ""),
+        { ...inventoryHeaders(token, "gestion"), signal },
+    );
 export const changeAvailabilityMode = (token: string, variantId: string, availabilityMode: AvailabilityMode) =>
     httpPut<{ availability: ProductAvailability }>(
         productPath(variantId) + "/availability-mode",
