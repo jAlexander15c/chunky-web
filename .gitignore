@@ -45,4 +45,6 @@ next-env.d.ts
 /.vite
 
 # notas locales
-/docs
+/docs/*
+!/docs/orquestacion.md
+!/docs/registro-delegaciones.md

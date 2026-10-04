@@ -38,7 +38,7 @@ como build args (ver `Dockerfile`) y no se usa ningún archivo `.env`.
 
 ## Despliegue
 
-- **Ramas:** `dev` para desarrollo y `main` para producción. Solo pasa a `main` lo que ya se probó en `dev`.
+- **Ramas:** `dev` → `staging` → `main` (producción). Solo pasa a `main` lo que el usuario aprobó en `staging`. Detalle en `AGENTS.md`.
 - **Orden:** si un cambio toca el API y la web, se despliega **primero el API** y después la web.
 - **Imagen:** `Dockerfile` en dos etapas con Node 24; el sitio lo sirve `serve@14.2.6` sin privilegios de root.
 - **Encabezados:** están en `public/serve.json` (nosniff, Referrer-Policy, X-Frame-Options, HSTS,

@@ -31,7 +31,7 @@ Galletas gruesas estilo New York y bakery con personalidad propia: una marca "el
 
 - Stack existente: React 19 + Vite + Chakra UI v3 + motion + react-router 7.
 - Rutas actuales: `/menu`, `/items?categoryId=...`; la app hoy enruta todo a la vista de mantenimiento.
-- Convencion: funciones flecha, camelCase con verbo (ver `.claude/CLAUDE.md`).
+- Convencion: funciones flecha, camelCase con verbo (ver `AGENTS.md`).
 
 ## Brand Commitments
 
