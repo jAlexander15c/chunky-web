@@ -154,7 +154,7 @@ export const InventoryExitDialog = ({ token, onClose, onSessionExpired, initialV
                         {catalogError ? <p className="ges-error" role="alert">No pudimos cargar los productos. {catalogError}</p> : null}
                         <label className="ges-field"><span>Cantidad</span><input type="number" min={1} max={1000} step={1} inputMode="numeric" value={quantity} onChange={(event) => setQuantity(event.target.value)} /></label>
                         {!validQuantity ? <p className="ges-error">Usa una cantidad entera de 1 a 1000.</p> : null}
-                        <ModifierPicker modifiers={itemModifiers} chosen={chosen} onChange={setChosen} />
+                        <ModifierPicker modifiers={itemModifiers} chosen={chosen} onChange={setChosen} showSoldOutReason />
                         <button type="button" className="ges-btn" disabled={!selectedItem || !validQuantity || lines.length >= 50} onClick={addLine}>Agregar a la salida</button>
                         {lines.length >= 50 ? <p className="ges-note">Máximo 50 líneas por salida.</p> : null}
                     </> : <p className="ges-note">Revisa los productos, las cantidades y el motivo antes de confirmar.</p>}

@@ -80,7 +80,7 @@ const ProductOptionsForm = ({ item, modifiers, onClose }: { item: IItem; modifie
                     </button>
                 </div>
                 <button type="button" className="button button--primary opts__add" onClick={addToCart} disabled={max <= 0}>
-                    Agregar · <AnimatedPrice value={unitPrice * quantity} />
+                    Agregar · <AnimatedPrice value={unitPrice * quantity} live={false} />
                 </button>
             </div>
             {note && <p className="opts__hint stepper__note" role="status">{note}</p>}

@@ -102,7 +102,7 @@ export const Cart = () => {
                                         <li key={line.lineKey} className="carrito__line">
                                             <Stamp
                                                 src={line.item.image_url}
-                                                alt={line.item.item_name}
+                                                alt=""
                                                 size="sm"
                                                 rotate={index % 2 === 0 ? -4 : 4}
                                                 className="carrito__thumb"

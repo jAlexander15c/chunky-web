@@ -833,7 +833,7 @@ const OptionsDialog = ({ item, onAdd, onClose }: IOptionsDialogProps) => {
         <div className="ges-modal" role="dialog" aria-modal="true" aria-label={`Opciones de ${item.item_name}`}>
             <div className="ges-modal__panel">
                 <h3 className="script">{item.item_name}</h3>
-                <ModifierPicker modifiers={itemModifiers} chosen={chosen} onChange={setChosen} />
+                <ModifierPicker modifiers={itemModifiers} chosen={chosen} onChange={setChosen} showSoldOutReason />
                 <label className="ges-field">
                     <span>Nota para cocina</span>
                     <input

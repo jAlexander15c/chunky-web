@@ -106,9 +106,12 @@ export const isSingleOptionModifier = (modifier: IModifier) => modifier.options.
 export const getModifiersPrice = (modifiers: ICartModifier[] = []) =>
     modifiers.reduce((sum, modifier) => sum + modifier.price, 0);
 
-/** "leche especial · Café Capuchino" */
+/** El nombre del grupo con mayúscula inicial: "leche" -> "Leche". */
+const capitalizeFirst = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+/** "Leche: Avena · Extra: Shot de espresso" */
 export const formatCartModifiers = (modifiers: ICartModifier[], separator = " · ") =>
-    modifiers.map((modifier) => `${modifier.name} ${modifier.option}`).join(separator);
+    modifiers.map((modifier) => `${capitalizeFirst(modifier.name.trim())}: ${modifier.option}`).join(separator);
 
 export const toCartModifier = (modifier: IModifier, option: IModifierOption): ICartModifier => ({
     modifierId: modifier.id,

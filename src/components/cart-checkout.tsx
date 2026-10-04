@@ -1,7 +1,8 @@
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
-import { useNavigate } from "react-router";
-import { PiCheckCircleBold, PiCreditCardBold, PiMapPinBold, PiWhatsappLogoBold } from "react-icons/pi";
+import { Link, useNavigate } from "react-router";
+import { useReducedMotion } from "motion/react";
+import { PiCheckBold, PiCheckCircleBold, PiCreditCardBold, PiDeviceMobileBold, PiHandCoinsBold, PiMapPinBold, PiWhatsappLogoBold } from "react-icons/pi";
 
 import { useCart } from "./use-cart";
 import { YappyButton } from "./yappy-button";
@@ -10,7 +11,6 @@ import {
     CARD_MIN_TOTAL,
     DEFAULT_CARD_SERVICE_FEE,
     HttpError,
-    buildOrderMessage,
     buildWhatsappOrderMessage,
     createCardOrder,
     createIdempotencyKey,
@@ -18,12 +18,16 @@ import {
     createWhatsappOrder,
     formatPhone,
     formatPrice,
+    getCartCount,
     getCartTotal,
     getCheckoutErrors,
+    getClosedLabel,
     getDeliveryReach,
-    getDeliveryText,
+    getFirstCheckoutErrorId,
     getMapsUrl,
-    getOrderingStatusLabel,
+    getMissingFieldsSummary,
+    getOpeningHoursRows,
+    getPhoneDigits,
     getWhatsAppUrl,
     isAcceptingOrders,
     parseMoney,
@@ -36,7 +40,7 @@ import {
 } from "@/helpers";
 import type { CheckoutErrors, Fulfillment, ICheckoutForm, OrderPaymentMethod } from "@/helpers";
 
-// El mapa para marcar dónde recibe otra persona: Leaflet va en su propio chunk, como el del seguimiento
+// El mapa para marcar el punto de entrega: Leaflet va en su propio chunk, como el del seguimiento
 const LocationPicker = lazy(() => import("./location-picker"));
 
 const EMPTY_FORM: ICheckoutForm = {
@@ -76,22 +80,18 @@ const FULFILLMENT_OPTIONS: { value: Fulfillment; label: string; detail: string }
     { value: "delivery", label: "Delivery", detail: "Envío gratis" },
 ];
 
-const PAYMENT_OPTIONS: { value: OrderPaymentMethod; label: string; detail: string }[] = [
-    { value: "yappy", label: "Yappy", detail: "Pagas ahora" },
-    { value: "card", label: "Tarjeta", detail: "Visa o Mastercard" },
-    { value: "whatsapp", label: "WhatsApp", detail: "Pagas al recibir" },
+// WhatsApp no es una forma de pagar: es pagar al recibir, coordinado por ahí. El valor interno no cambia
+const PAYMENT_OPTIONS: { value: OrderPaymentMethod; label: string; detail: string; when: string }[] = [
+    { value: "yappy", label: "Yappy", detail: "Te llega la solicitud al celular", when: "Pagas ahora" },
+    { value: "card", label: "Tarjeta", detail: "Visa o Mastercard", when: "Pagas ahora" },
+    { value: "whatsapp", label: "Al recibir", detail: "Efectivo, Yappy o tarjeta al entregar", when: "Después" },
 ];
 
-/** source dice desde donde se pidio por WhatsApp (bar cerrado, ayuda con el pago). */
-const openWhatsApp = (message: string, source: string) => {
-    trackEvent("whatsapp_click", source);
-    window.open(getWhatsAppUrl(message), "_blank", "noopener");
-};
-
-/** Pie del carrito: datos del cliente y el pago, con Yappy, con tarjeta o coordinado por WhatsApp. */
+/** Pie del carrito: datos del cliente y el pago, con Yappy, con tarjeta o al recibir (coordinado por WhatsApp). */
 export const CartCheckout = () => {
     const { lines, setIsOpen } = useCart();
     const navigate = useNavigate();
+    const reduceMotion = useReducedMotion();
     const { settings } = useSettings();
     const [form, setForm] = useState<ICheckoutForm>(readStoredForm);
     // El dia de pasta todo pedido es con entrega a domicilio y no rige el horario semanal.
@@ -115,6 +115,8 @@ export const CartCheckout = () => {
     const [isOpeningCard, setIsOpeningCard] = useState(false);
     const [isLocating, setIsLocating] = useState(false);
     const [locationError, setLocationError] = useState<string | null>(null);
+    // Quien no quiere (o no puede) compartir su ubicación marca su casa en el mapa
+    const [isPinningHome, setIsPinningHome] = useState(false);
     const orderIdRef = useRef<string | null>(null);
     // Se repite en los reintentos (doble toque, red que falla) y se renueva cuando el pedido sale
     const idempotencyKeyRef = useRef<string | null>(null);
@@ -143,7 +145,8 @@ export const CartCheckout = () => {
 
     const chooseFulfillment = (fulfillment: Fulfillment) => {
         setForm((current) => ({ ...current, fulfillment }));
-        setErrors((current) => ({ ...current, deliveryAddress: undefined }));
+        setErrors((current) => ({ ...current, deliveryAddress: undefined, deliveryLocation: undefined }));
+        setPaymentError(null);
     };
 
     const togglePrivacyConsent = (event: ChangeEvent<HTMLInputElement>) => {
@@ -157,13 +160,14 @@ export const CartCheckout = () => {
     };
 
     /**
-     * Guarda la ubicacion del celular. Es obligatoria para delivery: con ella se sabe si llegamos.
-     * Si es para otra persona, en su lugar se marca en el mapa dónde recibe.
+     * Guarda la ubicacion del celular: con ella se sabe si llegamos. Si el navegador no la da,
+     * se abre el mapa para marcar la casa a mano. Para otra persona se marca dónde recibe.
      */
     const captureLocation = () => {
         setLocationError(null);
         if (!navigator.geolocation) {
-            setLocationError("Tu navegador no comparte la ubicación. Elige retirar o, si es para otra persona, márcalo.");
+            setLocationError("Tu navegador no comparte la ubicación. Marca tu casa en el mapa o elige retirar.");
+            setIsPinningHome(true);
             return;
         }
 
@@ -179,9 +183,12 @@ export const CartCheckout = () => {
                 setIsLocating(false);
             },
             (error) => {
-                setLocationError(error.code === error.PERMISSION_DENIED
-                    ? "No tenemos permiso para ver tu ubicación. Actívala para este sitio, elige retirar o, si es para otra persona, márcalo."
-                    : "No pudimos ubicarte. Intenta de nuevo, elige retirar o, si es para otra persona, márcalo.");
+                if (error.code === error.PERMISSION_DENIED) {
+                    setLocationError("No tenemos permiso para ver tu ubicación. Marca tu casa en el mapa o elige retirar.");
+                    setIsPinningHome(true);
+                } else {
+                    setLocationError("No pudimos ubicarte. Intenta de nuevo o marca tu casa en el mapa.");
+                }
                 setIsLocating(false);
             },
             { enableHighAccuracy: true, timeout: GEOLOCATION_TIMEOUT_MS, maximumAge: 60000 }
@@ -189,6 +196,18 @@ export const CartCheckout = () => {
     };
 
     const clearLocation = () => setForm((current) => ({ ...current, deliveryLat: null, deliveryLng: null }));
+
+    const startPinningHome = () => {
+        setLocationError(null);
+        setIsPinningHome(true);
+    };
+
+    // Vuelve a "Usar mi ubicación": el pin marcado a mano no vale como ubicación del celular
+    const stopPinningHome = () => {
+        setIsPinningHome(false);
+        setLocationError(null);
+        clearLocation();
+    };
 
     // Para otra persona no se mide a quien pide: marca en el mapa dónde recibe. Se paga con cualquier método
     const isForSomeoneElse = requiresDelivery && form.isForSomeoneElse;
@@ -198,24 +217,27 @@ export const CartCheckout = () => {
         setForm((current) => ({ ...current, isForSomeoneElse: checked, deliveryLat: null, deliveryLng: null }));
         setErrors((current) => ({ ...current, deliveryLocation: undefined }));
         setLocationError(null);
+        setIsPinningHome(false);
         setPaymentError(null);
     };
 
-    const markRecipientPoint = (point: { lat: number; lng: number }) => {
+    const markPoint = (point: { lat: number; lng: number }) => {
         setForm((current) => ({ ...current, deliveryLat: point.lat, deliveryLng: point.lng }));
         setErrors((current) => ({ ...current, deliveryLocation: undefined }));
         setPaymentError(null);
     };
 
+    // El punto se marcó en el mapa (no es la ubicación del celular)
+    const isMapPoint = isForSomeoneElse || isPinningHome;
     // Con el punto (su ubicación o el pin), a cuántos km queda y si el delivery llega (el API mide igual)
     const reach = requiresDelivery && form.deliveryLat !== null && form.deliveryLng !== null
         ? getDeliveryReach(settings.store, { lat: form.deliveryLat, lng: form.deliveryLng })
         : null;
     const reachError = reach?.reach === "out"
-        ? `${isForSomeoneElse ? "Ese punto queda" : "Estás"} a ${reach.km} km: el delivery llega hasta ${settings.store?.deliveryMaxKm ?? 20} km. Puedes elegir retirar.`
+        ? `${isMapPoint ? "Ese punto queda" : "Estás"} a ${reach.km} km: el delivery llega hasta ${settings.store?.deliveryMaxKm ?? 20} km. Puedes elegir retirar.`
         : null;
 
-    // "Pagas con": solo con WhatsApp, opcional, y tiene que alcanzar para el total
+    // "Pagas con": solo al recibir, opcional, y tiene que alcanzar para el total
     const total = getCartTotal(lines);
     // Con tarjeta se suma el servicio web; el API calcula lo mismo y es lo que cobra PagueloFacil
     const cardServiceFee = settings.cardServiceFee ?? DEFAULT_CARD_SERVICE_FEE;
@@ -228,11 +250,25 @@ export const CartCheckout = () => {
           ? "Escribe un monto, por ejemplo 20."
           : cashTendered + 0.005 < total ? `Con ${formatPrice(cashTendered)} no alcanza: el total es ${formatPrice(total)}.` : null;
 
+    /** Lleva al primer dato que falta: el error queda arriba del botón y en el teléfono no se ve. */
+    const focusFirstError = (formErrors: CheckoutErrors) => {
+        const targetId = getFirstCheckoutErrorId(formErrors) ?? (cashError ? "checkout-cash" : null);
+        if (!targetId) return;
+        // Espera a que se pinten los mensajes de error para que el scroll caiga en su lugar
+        window.requestAnimationFrame(() => {
+            const target = document.getElementById(targetId);
+            if (!target) return;
+            target.scrollIntoView({ block: "center", behavior: reduceMotion ? "auto" : "smooth" });
+            target.focus({ preventScroll: true });
+        });
+    };
+
     /** Revisa todo lo que no deja enviar el pedido. true si se puede seguir. */
     const validateCheckout = () => {
         const formErrors = getCheckoutErrors(form, requiresDelivery);
         setErrors(formErrors);
         if (reachError) setPaymentError(reachError);
+        focusFirstError(formErrors);
         return Object.keys(formErrors).length === 0 && !reachError && !cashError;
     };
 
@@ -253,7 +289,7 @@ export const CartCheckout = () => {
         } catch (error) {
             setPaymentError(error instanceof HttpError && error.status < 500
                 ? error.message
-                : "No pudimos conectar con Yappy. Intenta de nuevo o envía tu pedido por WhatsApp.");
+                : "No pudimos iniciar el pago con Yappy. Intenta de nuevo o elige pagar al recibir.");
             return null;
         }
     };
@@ -299,7 +335,7 @@ export const CartCheckout = () => {
         setPaymentError(null);
     };
 
-    // Sin Yappy queda WhatsApp: el pedido se guarda igual y se paga al recibir
+    // Sin Yappy queda pagar al recibir: el pedido se guarda igual y se coordina por WhatsApp
     const changeYappyOnline = (isOnline: boolean) => {
         setIsYappyOnline(isOnline);
         if (!isOnline) setPaymentMethod("whatsapp");
@@ -351,41 +387,61 @@ export const CartCheckout = () => {
         }
     };
 
+    // Cerrado no se reciben pedidos, tampoco por WhatsApp: fuera de horario nadie los atiende
     if (!isBarOpen) {
         return (
             <div className="checkout">
-                <div className="checkout__notice">
-                    <strong>{getOrderingStatusLabel(settings, false)}</strong>
-                    <span>Los pagos en línea funcionan dentro del horario. Puedes dejar tu pedido por WhatsApp.</span>
+                <div className="checkout__closed" role="status">
+                    <strong className="checkout__closed-title script">Ahora estamos cerrados</strong>
+                    <span className="checkout__closed-when">{getClosedLabel(settings)}</span>
+                    <span>Vuelve a esa hora para hacer tu pedido.</span>
+                    <dl className="checkout__closed-hours">
+                        {getOpeningHoursRows(settings.openingHours).map((row) => (
+                            <div key={row.days}>
+                                <dt>{row.days}</dt>
+                                <dd>{row.hours}</dd>
+                            </div>
+                        ))}
+                    </dl>
                 </div>
-                <button type="button" className="button button--whatsapp button--block" onClick={() => openWhatsApp(buildOrderMessage(lines, requiresDelivery ? getDeliveryText(form) : undefined), "bar-cerrado")}>
-                    <PiWhatsappLogoBold aria-hidden /> Enviar pedido por WhatsApp
-                </button>
+                <Link to="/menu" className="button button--ghost button--block" onClick={() => setIsOpen(false)}>
+                    Seguir viendo el menú
+                </Link>
             </div>
         );
     }
+
+    const missingSummary = getMissingFieldsSummary(errors);
+    const isPhoneComplete = getPhoneDigits(form.customerPhone).length === 8;
+    const amountDue = paymentMethod === "card" ? cardTotal : total;
+    const paymentLabel = PAYMENT_OPTIONS.find((option) => option.value === paymentMethod)?.label ?? "";
+    const itemCount = getCartCount(lines);
 
     return (
         <div className="checkout">
             <div className="checkout__fields">
                 {canChooseDelivery ? (
-                    <div className="checkout__fulfillment" role="radiogroup" aria-label="Cómo recibes tu pedido">
-                        {FULFILLMENT_OPTIONS.map((option) => (
-                            <label key={option.value} className="checkout__fulfillment-option">
-                                <input
-                                    type="radio"
-                                    name="checkout-fulfillment"
-                                    value={option.value}
-                                    checked={form.fulfillment === option.value}
-                                    onChange={() => chooseFulfillment(option.value)}
-                                />
-                                <span className="checkout__fulfillment-label">{option.label}</span>
-                                <span className={`checkout__fulfillment-detail ${option.value === "delivery" ? "checkout__fulfillment-detail--free" : ""}`}>
-                                    {option.detail}
-                                </span>
-                            </label>
-                        ))}
-                    </div>
+                    <>
+                        <p className="checkout__section">¿Cómo lo recibes?</p>
+                        <div className="checkout__seals checkout__seals--two" role="radiogroup" aria-label="Cómo recibes tu pedido">
+                            {FULFILLMENT_OPTIONS.map((option) => (
+                                <label key={option.value} className="checkout__seal">
+                                    <input
+                                        type="radio"
+                                        name="checkout-fulfillment"
+                                        value={option.value}
+                                        checked={form.fulfillment === option.value}
+                                        onChange={() => chooseFulfillment(option.value)}
+                                    />
+                                    <span className="checkout__seal-check" aria-hidden><PiCheckBold /></span>
+                                    <span className="checkout__seal-text">
+                                        <span className="checkout__seal-label">{option.label}</span>
+                                        <span className="checkout__seal-detail">{option.detail}</span>
+                                    </span>
+                                </label>
+                            ))}
+                        </div>
+                    </>
                 ) : !settings.pastaMode ? (
                     <p className="checkout__pickup">
                         <strong>Pedido para retirar en el local.</strong> Te avisamos cuando esté listo.
@@ -438,55 +494,71 @@ export const CartCheckout = () => {
                             Es para otra persona
                         </label>
 
-                        {isForSomeoneElse ? (
-                            <>
-                                <p className="checkout__section">¿Dónde recibe?</p>
-                                <Suspense fallback={<div className="delivery-map delivery-map--loading location-picker__map" />}>
-                                    <LocationPicker
-                                        value={form.deliveryLat !== null && form.deliveryLng !== null ? { lat: form.deliveryLat, lng: form.deliveryLng } : null}
-                                        store={settings.store?.location ?? null}
-                                        onChange={markRecipientPoint}
-                                    />
-                                </Suspense>
-                                {reach && reach.reach !== "out" && (
-                                    <div className="checkout__location" role="status">
-                                        <PiCheckCircleBold aria-hidden />
-                                        <span>Pin marcado · a {reach.km} km del local</span>
-                                    </div>
-                                )}
-                            </>
-                        ) : form.deliveryLat !== null && form.deliveryLng !== null ? (
-                            <div className="checkout__location" role="status">
-                                <PiCheckCircleBold aria-hidden />
-                                <span>Ubicación guardada{reach ? ` · a ${reach.km} km del local` : ""}</span>
-                                <a href={getMapsUrl(form.deliveryLat, form.deliveryLng)} target="_blank" rel="noopener noreferrer">Ver en Maps</a>
-                                <button type="button" className="checkout__location-clear" onClick={clearLocation}>Quitar</button>
-                            </div>
-                        ) : (
-                            <button type="button" className="button button--ghost button--block" onClick={captureLocation} disabled={isLocating}>
-                                <PiMapPinBold aria-hidden /> {isLocating ? "Buscando tu ubicación…" : "Usar mi ubicación"}
-                            </button>
-                        )}
-                        {(isForSomeoneElse ? errors.deliveryLocation : locationError ?? errors.deliveryLocation) && (
-                            <span className="field__error" role="alert">{isForSomeoneElse ? errors.deliveryLocation : locationError ?? errors.deliveryLocation}</span>
+                        {/* Aquí aterriza el foco cuando falta el punto de entrega */}
+                        <div id="checkout-location" className="checkout__where" tabIndex={-1}>
+                            {isMapPoint ? (
+                                <>
+                                    <p className="checkout__section">{isForSomeoneElse ? "¿Dónde recibe?" : "Marca tu casa en el mapa"}</p>
+                                    {locationError && !isForSomeoneElse && (
+                                        <div className="checkout__notice" role="status">
+                                            <strong>No pudimos usar tu ubicación.</strong>
+                                            <span>{locationError}</span>
+                                        </div>
+                                    )}
+                                    <Suspense fallback={<div className="delivery-map delivery-map--loading location-picker__map" />}>
+                                        <LocationPicker
+                                            value={form.deliveryLat !== null && form.deliveryLng !== null ? { lat: form.deliveryLat, lng: form.deliveryLng } : null}
+                                            store={settings.store?.location ?? null}
+                                            onChange={markPoint}
+                                        />
+                                    </Suspense>
+                                    {reach && reach.reach !== "out" && (
+                                        <div className="checkout__location" role="status">
+                                            <PiCheckCircleBold aria-hidden />
+                                            <span>Pin marcado · a {reach.km} km del local</span>
+                                        </div>
+                                    )}
+                                    {!isForSomeoneElse && (
+                                        <button type="button" className="checkout__help" onClick={stopPinningHome}>
+                                            <PiMapPinBold aria-hidden /> Mejor uso mi ubicación
+                                        </button>
+                                    )}
+                                </>
+                            ) : form.deliveryLat !== null && form.deliveryLng !== null ? (
+                                <div className="checkout__location" role="status">
+                                    <PiCheckCircleBold aria-hidden />
+                                    <span>Ubicación guardada{reach ? ` · a ${reach.km} km del local` : ""}</span>
+                                    <a href={getMapsUrl(form.deliveryLat, form.deliveryLng)} target="_blank" rel="noopener noreferrer">Ver en Maps</a>
+                                    <button type="button" className="checkout__location-clear" onClick={clearLocation}>Quitar</button>
+                                </div>
+                            ) : (
+                                <>
+                                    <button type="button" className="button button--ghost button--block" onClick={captureLocation} disabled={isLocating}>
+                                        <PiMapPinBold aria-hidden /> {isLocating ? "Buscando tu ubicación…" : "Usar mi ubicación"}
+                                    </button>
+                                    <button type="button" className="checkout__help" onClick={startPinningHome}>
+                                        Prefiero marcar mi casa en el mapa
+                                    </button>
+                                    {locationError && <span className="field__error" role="alert">{locationError}</span>}
+                                </>
+                            )}
+                        </div>
+                        {errors.deliveryLocation && (
+                            <span className="field__error" role="alert">{errors.deliveryLocation}</span>
                         )}
                         {reach?.reach === "far" && (
                             <p className="checkout__reach checkout__reach--far" role="status">
-                                Estás a {reach.km} km: llegamos, pero puede tardar un poco más.
+                                {isMapPoint ? "Ese punto queda" : "Estás"} a {reach.km} km: llegamos, pero puede tardar un poco más.
                             </p>
                         )}
                         {reachError && <p className="checkout__reach checkout__reach--out" role="alert">{reachError}</p>}
                     </>
                 )}
 
-                <p className="checkout__section">¿Cómo quieres pagar?</p>
-                <div
-                    className={`checkout__fulfillment${paymentOptions.length > 2 ? " checkout__payment" : ""}`}
-                    role="radiogroup"
-                    aria-label="Cómo quieres pagar"
-                >
+                <p className="checkout__section">¿Cuándo pagas?</p>
+                <div className="checkout__seals" role="radiogroup" aria-label="Cuándo pagas">
                     {paymentOptions.map((option) => (
-                        <label key={option.value} className="checkout__fulfillment-option">
+                        <label key={option.value} className="checkout__seal checkout__seal--row">
                             <input
                                 type="radio"
                                 name="checkout-payment"
@@ -495,12 +567,16 @@ export const CartCheckout = () => {
                                 disabled={option.value === "card" && !isCardAvailable}
                                 onChange={() => choosePaymentMethod(option.value)}
                             />
-                            <span className="checkout__fulfillment-label">{option.label}</span>
-                            <span className="checkout__fulfillment-detail">
-                                {option.value === "card"
-                                    ? isCardAvailable ? `+${formatPrice(cardServiceFee)} servicio web` : `Mínimo ${formatPrice(CARD_MIN_TOTAL)}`
-                                    : option.detail}
+                            <span className="checkout__seal-check" aria-hidden><PiCheckBold /></span>
+                            <span className="checkout__seal-text">
+                                <span className="checkout__seal-label">{option.label}</span>
+                                <span className="checkout__seal-detail">
+                                    {option.value === "card"
+                                        ? isCardAvailable ? `+${formatPrice(cardServiceFee)} servicio web` : `Mínimo ${formatPrice(CARD_MIN_TOTAL)}`
+                                        : option.detail}
+                                </span>
                             </span>
+                            <span className={`checkout__seal-when${option.value === "whatsapp" ? " checkout__seal-when--later" : ""}`}>{option.when}</span>
                         </label>
                     ))}
                 </div>
@@ -517,7 +593,7 @@ export const CartCheckout = () => {
                                 className="field__input"
                                 type="text"
                                 inputMode="decimal"
-                                placeholder={total < 20 ? "20.00" : "50.00"}
+                                placeholder="Ej. 20"
                                 value={cashText}
                                 onChange={(event) => setCashText(event.target.value)}
                                 aria-invalid={Boolean(cashError)}
@@ -636,80 +712,120 @@ export const CartCheckout = () => {
                         </span>
                     </label>
                     {errors.privacyConsent && (
-                        <span id="checkout-privacy-error" className="field__error" role="alert">{errors.privacyConsent}</span>
+                        <span id="checkout-privacy-error" className="field__error">{errors.privacyConsent}</span>
                     )}
                 </div>
             </div>
 
-            {!isYappyOnline && paymentMethod === "yappy" && (
-                <div className="checkout__notice">
-                    <strong>Yappy no está disponible en este momento.</strong>
-                    <span>Elige coordinar por WhatsApp: guardamos tu pedido y pagas al recibir.</span>
+            {/* La comanda antes de pagar: el monto queda junto al botón, también el de Yappy */}
+            <section className="comanda" aria-label="Tu comanda">
+                <div className="comanda__top">
+                    <span>Tu comanda</span>
+                    <span>{requiresDelivery ? "Delivery" : "Retiro en el local"}</span>
                 </div>
-            )}
-
-            {paymentError && (
-                <div className="checkout__notice checkout__notice--error" role="alert">
-                    <strong>{paymentError}</strong>
-                    <span>Si el problema sigue, envíanos el pedido por WhatsApp.</span>
+                <div className="comanda__rows">
+                    <div className="comanda__row">
+                        <span>{itemCount === 1 ? "1 producto" : `${itemCount} productos`}</span>
+                        <span>{formatPrice(total)}</span>
+                    </div>
+                    {paymentMethod === "card" && cardServiceFee > 0 && (
+                        <div className="comanda__row">
+                            <span>Servicio web (tarjeta)</span>
+                            <span>{formatPrice(cardServiceFee)}</span>
+                        </div>
+                    )}
+                    <div className="comanda__row">
+                        <span>Pago</span>
+                        <span>{paymentMethod === "whatsapp" ? "Al recibir" : `${paymentLabel}, ahora`}</span>
+                    </div>
                 </div>
-            )}
+                <div className="comanda__perf" aria-hidden />
+                <div className="comanda__pay">
+                    <div className="comanda__due">
+                        <span>{paymentMethod === "whatsapp" ? "Pagas al recibir" : "Vas a pagar"}</span>
+                        <strong>{formatPrice(amountDue)}</strong>
+                    </div>
 
-            {/* El botón de Yappy sigue montado con WhatsApp elegido: así se sabe si vuelve a estar en línea */}
-            <div
-                className={`checkout__yappy${isYappyOnline ? "" : " checkout__yappy--off"}${paymentMethod === "yappy" ? "" : " checkout__yappy--hidden"}`}
-                aria-hidden={paymentMethod !== "yappy"}
-            >
-                <YappyButton
-                    onCreatePayment={createPayment}
-                    onSuccess={goToOrder}
-                    onError={() => setPaymentError("El pago con Yappy no se completó. No se hizo ningún cobro.")}
-                    onOnlineChange={changeYappyOnline}
-                />
-            </div>
+                    {paymentMethod === "yappy" && isYappyOnline && isPhoneComplete && (
+                        <p className="comanda__to">
+                            <PiDeviceMobileBold aria-hidden />
+                            <span>La solicitud llega al <b>{form.customerPhone}</b></span>
+                        </p>
+                    )}
 
-            {paymentMethod === "card" ? (
-                <>
-                    <p className="carrito__hint">
-                        Te llevamos a la página segura de PagueloFacil para pagar con Visa o Mastercard, y vuelves aquí a ver tu pedido.
-                        {cardServiceFee > 0 && ` Incluye ${formatPrice(cardServiceFee)} de servicio web.`}
-                    </p>
-                    <button
-                        type="button"
-                        className="button button--primary button--block"
-                        onClick={() => void payWithCard()}
-                        disabled={isOpeningCard || !isCardAvailable}
+                    {!isYappyOnline && paymentMethod === "yappy" && (
+                        <div className="checkout__notice">
+                            <strong>Yappy no está disponible en este momento.</strong>
+                            <span>Elige pagar al recibir: guardamos tu pedido y lo coordinamos por WhatsApp.</span>
+                        </div>
+                    )}
+
+                    {missingSummary && (
+                        <div className="checkout__notice" role="alert">{missingSummary}</div>
+                    )}
+
+                    {paymentError && (
+                        <div className="checkout__notice checkout__notice--error" role="alert">
+                            <strong>{paymentError}</strong>
+                            {paymentMethod !== "whatsapp" && <span>Si el problema sigue, elige pagar al recibir.</span>}
+                        </div>
+                    )}
+
+                    {/* El botón de Yappy sigue montado con otro método elegido: así se sabe si vuelve a estar en línea */}
+                    <div
+                        className={`checkout__yappy${isYappyOnline ? "" : " checkout__yappy--off"}${paymentMethod === "yappy" ? "" : " checkout__yappy--hidden"}`}
+                        aria-hidden={paymentMethod !== "yappy"}
                     >
-                        <PiCreditCardBold aria-hidden /> {isOpeningCard ? "Abriendo el pago…" : `Pagar con tarjeta · ${formatPrice(cardTotal)}`}
-                    </button>
-                    <button type="button" className="checkout__help" onClick={() => choosePaymentMethod("whatsapp")}>
-                        <PiWhatsappLogoBold aria-hidden /> ¿Problemas para pagar? Coordínalo por WhatsApp
-                    </button>
-                </>
-            ) : paymentMethod === "yappy" ? (
-                isYappyOnline ? (
-                    <>
-                        <p className="carrito__hint">Aprueba el pago en tu app de Yappy. Tienes 5 minutos.</p>
-                        <button type="button" className="checkout__help" onClick={() => choosePaymentMethod("whatsapp")}>
-                            <PiWhatsappLogoBold aria-hidden /> ¿Problemas para pagar? Coordínalo por WhatsApp
-                        </button>
-                    </>
-                ) : null
-            ) : (
-                <>
-                    <p className="carrito__hint">
-                        Guardamos tu pedido y se abre WhatsApp con el resumen. Te confirmamos por ahí y pagas al recibir:
-                        efectivo, tarjeta o Yappy.
-                    </p>
-                    <button
-                        type="button"
-                        className="button button--whatsapp button--block"
-                        onClick={() => void sendWhatsappOrder()}
-                        disabled={isSendingWhatsapp}
-                    >
-                        <PiWhatsappLogoBold aria-hidden /> {isSendingWhatsapp ? "Guardando tu pedido…" : "Enviar pedido por WhatsApp"}
-                    </button>
-                </>
+                        <YappyButton
+                            onCreatePayment={createPayment}
+                            onSuccess={goToOrder}
+                            onError={() => setPaymentError("El pago con Yappy no se completó. No se hizo ningún cobro.")}
+                            onOnlineChange={changeYappyOnline}
+                        />
+                    </div>
+
+                    {paymentMethod === "card" ? (
+                        <>
+                            <button
+                                type="button"
+                                className="button button--primary button--block"
+                                onClick={() => void payWithCard()}
+                                disabled={isOpeningCard || !isCardAvailable}
+                            >
+                                <PiCreditCardBold aria-hidden /> {isOpeningCard ? "Abriendo el pago…" : `Pagar con tarjeta · ${formatPrice(cardTotal)}`}
+                            </button>
+                            <p className="carrito__hint">
+                                Te llevamos a la página segura de PagueloFacil para pagar con Visa o Mastercard, y vuelves aquí a ver tu pedido.
+                            </p>
+                        </>
+                    ) : paymentMethod === "yappy" ? (
+                        isYappyOnline ? (
+                            <p className="carrito__hint">
+                                Abre Yappy, busca la solicitud de Chunky Bites por {formatPrice(total)} y apruébala. Tienes 5 minutos.
+                            </p>
+                        ) : null
+                    ) : (
+                        <>
+                            <button
+                                type="button"
+                                className="button button--whatsapp button--block"
+                                onClick={() => void sendWhatsappOrder()}
+                                disabled={isSendingWhatsapp}
+                            >
+                                <PiWhatsappLogoBold aria-hidden /> {isSendingWhatsapp ? "Guardando tu pedido…" : "Enviar pedido por WhatsApp"}
+                            </button>
+                            <p className="carrito__hint">
+                                Guardamos tu pedido y se abre WhatsApp con el resumen. Te confirmamos por ahí y pagas al recibir.
+                            </p>
+                        </>
+                    )}
+                </div>
+            </section>
+
+            {paymentMethod !== "whatsapp" && (paymentMethod === "card" || isYappyOnline) && (
+                <button type="button" className="checkout__help" onClick={() => choosePaymentMethod("whatsapp")}>
+                    <PiHandCoinsBold aria-hidden /> ¿Problemas para pagar? Págalo al recibir
+                </button>
             )}
         </div>
     );

@@ -88,7 +88,7 @@ const ProductCard = ({ item, index, closedLabel, modifiers, onChooseOptions }: I
                     {closedLabel ? (
                         <span className="product__closed">{closedLabel}</span>
                     ) : isCustomizable ? (
-                        <button type="button" className="button button--primary button--sm" onClick={() => {
+                        <button type="button" className="button button--primary button--sm" aria-label={`Elegir opciones de ${item.item_name}`} onClick={() => {
                             trackEvent("product_open", item.id, item.item_name);
                             onChooseOptions(item);
                         }}>
@@ -103,7 +103,7 @@ const ProductCard = ({ item, index, closedLabel, modifiers, onChooseOptions }: I
                             note={getStockNote(getAvailableQuantity(item), getItemCartQuantity(lines, item))}
                         />
                     ) : (
-                        <button type="button" className="button button--primary button--sm" onClick={() => addItem(item)}>
+                        <button type="button" className="button button--primary button--sm" aria-label={`Agregar ${item.item_name}`} onClick={() => addItem(item)}>
                             <PiPlusBold aria-hidden /> Agregar
                         </button>
                     )}

@@ -36,7 +36,7 @@ const roundCoordinate = (value: number) => Math.round(value * 1e6) / 1e6;
 const toPoint = (latLng: L.LatLng): IMapPoint => ({ lat: roundCoordinate(latLng.lat), lng: roundCoordinate(latLng.lng) });
 
 /**
- * Mapa para marcar dónde recibe otra persona: se toca el mapa o se arrastra el pin. Se carga aparte
+ * Mapa para marcar el punto de entrega (la casa de quien pide o dónde recibe otra persona): se toca el mapa o se arrastra el pin. Se carga aparte
  * (lazy) como el del seguimiento, para que Leaflet no pese en el resto de la web.
  */
 const LocationPicker = ({ value, store, onChange }: ILocationPickerProps) => {
@@ -124,8 +124,8 @@ const LocationPicker = ({ value, store, onChange }: ILocationPickerProps) => {
                 </button>
             </div>
             {searchError && <span className="field__error" role="alert">{searchError}</span>}
-            <div ref={containerRef} className="delivery-map location-picker__map" role="application" aria-label="Mapa: toca para marcar dónde recibe" />
-            <span className="location-picker__hint">{value ? "Arrastra el pin si no quedó justo en la puerta." : "Toca el mapa donde recibe."}</span>
+            <div ref={containerRef} className="delivery-map location-picker__map" role="application" aria-label="Mapa: toca para marcar el punto de entrega" />
+            <span className="location-picker__hint">{value ? "Arrastra el pin si no quedó justo en la puerta." : "Toca el mapa en el punto de entrega."}</span>
         </div>
     );
 };

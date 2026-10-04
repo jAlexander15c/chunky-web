@@ -5,15 +5,17 @@ import { formatPrice } from "@/helpers";
 interface IAnimatedPriceProps {
     value: number;
     className?: string;
+    /** Dentro de un botón no se anuncia: el botón ya dice el monto y un aviso ahí se repite. */
+    live?: boolean;
 }
 
 /** El total cambia por pasos de linea, como una caja registradora. */
-export const AnimatedPrice = ({ value, className }: IAnimatedPriceProps) => {
+export const AnimatedPrice = ({ value, className, live = true }: IAnimatedPriceProps) => {
     const reduceMotion = useReducedMotion();
     const label = formatPrice(value);
 
     return (
-        <span className={`animated-price ${className ?? ""}`} aria-live="polite">
+        <span className={`animated-price ${className ?? ""}`} aria-live={live ? "polite" : undefined}>
             <AnimatePresence mode="popLayout" initial={false}>
                 <motion.span
                     key={label}

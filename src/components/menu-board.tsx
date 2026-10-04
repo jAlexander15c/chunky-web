@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useNavigate } from "react-router";
 import { motion, useReducedMotion } from "motion/react";
 import { PiArrowRightBold, PiWhatsappLogoBold } from "react-icons/pi";
@@ -7,6 +8,7 @@ import { usePastaBuilder } from "./use-pasta-builder";
 
 import {
     formatPrice,
+    getCatalogScope,
     getCategoryPresentation,
     getOrderingStatusLabel,
     getWhatsAppUrl,
@@ -14,6 +16,7 @@ import {
     isSpecialCategory,
     shouldDisplayCategory,
     useCategories,
+    useCategoryStock,
     useSettings,
     useSpecialCategories,
     trackEvent,
@@ -43,10 +46,17 @@ export const MenuBoard = () => {
     const pasta = settings.pastaMode ? settings.pasta : null;
     // Las especiales van primero y resaltadas; el menu fijo sigue debajo, como siempre
     const specials = useSpecialCategories();
-    const visibleCategories = [
-        ...specials.map((special) => special.category),
-        ...categories.filter((category) => !isSpecialCategory(category) && shouldDisplayCategory(category, settings)),
-    ];
+    const fixedCategories = useMemo(
+        () => (isSettingsReady ? categories.filter((category) => !isSpecialCategory(category) && shouldDisplayCategory(category, settings)) : []),
+        [categories, isSettingsReady, settings]
+    );
+    const visibleCategories = [...specials.map((special) => special.category), ...fixedCategories];
+    // Del menu fijo tambien se sabe si hoy queda algo: sin nada a la venta, la fila sale tachada
+    const fixedStock = useCategoryStock(fixedCategories, getCatalogScope(settings.pastaMode), settings.pasta?.itemId);
+    const isSoldOutToday = (categoryId: string) => {
+        const entry = fixedStock[categoryId];
+        return Boolean(entry && !entry.failed && entry.count === 0);
+    };
     const getSpecial = (categoryId: string) => specials.find((special) => special.category.id === categoryId);
 
     return (
@@ -99,6 +109,8 @@ export const MenuBoard = () => {
                         const presentation = getCategoryPresentation(category);
                         const special = getSpecial(category.id);
                         const isComingSoon = Boolean(special?.isComingSoon);
+                        const isSoldOut = !special && isSoldOutToday(category.id);
+                        const isDisabled = isComingSoon || isSoldOut;
                         // Linea punteada entre la ultima especial y el menu fijo
                         const isLastSpecial = Boolean(special) && index === specials.length - 1 && visibleCategories.length > specials.length;
                         const rowVariants = {
@@ -119,34 +131,40 @@ export const MenuBoard = () => {
                                                 {isComingSoon ? "Muy pronto" : "★ Especial"}
                                             </span>
                                         )}
-                                        {presentation.schedule && <span className="board__tag">{presentation.schedule}</span>}
+                                        {presentation.schedule && !isSoldOut && <span className="board__tag">{presentation.schedule}</span>}
                                     </span>
-                                    <span className="board__desc">
-                                        {isComingSoon
-                                            ? "Llega pronto a la barra"
-                                            : special?.fromPrice != null
-                                                ? `${presentation.description} · desde ${formatPrice(special.fromPrice)}`
-                                                : presentation.description}
-                                    </span>
+                                    {isSoldOut ? (
+                                        <span className="board__soldout">Se acabaron por hoy · vuelven pronto</span>
+                                    ) : (
+                                        <span className="board__desc">
+                                            {isComingSoon
+                                                ? "Llega pronto a la barra"
+                                                : special?.fromPrice != null
+                                                    ? `${presentation.description} · desde ${formatPrice(special.fromPrice)}`
+                                                    : presentation.description}
+                                        </span>
+                                    )}
                                 </span>
                                 <span className="board__go" aria-hidden>
-                                    {isComingSoon ? null : <PiArrowRightBold />}
+                                    {isDisabled ? null : <PiArrowRightBold />}
                                 </span>
                             </>
                         );
-                        const rowClassName = `board__row${special ? " board__row--special" : ""}${isComingSoon ? " board__row--soon" : ""}`;
+                        const rowClassName = `board__row${special ? " board__row--special" : ""}${isComingSoon ? " board__row--soon" : ""}${isSoldOut ? " board__row--soldout" : ""}`;
 
                         return (
                             // El disparo lo observa el <li> (siempre completo): la fila desplazada queda
                             // recortada por el overflow del slot y nunca alcanzaria el umbral por si sola.
+                            // La clave cambia si la fila pasa a agotada cuando llega el stock: asi se monta
+                            // de nuevo y vuelve a entrar; sin eso la fila nueva queda invisible
                             <motion.li
-                                key={category.id}
+                                key={`${category.id}-${isDisabled ? "off" : "on"}`}
                                 className={`board__slot${isLastSpecial ? " board__slot--last-special" : ""}`}
                                 initial={reduceMotion ? false : "hidden"}
                                 whileInView="visible"
                                 viewport={{ once: true, amount: 0.5 }}
                             >
-                                {isComingSoon ? (
+                                {isDisabled ? (
                                     // Sin productos a la venta: se anuncia, pero no lleva a ningun lado
                                     <motion.div className={rowClassName} aria-disabled="true" variants={rowVariants} transition={rowTransition}>
                                         {rowContent}

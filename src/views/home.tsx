@@ -26,7 +26,7 @@ const getOrderSteps = (settings: { pastaMode: boolean; deliveryMode: boolean }) 
                 ? "Suma, resta y elige si lo retiras o te lo llevamos."
                 : "Suma, resta y mira el total. Lo retiras en el local.",
     },
-    { title: "Paga con Yappy", text: "Te llega la solicitud a tu app. Apruébala en 5 minutos." },
+    { title: "Paga a tu manera", text: "Con Yappy al momento o al recibir: tú eliges en el carrito." },
     { title: "Sigue tu pedido", text: "Te avisamos en la página cuando esté listo." },
 ];
 

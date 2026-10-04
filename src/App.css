@@ -1444,8 +1444,8 @@ main {
 }
 
 .stepper__button {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-pill);
   border: 0;
   background: var(--crema);
@@ -1474,9 +1474,10 @@ main {
   font-variant-numeric: tabular-nums;
 }
 
-.stepper--sm .stepper__button {
-  width: 34px;
-  height: 34px;
+/* En el carrito el contador es más bajo, pero el botón sigue de 44 px para el dedo */
+.stepper--sm {
+  gap: 2px;
+  padding: 3px;
 }
 
 /* Galletas y postres por lotes: el aviso va pegado al contador que frena */
@@ -1861,7 +1862,7 @@ main {
   font-size: 0.875rem;
   font-weight: 700;
   cursor: pointer;
-  min-height: 32px;
+  min-height: 44px;
 }
 
 .field__check input {
@@ -1970,7 +1971,7 @@ main {
   text-decoration-thickness: 2px;
   text-underline-offset: 4px;
   cursor: pointer;
-  min-height: 36px;
+  min-height: 44px;
 }
 
 .button--whatsapp {
@@ -2136,7 +2137,7 @@ main {
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
-  min-height: 36px;
+  min-height: 44px;
 }
 
 /* Aviso cuando el pedido avanza con la pagina abierta */
@@ -2538,6 +2539,7 @@ main {
 
 .carrito__more {
   margin-top: 0.4rem;
+  min-height: 44px;
   padding: 0.5rem 0;
   border: 0;
   background: none;
@@ -2728,21 +2730,339 @@ main {
 }
 
 /* ============ Entrega a domicilio (pie del carrito) ============ */
-.checkout__fulfillment {
+/* Entrega y pago como sellos de pasaporte: el elegido lleva tinta mora y un check */
+.checkout__seals {
   display: grid;
+  gap: 0.65rem;
+}
+
+.checkout__seals--two {
   grid-template-columns: 1fr 1fr;
-  gap: 0.35rem;
-  padding: 0.3rem;
-  border-radius: 16px;
+}
+
+.checkout__seal {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 64px;
+  padding: 0.7rem 0.85rem;
+  border-radius: 14px;
+  border: 2px solid var(--sky);
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  transition: transform 160ms var(--ease-out), background-color 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
+}
+
+.checkout__seal input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.checkout__seal:active {
+  transform: scale(0.97);
+}
+
+.checkout__seal:has(input:checked) {
+  background: var(--mora);
+  border-color: var(--mora);
+  color: var(--crema);
+  transform: rotate(-1deg);
+  /* Doble filete, como el borde de un sello */
+  box-shadow: 0 0 0 3px #fffef6, 0 0 0 5px var(--mora);
+}
+
+.checkout__seal:has(input:checked):active {
+  transform: rotate(-1deg) scale(0.97);
+}
+
+.checkout__seal:has(input:disabled) {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.checkout__seal:has(input:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 6px;
+}
+
+.checkout__seal-text {
+  display: grid;
+  gap: 0.1rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.checkout__seal-label {
+  font-size: 0.9375rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.checkout__seal-detail {
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--text-soft);
+}
+
+.checkout__seal:has(input:checked) .checkout__seal-detail {
+  color: var(--sky);
+}
+
+.checkout__seal-check {
+  position: absolute;
+  top: -10px;
+  right: -8px;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-pill);
+  border: 2px solid #fffef6;
+  background: var(--lima);
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  font-size: 0.8rem;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 150ms ease, transform 200ms var(--ease-out);
+}
+
+.checkout__seal:has(input:checked) .checkout__seal-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.checkout__seal-when {
+  flex: none;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-pill);
+  background: var(--mantequilla);
+  color: var(--ink);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.checkout__seal-when--later {
+  background: var(--orquidea);
+}
+
+.checkout__seal:has(input:checked) .checkout__seal-when {
+  background: var(--lima);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .checkout__seal,
+  .checkout__seal-check {
+    transition: none;
+  }
+
+  .checkout__seal:active,
+  .checkout__seal:has(input:checked),
+  .checkout__seal:has(input:checked):active {
+    transform: none;
+  }
+}
+
+/* La comanda antes de pagar: misma perforación que la del pedido */
+.comanda {
+  border: 2px solid var(--ink);
+  border-radius: 18px;
+  background: #fff;
+  overflow: hidden;
+  animation: comanda-in 200ms var(--ease-out);
+}
+
+@keyframes comanda-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+.comanda__top {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.6rem 0.9rem;
+  background: var(--mora);
+  color: var(--crema);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.comanda__rows {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.7rem 0.9rem 0.85rem;
+  font-size: 0.875rem;
+}
+
+.comanda__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.comanda__row span:first-child {
+  color: var(--text-soft);
+}
+
+.comanda__row span:last-child {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Muescas a los lados de la línea perforada, como un talón que se arranca */
+.comanda__perf {
+  position: relative;
+  border-top: 2px dashed var(--ink);
+  margin: 0 0.9rem;
+}
+
+.comanda__perf::before,
+.comanda__perf::after {
+  content: "";
+  position: absolute;
+  top: -10px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--ink);
+  background: #fffef6;
+}
+
+.comanda__perf::before {
+  left: calc(-0.9rem - 11px);
+}
+
+.comanda__perf::after {
+  right: calc(-0.9rem - 11px);
+}
+
+.comanda__pay {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.9rem;
+}
+
+.comanda__due {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.comanda__due span {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mora);
+}
+
+.comanda__due strong {
+  font-size: 2.1rem;
+  font-weight: 900;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.comanda__to {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 12px;
   background: var(--sky);
+  font-size: 0.8125rem;
 }
 
-/* Yappy, tarjeta y WhatsApp en una fila */
-.checkout__payment {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.comanda__to svg {
+  flex: none;
+  font-size: 1.1rem;
 }
 
-/* Mapa para marcar dónde recibe otra persona */
+.comanda .carrito__hint {
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .comanda {
+    animation: none;
+  }
+}
+
+/* Cerrado: no se reciben pedidos, solo cuándo volvemos */
+.checkout__closed {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1.1rem 1rem;
+  border-radius: var(--radius-panel);
+  background: var(--orquidea);
+  color: var(--ink);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.checkout__closed-title {
+  font-size: 1.85rem;
+  font-weight: 400;
+  line-height: 1.15;
+}
+
+.checkout__closed-when {
+  font-weight: 800;
+  font-size: 1rem;
+}
+
+.checkout__closed-hours {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0.4rem 0 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: 14px;
+  background: #fffef6;
+  font-size: 0.8125rem;
+}
+
+.checkout__closed-hours div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.checkout__closed-hours dt {
+  font-weight: 800;
+}
+
+.checkout__closed-hours dd {
+  margin: 0;
+  text-align: right;
+}
+
+/* Punto de entrega: recibe el foco cuando falta */
+.checkout__where {
+  display: grid;
+  gap: 0.5rem;
+  border-radius: 14px;
+}
+
+.checkout__where:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 4px;
+}
+
+/* Mapa para marcar el punto de entrega */
 .location-picker {
   display: grid;
   gap: 0.4rem;
@@ -2770,55 +3090,6 @@ main {
   color: var(--text-soft);
 }
 
-.checkout__fulfillment-option {
-  position: relative;
-  display: grid;
-  gap: 0.05rem;
-  padding: 0.55rem 0.7rem;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: background-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out);
-}
-
-.checkout__fulfillment-option input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  margin: 0;
-  cursor: pointer;
-}
-
-.checkout__fulfillment-option:has(input:checked) {
-  background: #fff;
-  box-shadow: 0 6px 14px -10px rgb(var(--shadow-tint) / 0.7);
-}
-
-/* Yappy no aplica a un pedido para otra persona */
-.checkout__fulfillment-option:has(input:disabled) {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.checkout__fulfillment-option:has(input:focus-visible) {
-  outline: 3px solid var(--focus);
-  outline-offset: 2px;
-}
-
-.checkout__fulfillment-label {
-  font-size: 0.875rem;
-  font-weight: 800;
-}
-
-.checkout__fulfillment-detail {
-  font-size: 0.72rem;
-  color: var(--text-soft);
-}
-
-.checkout__fulfillment-detail--free {
-  color: #2f6f4c;
-  font-weight: 800;
-}
-
 .checkout__pickup {
   margin: 0;
   padding: 0.6rem 0.8rem;
@@ -2826,12 +3097,6 @@ main {
   background: var(--mantequilla);
   font-size: 0.8125rem;
   line-height: 1.45;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .checkout__fulfillment-option {
-    transition: none;
-  }
 }
 
 .checkout__section {
@@ -2885,7 +3150,8 @@ main {
 .checkout__location-clear {
   border: 0;
   background: none;
-  padding: 0.3rem 0;
+  min-height: 44px;
+  padding: 0 0.25rem;
   font-family: inherit;
   font-size: 0.8rem;
   font-weight: 800;
@@ -3469,6 +3735,37 @@ main {
 
 .board__row--soon .board__go {
   visibility: hidden;
+}
+
+/* Del menu fijo, sin nada a la venta hoy: tachada, con letrero de agotado */
+.board__row--soldout {
+  cursor: default;
+}
+
+.board__row--soldout .board__name {
+  color: #9aa6d6;
+  text-decoration: line-through;
+  text-decoration-thickness: 3px;
+  text-decoration-color: var(--orquidea);
+}
+
+.board__row--soldout .board__go {
+  visibility: hidden;
+}
+
+.board__soldout {
+  align-self: flex-start;
+  margin-top: 0.4rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  background: var(--mantequilla);
+  color: var(--ink);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  line-height: 1.4;
+  transform: rotate(-2deg);
 }
 
 @media (hover: hover) and (pointer: fine) {

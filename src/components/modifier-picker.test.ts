@@ -4,11 +4,16 @@ import { describe, expect, test } from "vitest";
 import { ModifierPicker } from "./modifier-picker";
 import type { IModifier } from "@/helpers";
 
-const markup = (options: IModifier["options"]) => renderToStaticMarkup(createElement(ModifierPicker, {
-    modifiers: [{ id: "milk", name: "Leche", options }], chosen: [], onChange: () => {},
+const markup = (options: IModifier["options"], showSoldOutReason = true) => renderToStaticMarkup(createElement(ModifierPicker, {
+    modifiers: [{ id: "milk", name: "Leche", options }], chosen: [], onChange: () => {}, showSoldOutReason,
 }));
 
 describe("ModifierPicker disponibilidad", () => {
+    test("el cliente solo ve Agotado, sin el motivo interno", () => {
+        const html = markup([{ id: "whole", name: "Entera", price: 0, isAvailable: false, isManuallyDisabled: true }, { id: "oat", name: "Avena", price: 0, isAvailable: true }], false);
+        expect(html).toContain("Agotado");
+        expect(html).not.toContain("Apagado manualmente");
+    });
     test("explica que una opcion apagada manualmente no depende del stock", () => {
         const html = markup([{ id: "whole", name: "Entera", price: 0, isAvailable: false, isManuallyDisabled: true }, { id: "oat", name: "Avena", price: 0, isAvailable: true }]);
         expect(html).toContain("Apagado manualmente");

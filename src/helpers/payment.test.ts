@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-import { clearCheckoutDraft, formatPhone, getCheckoutErrors, getPhoneDigits, readCheckoutDraft, saveCheckoutDraft } from "./payment";
+import { clearCheckoutDraft, formatPhone, getCheckoutErrors, getFirstCheckoutErrorId, getMissingFieldsSummary, getPhoneDigits, readCheckoutDraft, saveCheckoutDraft } from "./payment";
 import type { ICheckoutForm } from "./payment";
 
 const FORM: ICheckoutForm = {
@@ -62,6 +62,23 @@ describe("errores del checkout", () => {
     test("celular y WhatsApp de Panamá", () => {
         expect(getCheckoutErrors({ ...FORM, customerPhone: "2123-4567" }).customerPhone).toBeTruthy();
         expect(getCheckoutErrors({ ...FORM, hasOtherWhatsapp: true, whatsappPhone: "612" }).whatsappPhone).toBeTruthy();
+    });
+});
+
+describe("llevar al dato que falta", () => {
+    test("el foco va al primer error en el orden del formulario", () => {
+        const errors = getCheckoutErrors({ ...FORM, customerName: "", customerPhone: "", deliveryAddress: "" }, true);
+        expect(getFirstCheckoutErrorId(errors)).toBe("checkout-address");
+        expect(getFirstCheckoutErrorId(getCheckoutErrors({ ...FORM, customerPhone: "" }))).toBe("checkout-phone");
+        expect(getFirstCheckoutErrorId({})).toBeNull();
+    });
+
+    test("el aviso junto al botón nombra lo que falta", () => {
+        expect(getMissingFieldsSummary({})).toBeNull();
+        expect(getMissingFieldsSummary({ customerName: "x" })).toBe("Te falta tu nombre.");
+        expect(getMissingFieldsSummary({ customerName: "x", customerPhone: "x" })).toBe("Te faltan 2 datos: tu nombre y tu celular.");
+        expect(getMissingFieldsSummary({ deliveryAddress: "x", customerName: "x", privacyConsent: "x" }))
+            .toBe("Te faltan 3 datos: la dirección, tu nombre y el aviso de privacidad.");
     });
 });
 

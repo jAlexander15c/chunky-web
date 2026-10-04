@@ -261,7 +261,7 @@ const PastaBuilderForm = ({ pasta, beveragesCategoryId, onDone }: IPastaBuilderF
                 </div>
 
                 <button type="button" className="button button--primary opts__add" onClick={addToCart} disabled={!isComplete}>
-                    Agregar · <AnimatedPrice value={pasta.price * quantity + drinksTotal} />
+                    Agregar · <AnimatedPrice value={pasta.price * quantity + drinksTotal} live={false} />
                 </button>
             </div>
         </>

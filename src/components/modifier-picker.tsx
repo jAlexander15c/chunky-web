@@ -7,9 +7,12 @@ interface IModifierPickerProps {
     modifiers: IModifier[];
     chosen: ICartModifier[];
     onChange: (next: ICartModifier[]) => void;
+    /** El equipo ve por qué no está (apagada o sin insumo); el cliente solo ve "Agotado". */
+    showSoldOutReason?: boolean;
 }
 
-const getSoldOutLabel = (option: IModifierOption) => option.isManuallyDisabled ? "Apagado manualmente" : option.isOutOfStock ? "Sin insumo" : "Agotado";
+const getSoldOutLabel = (option: IModifierOption, showReason: boolean) =>
+    showReason && option.isManuallyDisabled ? "Apagado manualmente" : showReason && option.isOutOfStock ? "Sin insumo" : "Agotado";
 
 const getExtraLabel = (option: IModifierOption) => (option.price > 0 ? `+${formatPrice(option.price)}` : "");
 
@@ -18,7 +21,7 @@ const getExtraLabel = (option: IModifierOption) => (option.price > 0 ? `+${forma
  * con varias, se elige una (tocar la elegida la quita). Loyverse no distingue obligatorios.
  * Las opciones agotadas se ven, tachadas y con "Agotado", pero no se pueden elegir.
  */
-export const ModifierPicker = ({ modifiers, chosen, onChange }: IModifierPickerProps) => {
+export const ModifierPicker = ({ modifiers, chosen, onChange, showSoldOutReason = false }: IModifierPickerProps) => {
     const getChosenOptionId = (modifierId: string) =>
         chosen.find((entry) => entry.modifierId === modifierId)?.modifierOptionId;
 
@@ -50,7 +53,7 @@ export const ModifierPicker = ({ modifiers, chosen, onChange }: IModifierPickerP
                                 <PiCheckBold />
                             </span>
                             <span className="modifier-check__name">{modifier.name} {option.name}</span>
-                            {isSoldOut ? <span className="modifier-check__price">{getSoldOutLabel(option)}</span> : option.price > 0 && <span className="modifier-check__price">{getExtraLabel(option)}</span>}
+                            {isSoldOut ? <span className="modifier-check__price">{getSoldOutLabel(option, showSoldOutReason)}</span> : option.price > 0 && <span className="modifier-check__price">{getExtraLabel(option)}</span>}
                         </label>
                     );
                 }
@@ -79,7 +82,7 @@ export const ModifierPicker = ({ modifiers, chosen, onChange }: IModifierPickerP
                                         {isChecked && <PiCheckBold aria-hidden />}
                                         {isSoldOut ? <s>{option.name}</s> : option.name}
                                         {isSoldOut ? (
-                                            <span className="opt-chip__sold">{getSoldOutLabel(option)}</span>
+                                            <span className="opt-chip__sold">{getSoldOutLabel(option, showSoldOutReason)}</span>
                                         ) : (
                                             option.price > 0 && <small>{getExtraLabel(option)}</small>
                                         )}

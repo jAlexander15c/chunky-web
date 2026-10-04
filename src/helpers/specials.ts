@@ -15,7 +15,7 @@ import { useSettings } from "./settings";
 import type { ICategory } from "@/interfaces";
 
 /** Lo que se sabe de los productos de una especial. Sin dato todavia, esta cargando. */
-interface ISpecialStock {
+export interface ISpecialStock {
     count: number;
     /** El precio mas bajo de lo que esta a la venta; null si no hay nada. */
     fromPrice: number | null;
@@ -42,6 +42,33 @@ const getSpecialStock = (items: Awaited<ReturnType<typeof fetchItemsByCategoryCa
 };
 
 /**
+ * Cuantos productos de cada categoria estan a la venta, pedidos a la misma cache que usa /items.
+ * Una categoria sin entrada todavia esta cargando; si fallo, su entrada trae failed.
+ */
+export const useCategoryStock = (categories: ICategory[], scope: ReturnType<typeof getCatalogScope>, pastaItemId?: string) => {
+    const [stock, setStock] = useState<Record<string, ISpecialStock>>({});
+
+    useEffect(() => {
+        let cancelled = false;
+
+        categories.forEach((category) => {
+            fetchItemsByCategoryCached(category.id, scope)
+                .then((items) => getSpecialStock(items, category.id, pastaItemId))
+                .catch((): ISpecialStock => ({ count: 0, fromPrice: null, failed: true }))
+                .then((next) => {
+                    if (!cancelled) setStock((current) => ({ ...current, [category.id]: next }));
+                });
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [categories, scope, pastaItemId]);
+
+    return stock;
+};
+
+/**
  * Las categorias especiales que hoy se muestran (el dia de pasta ninguna), en el orden de Loyverse,
  * con su foto y lo que tienen a la venta. Los productos salen de la misma cache que usa /items.
  */
@@ -55,24 +82,7 @@ export const useSpecialCategories = (): ISpecialCategory[] => {
         () => (isReady ? categories.filter((category) => isSpecialCategory(category) && shouldDisplayCategory(category, settings)) : []),
         [categories, isReady, settings]
     );
-    const [stock, setStock] = useState<Record<string, ISpecialStock>>({});
-
-    useEffect(() => {
-        let cancelled = false;
-
-        specials.forEach((category) => {
-            fetchItemsByCategoryCached(category.id, scope)
-                .then((items) => getSpecialStock(items, category.id, pastaItemId))
-                .catch((): ISpecialStock => ({ count: 0, fromPrice: null, failed: true }))
-                .then((next) => {
-                    if (!cancelled) setStock((current) => ({ ...current, [category.id]: next }));
-                });
-        });
-
-        return () => {
-            cancelled = true;
-        };
-    }, [specials, scope, pastaItemId]);
+    const stock = useCategoryStock(specials, scope, pastaItemId);
 
     return specials.map((category) => {
         const entry = stock[category.id];

@@ -234,7 +234,7 @@ export const getCheckoutErrors = (form: ICheckoutForm, requiresDelivery = false)
     if (requiresDelivery && (form.deliveryLat === null || form.deliveryLng === null)) {
         errors.deliveryLocation = form.isForSomeoneElse
             ? "Marca en el mapa dónde recibe para saber si llegamos."
-            : "Toca «Usar mi ubicación» para saber si llegamos. Si es para otra persona, márcalo.";
+            : "Toca «Usar mi ubicación» o marca tu casa en el mapa para saber si llegamos.";
     }
     if (form.customerName.trim().length < 2) errors.customerName = "Escribe tu nombre para saber de quién es el pedido.";
     if (!isPanamaMobile(form.customerPhone)) errors.customerPhone = "Escribe un celular de 8 dígitos que empiece en 6.";
@@ -245,6 +245,30 @@ export const getCheckoutErrors = (form: ICheckoutForm, requiresDelivery = false)
         errors.privacyConsent = "Para pedir, acepta el aviso de privacidad.";
     }
     return errors;
+};
+
+type CheckoutErrorField = keyof CheckoutErrors;
+
+/** Cada dato que puede faltar, en el orden del formulario: id de su control y cómo se nombra en el aviso. */
+const CHECKOUT_ERROR_FIELDS: { field: CheckoutErrorField; inputId: string; name: string }[] = [
+    { field: "deliveryAddress", inputId: "checkout-address", name: "la dirección" },
+    { field: "deliveryLocation", inputId: "checkout-location", name: "dónde entregamos" },
+    { field: "customerName", inputId: "checkout-name", name: "tu nombre" },
+    { field: "customerPhone", inputId: "checkout-phone", name: "tu celular" },
+    { field: "whatsappPhone", inputId: "checkout-whatsapp", name: "tu WhatsApp" },
+    { field: "privacyConsent", inputId: "checkout-privacy", name: "el aviso de privacidad" },
+];
+
+/** El id del primer control con error, para llevar ahí al cliente; null si no falta nada. */
+export const getFirstCheckoutErrorId = (errors: CheckoutErrors) =>
+    CHECKOUT_ERROR_FIELDS.find(({ field }) => errors[field])?.inputId ?? null;
+
+/** "Te faltan 2 datos: tu nombre y tu celular." junto al botón de pagar; null si no falta nada. */
+export const getMissingFieldsSummary = (errors: CheckoutErrors) => {
+    const names = CHECKOUT_ERROR_FIELDS.filter(({ field }) => errors[field]).map(({ name }) => name);
+    if (names.length === 0) return null;
+    if (names.length === 1) return `Te falta ${names[0]}.`;
+    return `Te faltan ${names.length} datos: ${names.slice(0, -1).join(", ")} y ${names[names.length - 1]}.`;
 };
 
 /** Clave de un intento de pago: si la petición se repite (doble toque, red que falla), el API no crea otro pedido. */
