@@ -13,6 +13,7 @@ import {
     saveRecipe,
     deleteRecipe,
     fetchOptionRules,
+    isIntermediate,
 } from "@/helpers/inventory";
 import { setOptionRuleOverride } from "@/helpers/recipe-option-rules";
 import type { IOptionRule, IOptionRuleOverride } from "@/helpers/inventory";
@@ -404,7 +405,8 @@ export const RecipeDialog = ({
                                     variantId={variantId}
                                     modifiers={modifiers}
                                     usedBy={usedBy}
-                                    supplies={supplies}
+                                    // Los elaborados van en la receta del producto, no en una opción
+                                    supplies={supplies.filter((supply) => !isIntermediate(supply))}
                                     recipeSupplyIds={recipe.ingredients.map((i) => i.inventoryItemId)}
                                     rules={rules}
                                     ruleOverrides={ruleOverrides}

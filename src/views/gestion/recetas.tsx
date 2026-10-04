@@ -1,15 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { FullSheet } from "@/components";
-import { HttpError, SUPPLY_CATEGORY_LABEL, fetchGestionSupplies } from "@/helpers";
+import { HttpError, fetchGestionSupplies, formatQuantity } from "@/helpers";
 import type { ISupplyStatus } from "@/helpers";
-import { compatibleUnits, deleteRecipe, fetchRecipe, fetchRecipeCatalog, saveRecipe } from "@/helpers/inventory";
+import { getIntermediateUnitLabel } from "@/helpers/elaborados";
+import { deleteRecipe, fetchRecipe, fetchRecipeCatalog, isIntermediate, saveRecipe } from "@/helpers/inventory";
 import type { IOptionRule, IRecipeCatalog, IRecipeCatalogProduct, ProductAvailability, Recipe } from "@/helpers/inventory";
 
 import { setOptionRuleOverride } from "@/helpers/recipe-option-rules";
 
 import { RecipeOptions } from "../recipe-options";
+import { ElaboradoSheet } from "./elaborado-sheet";
+import { RecipeIngredients } from "./recipe-ingredients";
 import { GestionPager } from "./pager";
+
+/** Recetas de productos del menú, o de los elaborados que se hacen en el local con otros insumos. */
+type RecipeKind = "productos" | "elaborados";
 
 type RecipeFilter = "todos" | "con" | "sin";
 
@@ -133,10 +139,6 @@ const RecipeSheet = ({ token, product, catalog, supplies, onRulesSaved, onChange
         setNotice("");
     };
 
-    const updateIngredient = (index: number, next: Partial<Recipe["ingredients"][number]>) =>
-        update({ ingredients: recipe.ingredients.map((entry, n) => (n === index ? { ...entry, ...next } : entry)) });
-
-    const supplyName = (id: number) => supplies.find((supply) => supply.id === id)?.name;
     const productModifiers = product.modifierIds
         .map((id) => catalog.modifiers.find((modifier) => modifier.id === id))
         .filter((modifier): modifier is NonNullable<typeof modifier> => Boolean(modifier));
@@ -151,9 +153,6 @@ const RecipeSheet = ({ token, product, catalog, supplies, onRulesSaved, onChange
         );
         return byModifier;
     }, [catalog.products]);
-
-    const addable = supplies.filter((supply) => !recipe.ingredients.some((entry) => entry.inventoryItemId === supply.id));
-    const categories = [...new Set(addable.map((supply) => supply.category))];
 
     return (
         <FullSheet title={`${getFullName(product)} · Receta`} onClose={onClose}>
@@ -181,94 +180,12 @@ const RecipeSheet = ({ token, product, catalog, supplies, onRulesSaved, onChange
                             <h3 className="ges-avail-group__title">Ingredientes de {recipe.yieldQuantity || "…"} unidad{recipe.yieldQuantity === "1" ? "" : "es"}</h3>
                             {recipe.ingredients.length === 0 ? (
                                 <p className="ropt-hint">Agrega lo que gasta preparar este producto. Cada venta lo descuenta.</p>
-                            ) : (
-                                <ul className="ges-rec-ings">
-                                    {recipe.ingredients.map((ingredient, index) => {
-                                        const name = ingredient.name ?? supplyName(ingredient.inventoryItemId) ?? "Insumo";
-                                        const baseUnit =
-                                            ingredient.baseUnit ??
-                                            supplies.find((supply) => supply.id === ingredient.inventoryItemId)?.unit ??
-                                            ingredient.unit;
-                                        return (
-                                            <li key={ingredient.inventoryItemId} className="ges-rec-ing">
-                                                <b>{name}</b>
-                                                <label className="ges-field ges-field--sm ges-rec-ing__qty">
-                                                    <span className="ges-sr-only">Cantidad de {name}</span>
-                                                    <input
-                                                        inputMode="decimal"
-                                                        value={ingredient.quantity}
-                                                        onChange={(event) =>
-                                                            updateIngredient(index, { quantity: event.target.value.replace(",", ".") })
-                                                        }
-                                                    />
-                                                </label>
-                                                <label className="ges-field ges-field--sm ges-rec-ing__unit">
-                                                    <span className="ges-sr-only">Unidad de {name}</span>
-                                                    <select
-                                                        value={ingredient.unit}
-                                                        onChange={(event) => updateIngredient(index, { unit: event.target.value })}
-                                                    >
-                                                        {compatibleUnits(baseUnit).map((unit) => (
-                                                            <option key={unit} value={unit}>{unit === "unit" ? "u" : unit}</option>
-                                                        ))}
-                                                    </select>
-                                                </label>
-                                                <button
-                                                    type="button"
-                                                    className="ropt-remove"
-                                                    aria-label={`Quitar ${name}`}
-                                                    onClick={() =>
-                                                        update({ ingredients: recipe.ingredients.filter((_, n) => n !== index) })
-                                                    }
-                                                >
-                                                    ×
-                                                </button>
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
-                            )}
-                            {recipe.ingredients.some((entry) => ["u", "unit"].includes(entry.baseUnit ?? entry.unit)) ? (
-                                <p className="ropt-hint">
-                                    Lo que se mide en u solo acepta u. Si la receta lo usa en ml o g (ej. leche en cartón), el admin lo
-                                    cambia en el tablero: Inventario → Editar insumo → Cambiar a ml o g.
-                                </p>
                             ) : null}
-                            <label className="ges-field ges-field--sm">
-                                <span className="ges-sr-only">Agregar ingrediente</span>
-                                <select
-                                    value=""
-                                    onChange={(event) => {
-                                        const supply = supplies.find((entry) => entry.id === Number(event.target.value));
-                                        if (supply)
-                                            update({
-                                                ingredients: [
-                                                    ...recipe.ingredients,
-                                                    {
-                                                        inventoryItemId: supply.id,
-                                                        name: supply.name,
-                                                        quantity: "1",
-                                                        unit: supply.unit,
-                                                        baseUnit: supply.unit,
-                                                    },
-                                                ],
-                                            });
-                                    }}
-                                >
-                                    <option value="">+ Agregar ingrediente</option>
-                                    {categories.map((category) => (
-                                        <optgroup key={category} label={SUPPLY_CATEGORY_LABEL[category]}>
-                                            {addable
-                                                .filter((supply) => supply.category === category)
-                                                .map((supply) => (
-                                                    <option key={supply.id} value={supply.id}>
-                                                        {supply.name} · {supply.unit}
-                                                    </option>
-                                                ))}
-                                        </optgroup>
-                                    ))}
-                                </select>
-                            </label>
+                            <RecipeIngredients
+                                ingredients={recipe.ingredients}
+                                supplies={supplies}
+                                onChange={(ingredients) => update({ ingredients })}
+                            />
 
                             {isSaved && availability && !isDirty ? (
                                 <p className={`ges-rec-state${availability.isAvailable ? "" : " is-off"}`}>
@@ -350,7 +267,8 @@ const RecipeSheet = ({ token, product, catalog, supplies, onRulesSaved, onChange
                         variantId={product.variantId}
                         modifiers={productModifiers}
                         usedBy={usedBy}
-                        supplies={supplies}
+                        // Los elaborados van en la receta del producto, no en una opción
+                        supplies={supplies.filter((supply) => !isIntermediate(supply))}
                         recipeSupplyIds={recipe.ingredients.map((entry) => entry.inventoryItemId)}
                         rules={catalog.rules}
                         ruleOverrides={catalog.ruleOverrides ?? []}
@@ -366,16 +284,21 @@ const RecipeSheet = ({ token, product, catalog, supplies, onRulesSaved, onChange
 interface IGestionRecetasProps {
     token: string;
     onSessionExpired: () => void;
+    /** Un elaborado nuevo o editado también cambia la lista de Insumos y "Preparé". */
+    onSuppliesChanged?: () => void;
 }
 
 /** Gestión → Inventario → Recetas: lo que se prepara en el local y lo que hace cada opción. */
-export const GestionRecetas = ({ token, onSessionExpired }: IGestionRecetasProps) => {
+export const GestionRecetas = ({ token, onSessionExpired, onSuppliesChanged }: IGestionRecetasProps) => {
     const [catalog, setCatalog] = useState<IRecipeCatalog | null>(null);
     const [supplies, setSupplies] = useState<ISupplyStatus[]>([]);
     const [search, setSearch] = useState("");
     const [filter, setFilter] = useState<RecipeFilter>("todos");
     const [page, setPage] = useState(1);
     const [openVariantId, setOpenVariantId] = useState<string | null>(null);
+    const [kind, setKind] = useState<RecipeKind>("productos");
+    // null: ninguna hoja; "new": crear un elaborado
+    const [openElaborado, setOpenElaborado] = useState<number | "new" | null>(null);
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(true);
 
@@ -428,97 +351,207 @@ export const GestionRecetas = ({ token, onSessionExpired }: IGestionRecetasProps
     const pageItems = visible.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
     const openProduct = products.find((product) => product.variantId === openVariantId);
     const closeSheet = useCallback(() => setOpenVariantId(null), []);
+    const closeElaborado = useCallback(() => setOpenElaborado(null), []);
+
+    const elaborados = useMemo(() => {
+        const key = getSearchKey(search);
+        return supplies.filter((supply) => isIntermediate(supply) && (!key || getSearchKey(supply.name).includes(key)));
+    }, [supplies, search]);
+
+    const openKind = (next: RecipeKind) => {
+        setKind(next);
+        setSearch("");
+        setPage(1);
+    };
+
+    const kindSwitch = (
+        <div className="ges-tabs ges-avail-kind" role="tablist" aria-label="Recetas de">
+            {(["productos", "elaborados"] as RecipeKind[]).map((option) => (
+                <button
+                    key={option}
+                    type="button"
+                    role="tab"
+                    className="ges-tab"
+                    aria-selected={kind === option}
+                    onClick={() => openKind(option)}
+                >
+                    {option === "productos" ? "Productos" : "Elaborados"}
+                </button>
+            ))}
+        </div>
+    );
+
+    if (kind === "elaborados")
+        return (
+            <>
+                {kindSwitch}
+                <main className="ges-main">
+                    <div className="ges-avail-filters">
+                        <label className="ges-sr-only" htmlFor="ges-elab-search">
+                            Buscar elaborado
+                        </label>
+                        <input
+                            id="ges-elab-search"
+                            className="ges-search"
+                            type="search"
+                            placeholder="Buscar elaborado…"
+                            autoComplete="off"
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                        />
+                        <button type="button" className="ges-btn ges-btn--solid" onClick={() => setOpenElaborado("new")}>
+                            + Nuevo elaborado
+                        </button>
+                    </div>
+                    <p className="ropt-hint">
+                        Lo que se hace en el local con otros insumos: salsas, masas, rellenos. No existe en Loyverse. Al registrar
+                        «Preparé» descuenta sus ingredientes.
+                    </p>
+
+                    {error ? (
+                        <p className="ges-error" role="alert">
+                            {error}
+                        </p>
+                    ) : null}
+
+                    {isLoading ? (
+                        <p className="ges-empty">Cargando…</p>
+                    ) : elaborados.length === 0 ? (
+                        <p className="ges-empty">
+                            {search.trim() ? "Ningún elaborado coincide con la búsqueda." : "Todavía no hay elaborados. Crea el primero."}
+                        </p>
+                    ) : (
+                        <ul className="ges-avail-list">
+                            {elaborados.map((supply) => {
+                                const unit = getIntermediateUnitLabel(supply.unit);
+                                const isLow = supply.state === "comprar";
+                                return (
+                                    <li key={supply.id}>
+                                        <button type="button" className="ges-avail ges-rec-row" onClick={() => setOpenElaborado(supply.id)}>
+                                            <span className="ges-avail__body">
+                                                <span className="ges-avail__name">{supply.name}</span>
+                                                <span className="ges-avail__meta">
+                                                    Quedan {formatQuantity(supply.stock)} {unit} · mínimo {formatQuantity(supply.minStock)} {unit}
+                                                </span>
+                                            </span>
+                                            <span className={`ges-chip ${isLow ? "is-off" : ""}`}>{isLow ? "Preparar" : "Bien"}</span>
+                                        </button>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
+
+                    {openElaborado !== null ? (
+                        <ElaboradoSheet
+                            key={openElaborado}
+                            token={token}
+                            supplyId={openElaborado === "new" ? null : openElaborado}
+                            supplies={supplies}
+                            onSaved={async () => {
+                                await load();
+                                onSuppliesChanged?.();
+                            }}
+                            onClose={closeElaborado}
+                        />
+                    ) : null}
+                </main>
+            </>
+        );
 
     return (
-        <main className="ges-main">
-            <div className="ges-avail-filters">
-                <label className="ges-sr-only" htmlFor="ges-rec-search">
-                    Buscar producto
-                </label>
-                <input
-                    id="ges-rec-search"
-                    className="ges-search"
-                    type="search"
-                    placeholder="Buscar producto…"
-                    autoComplete="off"
-                    value={search}
-                    onChange={(event) => {
-                        setSearch(event.target.value);
-                        setPage(1);
-                    }}
-                />
-                <div className="ges-avail-states" aria-label="Receta">
-                    {FILTERS.map((option) => (
-                        <button
-                            key={option.id}
-                            type="button"
-                            className="ges-tab"
-                            aria-pressed={filter === option.id}
-                            onClick={() => {
-                                setFilter(option.id);
-                                setPage(1);
-                            }}
-                        >
-                            {option.label}
-                            <small>{counts[option.id]}</small>
-                        </button>
-                    ))}
+        <>
+            {kindSwitch}
+            <main className="ges-main">
+                <div className="ges-avail-filters">
+                    <label className="ges-sr-only" htmlFor="ges-rec-search">
+                        Buscar producto
+                    </label>
+                    <input
+                        id="ges-rec-search"
+                        className="ges-search"
+                        type="search"
+                        placeholder="Buscar producto…"
+                        autoComplete="off"
+                        value={search}
+                        onChange={(event) => {
+                            setSearch(event.target.value);
+                            setPage(1);
+                        }}
+                    />
+                    <div className="ges-avail-states" aria-label="Receta">
+                        {FILTERS.map((option) => (
+                            <button
+                                key={option.id}
+                                type="button"
+                                className="ges-tab"
+                                aria-pressed={filter === option.id}
+                                onClick={() => {
+                                    setFilter(option.id);
+                                    setPage(1);
+                                }}
+                            >
+                                {option.label}
+                                <small>{counts[option.id]}</small>
+                            </button>
+                        ))}
+                    </div>
                 </div>
-            </div>
 
-            {error ? (
-                <p className="ges-error" role="alert">
-                    {error}
-                </p>
-            ) : null}
+                {error ? (
+                    <p className="ges-error" role="alert">
+                        {error}
+                    </p>
+                ) : null}
 
-            {isLoading ? (
-                <p className="ges-empty">Cargando…</p>
-            ) : pageItems.length === 0 ? (
-                <p className="ges-empty">{products.length ? "Ningún producto coincide con la búsqueda." : "No hay productos en el menú."}</p>
-            ) : (
-                <ul className="ges-avail-list">
-                    {pageItems.map((product) => {
-                        const chip = getProductChip(product);
-                        return (
-                            <li key={product.variantId}>
-                                <button type="button" className="ges-avail ges-rec-row" onClick={() => setOpenVariantId(product.variantId)}>
-                                    <span className="ges-avail__body">
-                                        <span className="ges-rec-row__cat">{product.categoryName}</span>
-                                        <span className="ges-avail__name">
-                                            {product.name}
-                                            {product.variantName ? <em> · {product.variantName}</em> : null}
+                {isLoading ? (
+                    <p className="ges-empty">Cargando…</p>
+                ) : pageItems.length === 0 ? (
+                    <p className="ges-empty">{products.length ? "Ningún producto coincide con la búsqueda." : "No hay productos en el menú."}</p>
+                ) : (
+                    <ul className="ges-avail-list">
+                        {pageItems.map((product) => {
+                            const chip = getProductChip(product);
+                            return (
+                                <li key={product.variantId}>
+                                    <button type="button" className="ges-avail ges-rec-row" onClick={() => setOpenVariantId(product.variantId)}>
+                                        <span className="ges-avail__body">
+                                            <span className="ges-rec-row__cat">{product.categoryName}</span>
+                                            <span className="ges-avail__name">
+                                                {product.name}
+                                                {product.variantName ? <em> · {product.variantName}</em> : null}
+                                            </span>
+                                            <span className="ges-avail__meta">{getProductMeta(product)}</span>
                                         </span>
-                                        <span className="ges-avail__meta">{getProductMeta(product)}</span>
-                                    </span>
-                                    <span className={`ges-chip ${chip.tone}`}>{chip.label}</span>
-                                </button>
-                            </li>
-                        );
-                    })}
-                </ul>
-            )}
-            <GestionPager page={currentPage} pageCount={pageCount} onChange={setPage} />
+                                        <span className={`ges-chip ${chip.tone}`}>{chip.label}</span>
+                                    </button>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                )}
+                <GestionPager page={currentPage} pageCount={pageCount} onChange={setPage} />
 
-            {openProduct && catalog ? (
-                <RecipeSheet
-                    key={openProduct.variantId}
-                    token={token}
-                    product={openProduct}
-                    catalog={catalog}
-                    supplies={supplies}
-                    onRulesSaved={(optionId, rules) =>
-                        setCatalog((current) =>
-                            current ? {
-                                ...current,
-                                ruleOverrides: setOptionRuleOverride(current.ruleOverrides ?? [], openProduct.variantId, optionId, rules),
-                            } : current
-                        )
-                    }
-                    onChanged={() => load()}
-                    onClose={closeSheet}
-                />
-            ) : null}
-        </main>
+                {openProduct && catalog ? (
+                    <RecipeSheet
+                        key={openProduct.variantId}
+                        token={token}
+                        product={openProduct}
+                        catalog={catalog}
+                        supplies={supplies}
+                        onRulesSaved={(optionId, rules) =>
+                            setCatalog((current) =>
+                                current ? {
+                                    ...current,
+                                    ruleOverrides: setOptionRuleOverride(current.ruleOverrides ?? [], openProduct.variantId, optionId, rules),
+                                } : current
+                            )
+                        }
+                        onChanged={() => load()}
+                        onClose={closeSheet}
+                    />
+                ) : null}
+            </main>
+        </>
     );
 };

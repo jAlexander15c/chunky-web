@@ -1,7 +1,8 @@
 import { httpGet, httpPost, httpPut, httpDelete } from "./getHttp";
 import type { ISupplyStatus } from "./admin";
 import type { IModifier } from "./modifiers";
-export type InventoryType = "RAW_MATERIAL" | "PACKAGED_ITEM" | "PREPARED_PRODUCT";
+/** INTERMEDIATE: elaborado en el local con otros insumos (salsa, ganache); nunca pasa por Loyverse. */
+export type InventoryType = "RAW_MATERIAL" | "PACKAGED_ITEM" | "PREPARED_PRODUCT" | "INTERMEDIATE";
 export type ProductionMode = "MADE_TO_ORDER" | "BATCH";
 export type AvailabilityMode = "AUTOMATIC" | "MANUAL_ON" | "MANUAL_OFF";
 export interface ProductAvailability {
@@ -270,3 +271,105 @@ export const receiveProductBatch = (
         { quantity, requestId, ...(shelfLifeDays !== undefined && { shelfLifeDays }) },
         inventoryHeaders(token, scope),
     );
+
+/* ============ Insumos elaborados ============ */
+
+export const INTERMEDIATE_UNITS = ["g", "kg", "ml", "l", "u", "portion"] as const;
+
+export const isIntermediate = (supply: { inventoryType?: string }) => supply.inventoryType === "INTERMEDIATE";
+
+export interface ISupplyRecipeIngredient {
+    inventoryItemId: number;
+    name?: string;
+    quantity: string;
+    unit: string;
+    baseUnit?: string;
+    isArchived?: boolean;
+}
+
+export interface ISupplyRecipe {
+    supplyId: number;
+    name: string;
+    unit: string;
+    category: string;
+    minStock: string;
+    shelfLifeDays: number | null;
+    yieldQuantity: string | null;
+    ingredients: ISupplyRecipeIngredient[];
+}
+
+export interface IIntermediateInput {
+    name: string;
+    unit: string;
+    minStock: string;
+    shelfLifeDays: number | null;
+    yieldQuantity: string;
+    ingredients: { inventoryItemId: number; quantity: string; unit: string }[];
+}
+
+export interface ISupplyProductionPreview {
+    supplyId: number;
+    name: string;
+    unit: string;
+    prepared: string;
+    yieldQuantity: string;
+    shelfLifeDays: number | null;
+    sufficient: boolean;
+    ingredients: {
+        inventoryItemId: number;
+        name: string;
+        unit: string;
+        needed: string;
+        available: string;
+        missing: string;
+        sufficient: boolean;
+    }[];
+}
+
+export interface ISupplyProduction {
+    batchId: number;
+    prepared: string;
+    quantity: string;
+    expirationDate: string | null;
+    usableStock: string;
+    shortfalls: { supplyId: number; name: string; unit: string; missing: string }[];
+}
+
+const supplyPath = (supplyId: number, scope: Scope) => "/" + scope + "/supplies/" + supplyId;
+
+export const createIntermediate = (token: string, input: IIntermediateInput, scope: Scope) =>
+    httpPost<{ recipe: ISupplyRecipe }>("/" + scope + "/elaborados", input, inventoryHeaders(token, scope));
+
+export const fetchSupplyRecipe = (token: string, supplyId: number, scope: Scope, signal?: AbortSignal) =>
+    httpGet<{ recipe: ISupplyRecipe }>(supplyPath(supplyId, scope) + "/recipe", {
+        ...inventoryHeaders(token, scope),
+        signal,
+    });
+
+/** La unidad no viaja: la de un elaborado no cambia. */
+export const saveSupplyRecipe = (token: string, supplyId: number, input: IIntermediateInput, scope: Scope) =>
+    httpPut<{ recipe: ISupplyRecipe }>(
+        supplyPath(supplyId, scope) + "/recipe",
+        {
+            name: input.name,
+            minStock: input.minStock,
+            shelfLifeDays: input.shelfLifeDays,
+            yieldQuantity: input.yieldQuantity,
+            ingredients: input.ingredients,
+        },
+        inventoryHeaders(token, scope),
+    );
+
+export const previewSupplyProduction = (token: string, supplyId: number, prepared: string, scope: Scope) =>
+    httpPost<ISupplyProductionPreview>(
+        supplyPath(supplyId, scope) + "/production-preview",
+        { prepared },
+        inventoryHeaders(token, scope),
+    );
+
+export const produceSupply = (
+    token: string,
+    supplyId: number,
+    input: { prepared: string; actual?: string | null; requestId: string },
+    scope: Scope,
+) => httpPost<ISupplyProduction>(supplyPath(supplyId, scope) + "/production", input, inventoryHeaders(token, scope));

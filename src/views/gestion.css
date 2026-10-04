@@ -1395,6 +1395,65 @@
 .ges-rec-confirm { border: 1.5px dashed var(--ges-crit); border-radius: 14px; padding: 0.7rem; display: grid; gap: 0.6rem; }
 .ges-rec-confirm p { margin: 0; font-size: 0.82rem; line-height: 1.45; }
 
+/* ============ Elaborados ============ */
+
+.ges-elab-tag {
+    display: inline-block;
+    margin-left: 0.4rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: var(--radius-pill);
+    background: #f3e1f5;
+    color: #7a3a80;
+    font-size: 0.64rem;
+    font-weight: 800;
+    vertical-align: 1px;
+}
+
+/* "Preparé": atajos por tandas que se envuelven en el teléfono */
+.ges-prep-shortcuts { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.ges-prep-shortcuts .ges-tab { min-height: 36px; font-size: 0.76rem; padding-inline: 0.7rem; }
+
+.ges-link {
+    font: inherit;
+    justify-self: start;
+    padding: 0.2rem 0;
+    border: 0;
+    background: transparent;
+    color: var(--mora);
+    font-weight: 800;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+.ges-link:focus-visible { outline: 3px solid var(--mora); outline-offset: 2px; border-radius: 6px; }
+
+.ges-prep-line {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.1rem 0.6rem;
+    align-items: center;
+    border: 1.5px solid var(--ges-line);
+    border-radius: 12px;
+    padding: 0.55rem 0.75rem;
+}
+.ges-prep-line b { font-size: 0.88rem; min-width: 0; overflow-wrap: anywhere; }
+.ges-prep-line__qty { font-weight: 800; font-variant-numeric: tabular-nums; }
+.ges-prep-line small { grid-column: 1 / -1; font-size: 0.74rem; color: var(--ges-text-2); }
+.ges-prep-line.is-short { border-color: #e2c27a; background: #fdf6e3; }
+.ges-prep-line.is-short small { color: var(--ges-warn); font-weight: 700; }
+
+.ges-prep-warn {
+    margin: 0;
+    padding: 0.6rem 0.75rem;
+    border-radius: 12px;
+    background: var(--ges-warn-bg);
+    color: var(--ges-warn);
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.45;
+}
+
+.ges-acts .ges-btn--prep { background: #f3e1f5; border-color: #7a3a80; color: #7a3a80; }
+
 /* Cocina: "Ver receta" en cada línea que tiene receta */
 .kit-recipe-btn {
     font: inherit;
@@ -1466,6 +1525,10 @@
 
 .ges-happened__btn.is-exit { background: #fbf0d2; border-color: var(--mantequilla); }
 .ges-happened__btn.is-exit small { color: var(--ges-warn); }
+/* Con "Preparé" quedan cuatro chicas en pares: la salida va sola abajo, a lo ancho */
+.ges-happened__btn.is-exit { grid-column: 1 / -1; }
+.ges-happened__btn.is-prep { background: #f3e1f5; border-color: #e1a8e5; }
+.ges-happened__btn.is-prep small { color: #7a3a80; }
 
 .ges-happened__btn:active { transform: scale(0.97); }
 .ges-happened__btn:focus-visible { outline: 3px solid var(--mora); outline-offset: 2px; }

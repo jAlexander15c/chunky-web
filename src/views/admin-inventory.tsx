@@ -4,7 +4,7 @@ import {fetchInventoryReceiptFailures,availabilityLabel} from "@/helpers/invento
 import type {InventoryReceiptFailure,ProductAvailability} from "@/helpers/inventory";
 import {PurchaseDialog} from "./inventory-purchase-dialog";
 import {InventoryBatchDialog} from "./inventory-batch-dialog";
-import {compatibleUnits,expirationLabel} from "@/helpers/inventory";
+import {compatibleUnits,expirationLabel,isIntermediate} from "@/helpers/inventory";
 import type {InventoryType} from "@/helpers/inventory";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
@@ -223,8 +223,10 @@ const SupplyFormDialog = ({ supply, onSave, onClose }: ISupplyFormProps) => {
 
     const toNumber = (value: string) => Number(value.replace(",", "."));
     // "u" con contenido en ml o g: las recetas lo piden en ml o g, así que al guardar pasa a medirse así
-    const isConverting = isCountUnit(unit) && !isCountUnit(contentUnit) && inventoryType !== "PREPARED_PRODUCT";
-    const contentUnits = isCountUnit(unit) && inventoryType !== "PREPARED_PRODUCT" ? [unit, "ml", "g"] : compatibleUnits(unit);
+    // Un elaborado se crea en Gestión con su receta; aquí no cambia de tipo ni de unidad
+    const isElaborado = inventoryType === "INTERMEDIATE";
+    const isConverting = isCountUnit(unit) && !isCountUnit(contentUnit) && inventoryType !== "PREPARED_PRODUCT" && !isElaborado;
+    const contentUnits = isCountUnit(unit) && inventoryType !== "PREPARED_PRODUCT" && !isElaborado ? [unit, "ml", "g"] : compatibleUnits(unit);
     const size = toNumber(purchaseSize);
 
     const submit = async (event: FormEvent) => {
@@ -320,7 +322,7 @@ const SupplyFormDialog = ({ supply, onSave, onClose }: ISupplyFormProps) => {
                         </select>
                     </label>
 
-                    <label className="adm-form__row"><span>Tipo</span><select className="adm-form__input" value={inventoryType} onChange={e=>setInventoryType(e.target.value as InventoryType)}><option value="RAW_MATERIAL">Materia prima</option><option value="PACKAGED_ITEM">Producto empacado</option><option value="PREPARED_PRODUCT">Producto preparado</option></select></label>
+                    {isElaborado ? <p className="adm-form__row"><span>Tipo</span><span>Elaborado · su receta se edita en Gestión → Inventario → Recetas</span></p> : <label className="adm-form__row"><span>Tipo</span><select className="adm-form__input" value={inventoryType} onChange={e=>setInventoryType(e.target.value as InventoryType)}><option value="RAW_MATERIAL">Materia prima</option><option value="PACKAGED_ITEM">Producto empacado</option><option value="PREPARED_PRODUCT">Producto preparado</option></select></label>}
                     <label className="adm-form__row"><span>¿Es perecedero?</span><select className="adm-form__input" value={String(isPerishable)} onChange={e=>setIsPerishable(e.target.value==="true")}><option value="false">No</option><option value="true">Sí</option></select></label>
                     <label className="adm-form__row"><span>Vida útil predeterminada (días)</span><input className="adm-form__input" type="number" min={1} max={3650} disabled={!isPerishable} value={shelfLifeDays} onChange={e=>setShelfLifeDays(e.target.value)}/></label>
                     <label className="adm-form__row">
@@ -588,7 +590,7 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
         setMovementsVersion((version) => version + 1);
     };
 
-    const toBuy = supplies.filter((supply) => supply.state === "comprar");
+    const toBuy = supplies.filter((supply) => supply.state === "comprar" && !isIntermediate(supply));
 
     const filteredSupplies = useMemo(() => {
         const search = getSearchKey(supplySearch);
@@ -749,7 +751,7 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
                                             <tr key={supply.id} className={supply.state === "comprar" ? "is-crit" : undefined}>
                                                 <td className="adm-name">
                                                     {supply.name}
-                                                    {supply.supplier ? <em>{supply.supplier}</em> : null}
+                                                    {isIntermediate(supply) ? <em>Elaborado en el local</em> : supply.supplier ? <em>{supply.supplier}</em> : null}
                                                 </td>
                                                 <td data-label="Categoría">{SUPPLY_CATEGORY_LABEL[supply.category]}</td>
                                                 <td className="num adm-card-qty" data-label="Quedan">
@@ -780,13 +782,15 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
                                                     {Number(supply.expiredStock)>0?<span className="adm-pill is-crit">Stock vencido</span>:null}
                                                     {supply.nextExpiration?<span className="adm-pill is-warn">{expirationLabel(supply.nextExpiration)}</span>:null}
                                                     <span className={`adm-pill is-${SUPPLY_STATE_TONE[supply.state]}`}>
-                                                        {SUPPLY_STATE_LABEL[supply.state]}
+                                                        {isIntermediate(supply) && supply.state === "comprar" ? "Preparar" : SUPPLY_STATE_LABEL[supply.state]}
                                                     </span>
                                                 </td>
                                                 <td className="adm-actions"><button type="button" className="adm-btn adm-btn--sm" onClick={()=>setPending({kind:"batches",supply})}>Lotes</button>
-                                                    <button type="button" className="adm-btn adm-btn--sm" onClick={() => setPending({ kind: "purchase", supply })}>
-                                                        Compra
-                                                    </button>
+                                                    {isIntermediate(supply) ? null : (
+                                                        <button type="button" className="adm-btn adm-btn--sm" onClick={() => setPending({ kind: "purchase", supply })}>
+                                                            Compra
+                                                        </button>
+                                                    )}
                                                     <button type="button" className="adm-btn adm-btn--sm" onClick={() => setPending({ kind: "count", supply })}>
                                                         Conteo
                                                     </button>
@@ -976,7 +980,7 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
                             {movements.map((movement) => (
                                 <div className="adm-mv" key={movement.id}>
                                     <span className="adm-mv__time">{formatDayClock(movement.createdAt)}</span>
-                                    <span className={`adm-tag is-${movement.type}`}>{movement.referenceType==="PRODUCT_RECEIPT"?"Lote":MOVEMENT_LABEL[movement.type]}</span>
+                                    <span className={`adm-tag is-${movement.type}`}>{movement.referenceType==="PRODUCT_RECEIPT"?"Lote":movement.referenceType==="SUPPLY_PRODUCTION"&&movement.type==="produccion"?"Preparación":MOVEMENT_LABEL[movement.type]}</span>
                                     <span className="adm-mv__what">{movement.name}</span>
                                     <span className={`adm-mv__qty${movement.quantity < 0 ? " is-neg" : " is-pos"}`}>
                                         {movement.quantity > 0 ? "+" : "−"}

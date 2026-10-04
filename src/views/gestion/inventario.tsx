@@ -1,5 +1,5 @@
 import {ProductLotDialog} from "../inventory-arrival-dialog";
-import {expirationLabel} from "@/helpers/inventory";
+import {expirationLabel, isIntermediate} from "@/helpers/inventory";
 import {PurchaseDialog} from "../inventory-purchase-dialog";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
@@ -25,6 +25,7 @@ import type { IMovement, IProductStatus, ISupplyStatus, SupplyCategory } from "@
 import { GestionDisponibilidad } from "./disponibilidad";
 import { GestionOpciones } from "./disponibilidad-opciones";
 import { InventoryExitDialog } from "./inventory-exit-dialog";
+import { ProduceSupplyDialog } from "./produce-supply-dialog";
 import { GestionPager } from "./pager";
 import { GestionRecetas } from "./recetas";
 
@@ -45,9 +46,26 @@ type AvailabilityView = "productos" | "opciones";
 
 const CATEGORIES: SupplyCategory[] = ["alimento", "limpieza", "mantenimiento"];
 
+/** Los elaborados (salsas, masas) van aparte de su categoría: se preparan, no se compran. */
+type SupplyFilter = SupplyCategory | "elaborados";
+
+const SUPPLY_FILTERS: SupplyFilter[] = [...CATEGORIES, "elaborados"];
+
+const getFilterLabel = (filter: SupplyFilter) => (filter === "elaborados" ? "Elaborados" : SUPPLY_CATEGORY_LABEL[filter]);
+
+const getSupplyFilter = (supply: ISupplyStatus): SupplyFilter => (isIntermediate(supply) ? "elaborados" : supply.category);
+
 const STATE_LABEL: Record<ISupplyStatus["state"], string> = {
     comprar: "Comprar ya",
     pedir: "Pedir",
+    contar: "Contar",
+    bien: "Bien",
+};
+
+/** Un elaborado bajo se prepara, no se compra. */
+const INTERMEDIATE_STATE_LABEL: Record<ISupplyStatus["state"], string> = {
+    comprar: "Preparar ya",
+    pedir: "Preparar pronto",
     contar: "Contar",
     bien: "Bien",
 };
@@ -64,6 +82,8 @@ const MOVEMENT_LABEL: Record<string, string> = {
     conteo: "Conteo",
     merma: "Merma",
     produccion: "Producción",
+    consumo: "Consumo",
+    faltante: "Faltante",
 };
 
 /** Lo que se registra sobre un insumo: desde su fila o desde "¿Qué pasó?" eligiéndolo primero. */
@@ -93,7 +113,9 @@ type PendingAction =
     | { kind: "production"; product: IProductStatus }
     // Sin producto: se elige del menú (el primer lote activa una galleta o un postre)
     | { kind: "arrival"; product?: IProductStatus }
-    | { kind: "exit"; variantId?: string };
+    | { kind: "exit"; variantId?: string }
+    // Sin insumo: se elige entre los elaborados
+    | { kind: "produce"; supply?: ISupplyStatus };
 
 const QuickIcon = ({ children }: { children: ReactNode }) => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -158,7 +180,7 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
     const [availabilityView, setAvailabilityView] = useState<AvailabilityView>("productos");
     // Se muestra en la pestaña Opciones; se conoce recien al abrirla
     const [soldOutOptions, setSoldOutOptions] = useState<number | null>(null);
-    const [category, setCategory] = useState<SupplyCategory>("alimento");
+    const [category, setCategory] = useState<SupplyFilter>("alimento");
     const [search, setSearch] = useState("");
     const [pending, setPending] = useState<PendingAction | null>(null);
     const [error, setError] = useState("");
@@ -201,15 +223,15 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
 
     // Se cuenta por categoría para que se vea dónde hay trabajo sin entrar a cada una
     const counts = useMemo(() => {
-        const byCategory: Record<SupplyCategory, number> = { alimento: 0, limpieza: 0, mantenimiento: 0 };
+        const byCategory: Record<SupplyFilter, number> = { alimento: 0, limpieza: 0, mantenimiento: 0, elaborados: 0 };
         supplies.forEach((supply) => {
-            byCategory[supply.category] += 1;
+            byCategory[getSupplyFilter(supply)] += 1;
         });
         return byCategory;
     }, [supplies]);
 
     const visibleSupplies = useMemo(
-        () => supplies.filter((supply) => supply.category === category && matchesSearch(supply.name, search)),
+        () => supplies.filter((supply) => getSupplyFilter(supply) === category && matchesSearch(supply.name, search)),
         [supplies, category, search]
     );
 
@@ -223,7 +245,9 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
     const minePageCount = getPageCount(movements.length);
     const currentMinePage = Math.min(minePage, minePageCount);
 
-    const openCategory = (next: SupplyCategory) => {
+    const elaborados = useMemo(() => supplies.filter(isIntermediate), [supplies]);
+
+    const openCategory = (next: SupplyFilter) => {
         setCategory(next);
         setPage(1);
     };
@@ -261,6 +285,16 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                     <span>
                         <b>Compré insumos</b>
                         <small>Leche, café, vasos…</small>
+                    </span>
+                </button>
+                <button type="button" className="ges-happened__btn is-prep" onClick={() => setPending({ kind: "produce" })}>
+                    <QuickIcon>
+                        <path d="M4 11h16a8 8 0 0 1-16 0z" />
+                        <path d="M9 7c0-1.5 1-1.5 1-3M14 7c0-1.5 1-1.5 1-3" />
+                    </QuickIcon>
+                    <span>
+                        <b>Preparé</b>
+                        <small>Salsas, masas, rellenos</small>
                     </span>
                 </button>
                 <button type="button" className="ges-happened__btn" onClick={() => setPending({ kind: "pick", action: "count" })}>
@@ -358,6 +392,7 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
 
     const renderSupply = (supply: ISupplyStatus) => {
         const isStale = supply.countAge !== null && supply.countAge > STALE_COUNT_DAYS;
+        const isElaborado = isIntermediate(supply);
 
         return (
             <article className="ges-row" key={supply.id}>
@@ -374,7 +409,7 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                             <b>{formatQuantity(supply.minStock)} {supply.unit}</b>
                         </div>
                         <span className={`ges-pill is-${STATE_TONE[supply.state]}`}>
-                            {STATE_LABEL[supply.state]}
+                            {(isElaborado ? INTERMEDIATE_STATE_LABEL : STATE_LABEL)[supply.state]}
                         </span>
                     </div>
                     <div className="ges-qty">
@@ -388,9 +423,15 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                     </div>
                 </div>
                 <div className="ges-acts">
-                    <button type="button" className="ges-btn" onClick={() => setPending({ kind: "purchase", supply })}>
-                        Compra
-                    </button>
+                    {isElaborado ? (
+                        <button type="button" className="ges-btn ges-btn--prep" onClick={() => setPending({ kind: "produce", supply })}>
+                            Preparar
+                        </button>
+                    ) : (
+                        <button type="button" className="ges-btn" onClick={() => setPending({ kind: "purchase", supply })}>
+                            Compra
+                        </button>
+                    )}
                     <button type="button" className="ges-btn" onClick={() => setPending({ kind: "count", supply })}>
                         Conteo
                     </button>
@@ -405,7 +446,7 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
     let content: ReactNode;
 
     if (view === "recetas") {
-        content = <GestionRecetas token={token} onSessionExpired={onSessionExpired} />;
+        content = <GestionRecetas token={token} onSessionExpired={onSessionExpired} onSuppliesChanged={() => void loadAll()} />;
     } else if (view === "disponibilidad") {
         content = (
             <>
@@ -444,16 +485,16 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
             <>
                 {!isProducts ? (
                     <>
-                        <SheetSelect<SupplyCategory>
+                        <SheetSelect<SupplyFilter>
                             label="Qué insumos"
                             className="ges-select"
                             value={category}
-                            options={CATEGORIES.map((option) => ({ id: option, label: SUPPLY_CATEGORY_LABEL[option], count: counts[option] }))}
+                            options={SUPPLY_FILTERS.map((option) => ({ id: option, label: getFilterLabel(option), count: counts[option] }))}
                             onChange={openCategory}
                         />
 
                         <div className="ges-tabs ges-tabs--inv fsheet-wide" role="tablist" aria-label="Qué insumos">
-                            {CATEGORIES.map((option) => (
+                            {SUPPLY_FILTERS.map((option) => (
                                 <button
                                     key={option}
                                     type="button"
@@ -462,7 +503,7 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                                     aria-selected={category === option}
                                     onClick={() => openCategory(option)}
                                 >
-                                    {SUPPLY_CATEGORY_LABEL[option]}
+                                    {getFilterLabel(option)}
                                     <small>{counts[option]}</small>
                                 </button>
                             ))}
@@ -493,7 +534,9 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                                 ? "Nada coincide con la búsqueda."
                                 : isProducts
                                   ? "Ningún producto lleva stock todavía. Toca «Llegó un lote» para registrar el primero."
-                                  : `Todavía no hay insumos de ${SUPPLY_CATEGORY_LABEL[category].toLowerCase()}. El administrador los da de alta desde el tablero.`}
+                                  : category === "elaborados"
+                                    ? "Todavía no hay elaborados. Créalos en Recetas → Elaborados."
+                                    : `Todavía no hay insumos de ${SUPPLY_CATEGORY_LABEL[category].toLowerCase()}. El administrador los da de alta desde el tablero.`}
                         </p>
                     ) : isProducts ? (
                         getPageSlice(visibleProducts, currentPage).map(renderProduct)
@@ -525,6 +568,8 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                                     <b>
                                         {movement.referenceType === "PRODUCT_RECEIPT"
                                             ? "Lote"
+                                            : movement.referenceType === "SUPPLY_PRODUCTION" && movement.type === "produccion"
+                                              ? "Preparación"
                                             : movement.referenceType === "INVENTORY_EXIT"
                                               ? `Salida${movement.reference ? ` · ${movement.reference}` : ""}`
                                               : MOVEMENT_LABEL[movement.type] ?? movement.type}
@@ -547,7 +592,8 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
 
             {pending?.kind === "pick" ? (
                 <SupplyPicker
-                    supplies={supplies}
+                    // Los elaborados no se compran: se preparan desde "Preparé"
+                    supplies={pending.action === "purchase" ? supplies.filter((supply) => !isIntermediate(supply)) : supplies}
                     action={pending.action}
                     onPick={(supply) => setPending({ kind: pending.action, supply })}
                     onClose={closePending}
@@ -563,6 +609,16 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                         setPending(null);
                         void loadAll();
                     }}
+                />
+            ) : null}
+
+            {pending?.kind === "produce" ? (
+                <ProduceSupplyDialog
+                    token={token}
+                    elaborados={elaborados}
+                    supply={pending.supply}
+                    onSaved={loadAll}
+                    onClose={closePending}
                 />
             ) : null}
 
