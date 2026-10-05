@@ -1,5 +1,7 @@
 import {ProductLotDialog} from "../inventory-arrival-dialog";
-import {expirationLabel, isIntermediate} from "@/helpers/inventory";
+import {expirationLabel, fetchExpiredLots, isIntermediate} from "@/helpers/inventory";
+import {WASTE_REASON_LABEL, getExpiredAgoLabel, getExpiredLotsTitle, getExpiredUnits, groupExpiredLots} from "@/helpers/product-waste";
+import type {IBatchProductStatus, IExpiredLot, IWasteMovement} from "@/helpers/product-waste";
 import {PurchaseDialog} from "../inventory-purchase-dialog";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
@@ -20,12 +22,14 @@ import {
     registerGestionProduction,
     registerGestionWaste,
 } from "@/helpers";
-import type { IMovement, IProductStatus, ISupplyStatus, SupplyCategory } from "@/helpers";
+import type { ISupplyStatus, SupplyCategory } from "@/helpers";
 
 import { GestionDisponibilidad } from "./disponibilidad";
 import { GestionOpciones } from "./disponibilidad-opciones";
+import { ExpiredLotsDialog } from "./expired-lots-dialog";
 import { InventoryExitDialog } from "./inventory-exit-dialog";
 import { ProduceSupplyDialog } from "./produce-supply-dialog";
+import { ProductWasteDialog } from "./product-waste-dialog";
 import { GestionPager } from "./pager";
 import { GestionRecetas } from "./recetas";
 
@@ -84,6 +88,9 @@ const MOVEMENT_LABEL: Record<string, string> = {
     produccion: "Producción",
     consumo: "Consumo",
     faltante: "Faltante",
+    venta: "Venta",
+    ajuste: "Ajuste",
+    vencimiento: "Vencimiento",
 };
 
 /** Lo que se registra sobre un insumo: desde su fila o desde "¿Qué pasó?" eligiéndolo primero. */
@@ -110,9 +117,13 @@ const matchesSearch = (name: string, query: string) => name.toLocaleLowerCase("e
 type PendingAction =
     | { kind: SupplyAction; supply: ISupplyStatus }
     | { kind: "pick"; action: SupplyAction }
-    | { kind: "production"; product: IProductStatus }
+    | { kind: "production"; product: IBatchProductStatus }
+    // "Se dañó" sobre un producto por lotes
+    | { kind: "product-waste" }
+    // Confirmar que se botan los lotes vencidos del aviso
+    | { kind: "expired" }
     // Sin producto: se elige del menú (el primer lote activa una galleta o un postre)
-    | { kind: "arrival"; product?: IProductStatus }
+    | { kind: "arrival"; product?: IBatchProductStatus }
     | { kind: "exit"; variantId?: string }
     // Sin insumo: se elige entre los elaborados
     | { kind: "produce"; supply?: ISupplyStatus };
@@ -174,8 +185,9 @@ interface IGestionInventarioProps {
 
 export const GestionInventario = ({ token, onSessionExpired }: IGestionInventarioProps) => {
     const [supplies, setSupplies] = useState<ISupplyStatus[]>([]);
-    const [products, setProducts] = useState<IProductStatus[]>([]);
-    const [movements, setMovements] = useState<IMovement[]>([]);
+    const [products, setProducts] = useState<IBatchProductStatus[]>([]);
+    const [movements, setMovements] = useState<IWasteMovement[]>([]);
+    const [expiredLots, setExpiredLots] = useState<IExpiredLot[]>([]);
     const [view, setView] = useState<View>("productos");
     const [availabilityView, setAvailabilityView] = useState<AvailabilityView>("productos");
     // Se muestra en la pestaña Opciones; se conoce recien al abrirla
@@ -191,16 +203,19 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
     const loadAll = useCallback(
         async (signal?: AbortSignal) => {
             try {
-                const [suppliesData, productsData, movementsData] = await Promise.all([
+                const [suppliesData, productsData, movementsData, expiredData] = await Promise.all([
                     fetchGestionSupplies(token, signal),
                     fetchGestionProducts(token, signal),
                     fetchGestionMovements(token, signal),
+                    // El aviso es un extra: si falla, el inventario sigue funcionando sin él
+                    fetchExpiredLots(token, signal).catch(() => ({ lots: [] as IExpiredLot[] })),
                 ]);
 
                 // Las galletas y postres por lotes se manejan en Productos, no como insumos
                 setSupplies(suppliesData.supplies.filter((supply) => supply.inventoryType !== "PREPARED_PRODUCT"));
                 setProducts(productsData.products);
                 setMovements(movementsData.movements);
+                setExpiredLots(expiredData.lots);
                 setError("");
             } catch (requestError) {
                 if (signal?.aborted) return;
@@ -260,6 +275,33 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
 
     const closePending = useCallback(() => setPending(null), []);
 
+    // Un lote vencido no se bota solo: aquí se ve y se confirma
+    const expiredAlert =
+        expiredLots.length > 0 ? (
+            <section className="ges-expired" role="alert">
+                <h2>
+                    <QuickIcon>
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 7v6M12 16.5v.5" />
+                    </QuickIcon>
+                    {getExpiredLotsTitle(expiredLots.length)}
+                </h2>
+                <ul>
+                    {groupExpiredLots(expiredLots).map((group) => (
+                        <li key={group.variantId}>
+                            <span>
+                                <b>{formatQuantity(group.quantity)}</b> {group.name}
+                            </span>
+                            <small>{getExpiredAgoLabel(group.expirationDate)}</small>
+                        </li>
+                    ))}
+                </ul>
+                <button type="button" className="ges-btn ges-btn--danger" onClick={() => setPending({ kind: "expired" })}>
+                    Botar como vencido
+                </button>
+            </section>
+        ) : null;
+
     // Lo que pasó va primero: no hay que saber en qué lista vive cada cosa
     const quickActions = (
         <section className="ges-happened" aria-labelledby="ges-happened-title">
@@ -307,13 +349,13 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                         <small>Lo que hay ahora</small>
                     </span>
                 </button>
-                <button type="button" className="ges-happened__btn" onClick={() => setPending({ kind: "pick", action: "waste" })}>
+                <button type="button" className="ges-happened__btn" onClick={() => setPending({ kind: "product-waste" })}>
                     <QuickIcon>
                         <path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15" />
                     </QuickIcon>
                     <span>
                         <b>Se dañó</b>
-                        <small>Merma, se botó</small>
+                        <small>Productos o insumos</small>
                     </span>
                 </button>
                 <button type="button" className="ges-happened__btn is-exit" onClick={() => setPending({ kind: "exit" })}>
@@ -347,7 +389,9 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
         </div>
     );
 
-    const renderProduct = (product: IProductStatus) => {
+    const renderProduct = (product: IBatchProductStatus) => {
+        const expiredUnits = getExpiredUnits(product);
+
         const isBatch = product.productionMode === "BATCH";
         const isMadeToOrder = product.productionMode === "MADE_TO_ORDER";
 
@@ -365,6 +409,11 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                         </div>
                         {!isMadeToOrder && product.stock <= product.lowStock ? (
                             <span className="ges-pill is-warn">Quedan pocos</span>
+                        ) : null}
+                        {isBatch && expiredUnits > 0 ? (
+                            <span className="ges-pill is-crit">
+                                {formatQuantity(expiredUnits)} {expiredUnits === 1 ? "vencida" : "vencidas"} sin botar
+                            </span>
                         ) : null}
                     </div>
                     <div className="ges-qty">
@@ -550,8 +599,12 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
         );
     }
 
+    // Productos con unidades utilizables: lo único que se puede dar de baja como merma
+    const wasteProducts = products.filter((product) => product.productionMode === "BATCH" && product.stock > 0);
+
     return (
         <>
+            {expiredAlert}
             {quickActions}
             {viewSwitch}
             {content}
@@ -581,6 +634,7 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                                             ? `${formatQuantity(movement.balance ?? 0)} ${movement.unit}`
                                             : `${movement.quantity < 0 ? "−" : "+"}${formatQuantity(Math.abs(movement.quantity))} ${movement.unit}`}
                                     </em>
+                                    {movement.wasteReason ? <span className="ges-tag is-crit">{WASTE_REASON_LABEL[movement.wasteReason]}</span> : null}
                                 </span>
                                 <time dateTime={movement.createdAt}>{formatClock(movement.createdAt)}</time>
                             </li>
@@ -596,6 +650,27 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                     supplies={pending.action === "purchase" ? supplies.filter((supply) => !isIntermediate(supply)) : supplies}
                     action={pending.action}
                     onPick={(supply) => setPending({ kind: pending.action, supply })}
+                    onClose={closePending}
+                />
+            ) : null}
+
+            {pending?.kind === "product-waste" ? (
+                <ProductWasteDialog
+                    token={token}
+                    products={wasteProducts}
+                    onSaved={loadAll}
+                    onSessionExpired={onSessionExpired}
+                    onChooseSupply={() => setPending({ kind: "pick", action: "waste" })}
+                    onClose={closePending}
+                />
+            ) : null}
+
+            {pending?.kind === "expired" ? (
+                <ExpiredLotsDialog
+                    token={token}
+                    lots={expiredLots}
+                    onDiscarded={loadAll}
+                    onSessionExpired={onSessionExpired}
                     onClose={closePending}
                 />
             ) : null}

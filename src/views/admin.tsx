@@ -427,7 +427,7 @@ const PastaModePanel = ({ token, onSessionExpired }: { token: string; onSessionE
 };
 
 /** Las secciones que usan el período del encabezado. */
-const PERIOD_SECTIONS: AdminSection[] = ["ventas", "web"];
+const PERIOD_SECTIONS: AdminSection[] = ["ventas", "web", "inventario"];
 const SECTION_PARAM = "s";
 
 /* ============ Tablero ============ */
@@ -678,7 +678,7 @@ const AdminDashboard = ({ token, personName, onLogout, onTokenChange }: IAdminDa
                     ) : section === "clientes" ? (
                         <AdminCustomers token={token} onSessionExpired={onLogout} refreshKey={refreshKey} />
                     ) : section === "inventario" ? (
-                        <AdminInventory token={token} onSessionExpired={onLogout} refreshKey={refreshKey} />
+                        <AdminInventory token={token} onSessionExpired={onLogout} refreshKey={refreshKey} from={range.from} to={range.to} />
                     ) : section === "menu" ? (
                         <AdminMenu token={token} onSessionExpired={onLogout} />
                     ) : section === "caja" ? (

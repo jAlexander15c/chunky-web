@@ -1,6 +1,13 @@
 import { httpGet, httpPost, httpPut, httpDelete } from "./getHttp";
 import type { ISupplyStatus } from "./admin";
 import type { IModifier } from "./modifiers";
+import type {
+    IDiscardExpiredResponse,
+    IExpiredLotsResponse,
+    IProductWasteInput,
+    IProductWasteResponse,
+    IWasteReport,
+} from "./product-waste";
 /** INTERMEDIATE: elaborado en el local con otros insumos (salsa, ganache); nunca pasa por Loyverse. */
 export type InventoryType = "RAW_MATERIAL" | "PACKAGED_ITEM" | "PREPARED_PRODUCT" | "INTERMEDIATE";
 export type ProductionMode = "MADE_TO_ORDER" | "BATCH";
@@ -259,6 +266,8 @@ export const receiveProductBatch = (
     requestId?: string,
     /** Días que dura cada lote; null para que no venza. Sin mandarlo se conservan los guardados. */
     shelfLifeDays?: number | null,
+    /** Lo que cuesta hacer cada unidad. Sin mandarlo el lote queda sin costo. */
+    unitCost?: number,
 ) =>
     httpPost<{
         batchId: number;
@@ -268,9 +277,27 @@ export const receiveProductBatch = (
         usableStock: string;
     }>(
         "/" + scope + "/products/" + encodeURIComponent(variantId) + "/receive",
-        { quantity, requestId, ...(shelfLifeDays !== undefined && { shelfLifeDays }) },
+        { quantity, requestId, ...(shelfLifeDays !== undefined && { shelfLifeDays }), ...(unitCost !== undefined && { unitCost }) },
         inventoryHeaders(token, scope),
     );
+
+/* ============ Merma de productos por lotes ============ */
+
+export const fetchExpiredLots = (token: string, signal?: AbortSignal) =>
+    httpGet<IExpiredLotsResponse>("/gestion/products/expired-lots", { ...inventoryHeaders(token, "gestion"), signal });
+
+export const discardExpiredLots = (token: string, batchIds: number[], requestId: string) =>
+    httpPost<IDiscardExpiredResponse>("/gestion/products/expired/discard", { batchIds, requestId }, inventoryHeaders(token, "gestion"));
+
+export const registerProductWaste = (token: string, variantId: string, input: IProductWasteInput) =>
+    httpPost<IProductWasteResponse>(
+        "/gestion/products/" + encodeURIComponent(variantId) + "/waste",
+        input,
+        inventoryHeaders(token, "gestion"),
+    );
+
+export const fetchWasteReport = (token: string, from: string, to: string, signal?: AbortSignal) =>
+    httpGet<IWasteReport>("/admin/waste?" + new URLSearchParams({ from, to }).toString(), { ...inventoryHeaders(token), signal });
 
 /* ============ Insumos elaborados ============ */
 

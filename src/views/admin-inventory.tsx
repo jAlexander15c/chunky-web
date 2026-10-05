@@ -4,6 +4,8 @@ import {fetchInventoryReceiptFailures,availabilityLabel} from "@/helpers/invento
 import type {InventoryReceiptFailure,ProductAvailability} from "@/helpers/inventory";
 import {PurchaseDialog} from "./inventory-purchase-dialog";
 import {InventoryBatchDialog} from "./inventory-batch-dialog";
+import {WASTE_REASON_LABEL} from "@/helpers/product-waste";
+import type {IWasteMovement} from "@/helpers/product-waste";
 import {compatibleUnits,expirationLabel,isIntermediate} from "@/helpers/inventory";
 import type {InventoryType} from "@/helpers/inventory";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -47,6 +49,7 @@ import type {
 
 import { AdminBuyNow } from "./admin-buy-now";
 import { AdminPagination } from "./admin-pagination";
+import { AdminWaste } from "./admin-waste";
 
 /** La cocina carga producción mientras alguien mira: se refresca solo. */
 const REFRESH_MS = 60000;
@@ -474,6 +477,9 @@ interface IAdminInventoryProps {
     onSessionExpired: () => void;
     /** Cambia cuando el tablero leyó recibos nuevos: hay que volver a cargar. */
     refreshKey: number;
+    /** Período del encabezado: lo usa la merma. */
+    from: string;
+    to: string;
 }
 
 type SupplyCategoryFilter = SupplyCategory | "todos";
@@ -482,7 +488,7 @@ type ProductStateFilter = ProductState | "todos";
 type MovementTypeFilter = MovementType | "todos";
 type MovementKindFilter = "supply" | "product" | "todos";
 
-export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminInventoryProps) => {
+export const AdminInventory = ({ token, onSessionExpired, refreshKey, from, to }: IAdminInventoryProps) => {
     const [receiptFailures,setReceiptFailures]=useState<InventoryReceiptFailure[]>([]);
     const [supplies, setSupplies] = useState<ISupplyStatus[]>([]);
     const [products, setProducts] = useState<IProductStatus[]>([]);
@@ -923,6 +929,9 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
                 </div>
             </section>
 
+            {/* ===== Merma de productos por lotes ===== */}
+            <AdminWaste token={token} onSessionExpired={onSessionExpired} refreshKey={refreshKey} from={from} to={to} />
+
             {/* ===== Movimientos ===== */}
             <section className="adm-band">
                 <div className="adm-band__head">
@@ -981,7 +990,12 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey }: IAdminIn
                                 <div className="adm-mv" key={movement.id}>
                                     <span className="adm-mv__time">{formatDayClock(movement.createdAt)}</span>
                                     <span className={`adm-tag is-${movement.type}`}>{movement.referenceType==="PRODUCT_RECEIPT"?"Lote":movement.referenceType==="SUPPLY_PRODUCTION"&&movement.type==="produccion"?"Preparación":MOVEMENT_LABEL[movement.type]}</span>
-                                    <span className="adm-mv__what">{movement.name}</span>
+                                    <span className="adm-mv__what">
+                                        {movement.name}
+                                        {(movement as IWasteMovement).wasteReason ? (
+                                            <span className={`adm-tag is-waste-${(movement as IWasteMovement).wasteReason} adm-mv__reason`}>{WASTE_REASON_LABEL[(movement as IWasteMovement).wasteReason!]}</span>
+                                        ) : null}
+                                    </span>
                                     <span className={`adm-mv__qty${movement.quantity < 0 ? " is-neg" : " is-pos"}`}>
                                         {movement.quantity > 0 ? "+" : "−"}
                                         {formatQuantity(Math.abs(movement.quantity))} {movement.unit}

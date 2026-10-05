@@ -2600,3 +2600,43 @@ a.adm-btn { display: inline-flex; align-items: center; text-decoration: none; }
 
 /* Insumo con presentación: "3 cartones y 400 ml" debajo del total */
 .adm-qty-pres { display: block; font-size: 0.72rem; font-weight: 600; color: var(--text-soft); white-space: nowrap; }
+
+/* ============ Merma de productos por lotes ============ */
+
+.adm-waste { display: grid; gap: 0.9rem; }
+.adm-waste .adm-period__range { margin: 0; }
+.adm-waste__body { display: grid; gap: 0.9rem; transition: opacity 150ms ease; }
+.adm-waste__body.is-stale { opacity: 0.55; }
+
+.adm-waste__kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
+.adm-waste__kpis > div { background: var(--adm-panel-2); border-radius: 14px; padding: 0.6rem 0.7rem; min-width: 0; }
+.adm-waste__kpis span { display: block; font-size: 0.64rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--adm-text-2); }
+.adm-waste__kpis b { display: block; margin-top: 0.2rem; font-size: 1.25rem; font-weight: 800; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.adm-waste__kpis small { display: block; font-size: 0.66rem; font-weight: 600; color: var(--adm-text-3); }
+
+.adm-waste__bar { display: flex; height: 10px; border-radius: 6px; overflow: hidden; background: var(--adm-panel-2); }
+.adm-waste__bar i { display: block; }
+
+.adm-waste__legend { display: flex; flex-wrap: wrap; gap: 0.3rem 0.8rem; font-size: 0.72rem; font-weight: 700; color: var(--adm-text-2); }
+.adm-waste__legend span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 0.3rem; vertical-align: -1px; background: var(--waste-color); }
+
+.adm-waste__cards { display: grid; gap: 0.6rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
+.adm-waste__card { border: 1px solid var(--adm-line); border-radius: 16px; padding: 0.8rem 0.9rem; display: grid; gap: 0.6rem; background: var(--adm-panel); min-width: 0; }
+.adm-waste__top { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.6rem; }
+.adm-waste__top h3 { margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--ink); overflow-wrap: anywhere; }
+
+.adm-waste__pct { flex: none; font-size: 0.8rem; font-weight: 800; border-radius: var(--radius-pill); padding: 0.15rem 0.6rem; font-variant-numeric: tabular-nums; }
+.adm-waste__pct.is-crit { background: var(--adm-crit-bg); color: var(--adm-crit); }
+.adm-waste__pct.is-warn { background: var(--adm-warn-bg); color: var(--adm-warn); }
+.adm-waste__pct.is-ok { background: var(--adm-good-bg); color: var(--adm-good); }
+.adm-waste__pct.is-idle { background: var(--adm-panel-2); color: var(--adm-text-2); }
+
+.adm-waste__stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.4rem; font-size: 0.7rem; font-weight: 700; color: var(--adm-text-2); }
+.adm-waste__stats b { display: block; color: var(--ink); font-size: 0.95rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.adm-waste__stats em { display: block; font-style: normal; font-size: 0.64rem; font-weight: 600; color: var(--adm-text-3); }
+
+/* Motivo de la merma junto al nombre en Movimientos */
+.adm-mv__reason { margin-left: 0.4rem; vertical-align: 1px; }
+.adm-tag.is-waste-vencido { background: var(--adm-crit-bg); color: var(--adm-crit); }
+.adm-tag.is-waste-danado { background: #f3e1f5; color: #7a3a80; }
+.adm-tag.is-waste-consumo_interno { background: var(--sky); color: var(--mora); }

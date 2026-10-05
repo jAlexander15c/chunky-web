@@ -11,6 +11,8 @@ export interface ILotTarget {
     name: string;
     shelfLifeDays?: number | null;
     stock?: number | null;
+    /** Lo que costó hacer cada unidad del último lote; prellena el costo. */
+    unitCost?: number | null;
 }
 
 const MAX_SHELF_LIFE_DAYS = 3650;
@@ -76,6 +78,7 @@ export const ProductLotDialog = ({
     const [openedAt] = useState(() => Date.now());
     const [quantity, setQuantity] = useState("");
     const [days, setDays] = useState(product?.shelfLifeDays ? String(product.shelfLifeDays) : "");
+    const [cost, setCost] = useState(product?.unitCost != null ? String(product.unitCost) : "");
     const [error, setError] = useState("");
     const [isSending, setIsSending] = useState(false);
     // Estable mientras el producto no cambie: un reintento tras perder la respuesta no duplica el lote
@@ -96,6 +99,7 @@ export const ProductLotDialog = ({
         const next = toLotTarget(candidate);
         setTarget(next);
         setDays(next.shelfLifeDays ? String(next.shelfLifeDays) : "");
+        setCost(next.unitCost != null ? String(next.unitCost) : "");
         setRequestId(crypto.randomUUID());
         setError("");
     };
@@ -104,6 +108,9 @@ export const ProductLotDialog = ({
     const shelfLife = days.trim() === "" ? null : Number(days);
     const isAmountValid = Number.isInteger(amount) && amount > 0;
     const isShelfLifeValid = shelfLife === null || (Number.isInteger(shelfLife) && shelfLife >= 1 && shelfLife <= MAX_SHELF_LIFE_DAYS);
+    // Vacío = sin costo; si se escribe, dólares con hasta dos decimales
+    const costValue = cost.trim() === "" ? undefined : Number(cost.replace(",", "."));
+    const isCostValid = costValue === undefined || (Number.isFinite(costValue) && costValue >= 0 && Math.round(costValue * 100) === Number((costValue * 100).toFixed(6)));
     const expiration = shelfLife && isShelfLifeValid ? expirationFormatter.format(openedAt + shelfLife * 86400000) : null;
 
     const stepQuantity = (delta: number) => setQuantity(String(Math.max(0, (isAmountValid ? amount : 0) + delta) || ""));
@@ -114,10 +121,12 @@ export const ProductLotDialog = ({
         if (!isAmountValid) return setError("Escribe cuántas unidades llegaron, en números enteros.");
         if (!isShelfLifeValid) return setError(`Los días van de 1 a ${MAX_SHELF_LIFE_DAYS}, o déjalo vacío si no vence.`);
 
+        if (!isCostValid) return setError("El costo va en dólares, con hasta dos decimales. Por ejemplo 0.85, o déjalo vacío.");
+
         setIsSending(true);
         setError("");
         try {
-            await receiveProductBatch(token, target.variantId, String(amount), scope, requestId, shelfLife);
+            await receiveProductBatch(token, target.variantId, String(amount), scope, requestId, shelfLife, costValue);
             await onSaved();
             onClose();
         } catch (requestError) {
@@ -228,6 +237,23 @@ export const ProductLotDialog = ({
                             <span className="dlg__unit">días</span>
                         </div>
                     </div>
+                    <div>
+                        <label className="lot__label" htmlFor="lot-cost">
+                            Costo por unidad <small>(opcional)</small>
+                        </label>
+                        <div className="dlg__field lot__other">
+                            <span className="dlg__unit">B/.</span>
+                            <input
+                                id="lot-cost"
+                                className="dlg__input"
+                                type="text"
+                                inputMode="decimal"
+                                placeholder="0.00"
+                                value={cost}
+                                onChange={(event) => setCost(event.target.value.replace(/[^d.,]/g, ""))}
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 {target && isAmountValid ? (
@@ -241,6 +267,7 @@ export const ProductLotDialog = ({
                     {expiration ? `Vence el ${expiration}. ` : "Sin días, el lote no vence. "}
                     La llegada se registra con la hora del guardado y se suma a lo que ya hay.
                 </p>
+                <p className="dlg__hint">Costo: lo que cuesta hacer una unidad. Se recuerda para el próximo lote. Sirve para saber cuánto dinero se va en merma.</p>
 
                 {error ? <p className="dlg__error" role="alert">{error}</p> : null}
 
