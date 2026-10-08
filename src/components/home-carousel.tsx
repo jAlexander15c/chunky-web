@@ -128,7 +128,7 @@ export const PromoSlide = ({ slide, photoUrl, compact = false, action }: IPromoS
                         caption={theme.captionLeft}
                         code={theme.captionRight}
                         rotate={-4}
-                        className="promo__stamp stamp-lift--cloud"
+                        className="promo__stamp"
                     />
                     {theme.id === "jp" ? <span className="promo__seal" lang="ja">抹茶</span> : null}
                     <Mascot className="promo__mascot" />
