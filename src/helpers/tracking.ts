@@ -18,7 +18,9 @@ type TrackEventName =
     | "quote_step"
     | "quote_submit"
     | "pasta_open"
-    | "pasta_add";
+    | "pasta_add"
+    // Clic en el botón de una lámina del carrusel del inicio: target = id de la lámina, label = su título
+    | "promo_click";
 
 interface ITrackEvent {
     name: TrackEventName;

@@ -1,0 +1,463 @@
+/* Carrusel del inicio: la portada como lámina 1 y las promos del tablero detrás.
+   La portada usa las clases .hero de App.css; aquí van la pista, los controles y las promos. */
+
+.carousel {
+  position: relative;
+}
+
+.carousel__viewport {
+  position: relative;
+}
+
+/* El scroll horizontal vive dentro de la pista, nunca en la página */
+.carousel__track {
+  display: flex;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.carousel__track::-webkit-scrollbar {
+  display: none;
+}
+
+/* Las láminas se estiran a la más alta: lo de abajo no se mueve al pasar de una a otra */
+.carousel__slide {
+  flex: 0 0 100%;
+  min-width: 0;
+  display: flex;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.carousel__slide > .hero {
+  width: 100%;
+  align-content: start;
+}
+
+.carousel .hero {
+  padding-bottom: 1rem;
+}
+
+/* En el teléfono la portada se achica un poco para que los puntos entren en el primer pantallazo:
+   así se nota que hay más láminas. Sin promos el hero queda igual que siempre (no lleva .carousel). */
+@media (max-width: 1023px) {
+  .carousel .hero {
+    padding-top: 0.5rem;
+  }
+
+  .carousel .hero__stage {
+    zoom: 0.84;
+  }
+}
+
+/* ============ Controles ============ */
+.carousel__nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 56px;
+}
+
+.carousel__dot {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.carousel__dot span {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: rgb(58 75 142 / 0.3);
+  transition: width 220ms var(--ease-out), background-color 220ms ease;
+}
+
+.carousel__dot[aria-current="true"] span {
+  width: 22px;
+  background: var(--mora);
+}
+
+.carousel__pause {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--mora);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.carousel__dot:focus-visible,
+.carousel__pause:focus-visible,
+.carousel__arrow:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Las flechas solo en escritorio: en el teléfono se desliza con el dedo */
+.carousel__arrow {
+  display: none;
+}
+
+/* ============ Promos ============ */
+.promo {
+  --promo-disc: var(--orquidea);
+  --promo-bg: color-mix(in srgb, var(--orquidea) 30%, white);
+  --promo-fill: var(--sky);
+  flex: 1;
+  min-width: 0;
+  background: var(--promo-bg);
+  color: var(--ink);
+}
+
+.promo--jp {
+  --promo-disc: var(--sky);
+  --promo-bg: color-mix(in srgb, var(--sky) 45%, white);
+  --promo-fill: var(--lima);
+}
+
+.promo--ny {
+  --promo-disc: var(--mantequilla);
+  --promo-bg: color-mix(in srgb, var(--mantequilla) 45%, white);
+  --promo-fill: var(--sky);
+}
+
+.promo--it {
+  --promo-disc: var(--lima);
+  --promo-bg: color-mix(in srgb, var(--lima) 50%, white);
+  --promo-fill: var(--mantequilla);
+}
+
+.promo--cake {
+  --promo-disc: var(--orquidea);
+  --promo-bg: color-mix(in srgb, var(--orquidea) 30%, white);
+  --promo-fill: var(--sky);
+}
+
+/* Sin foto la estampilla lleva a la mascota sobre el color del estilo */
+.promo .stamp__fallback {
+  background: var(--promo-fill);
+}
+
+.promo__inner {
+  width: 100%;
+  display: grid;
+  align-content: start;
+}
+
+.promo__copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.promo__tag {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--crema);
+}
+
+.promo__text {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: clamp(1rem, 0.95rem + 0.3vw, 1.1875rem);
+  line-height: 1.65;
+  max-width: 44ch;
+}
+
+.promo__button {
+  margin-top: 0.25rem;
+}
+
+.promo__stage {
+  position: relative;
+  height: 300px;
+  margin: 0.5rem calc(-1 * var(--gutter)) 0;
+  order: -1;
+}
+
+.promo__disc,
+.promo__ring {
+  position: absolute;
+  left: 50%;
+  border-radius: 50%;
+}
+
+.promo__disc {
+  top: 18px;
+  width: 260px;
+  height: 260px;
+  margin-left: -130px;
+  background: var(--promo-disc);
+}
+
+.promo__ring {
+  top: 30px;
+  width: 236px;
+  height: 236px;
+  margin-left: -118px;
+  border: 2px dashed rgb(58 75 142 / 0.45);
+}
+
+.promo__stamp {
+  position: absolute;
+  left: 50%;
+  top: 26px;
+  width: 230px;
+  margin-left: -115px;
+}
+
+.promo__stamp .stamp {
+  padding: 9px;
+}
+
+.promo__stamp .stamp__image,
+.promo__stamp .stamp__fallback {
+  height: 190px;
+}
+
+.promo__stamp .stamp__caption {
+  font-size: 0.5625rem;
+}
+
+/* Sello de Japón sobre la estampilla */
+.promo__seal {
+  position: absolute;
+  right: 22px;
+  top: 12px;
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 2px solid var(--mora);
+  background: var(--crema);
+  color: var(--mora);
+  font-size: 1.0625rem;
+  font-weight: 800;
+  transform: rotate(10deg);
+}
+
+/* Mas especifico que .mascot de App.css, que carga despues y la mostraria */
+.promo .promo__mascot {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  /* Espacio a los lados para que las flechas no pisen el título */
+  .carousel .hero {
+    padding-bottom: 2rem;
+    padding-inline: max(var(--gutter), 96px);
+  }
+
+  .carousel__nav {
+    min-height: 64px;
+    gap: 12px;
+  }
+
+  .carousel__arrow {
+    position: absolute;
+    top: 50%;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    margin-top: -26px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--crema);
+    color: var(--mora);
+    font-size: 1.25rem;
+    cursor: pointer;
+    box-shadow: 0 10px 22px -14px rgb(var(--shadow-tint) / 0.7);
+    transition: transform 160ms var(--ease-out);
+  }
+
+  .carousel__arrow:active {
+    transform: scale(0.94);
+  }
+
+  .carousel__arrow--prev {
+    left: 24px;
+  }
+
+  .carousel__arrow--next {
+    right: 24px;
+  }
+
+  .promo:not(.promo--compact) .promo__inner {
+    align-content: stretch;
+  }
+
+  .promo:not(.promo--compact) .promo__copy {
+    gap: 20px;
+  }
+
+  .promo:not(.promo--compact) .promo__tag {
+    font-size: 0.8125rem;
+    padding: 7px 14px;
+  }
+
+  .promo:not(.promo--compact) .promo__stage {
+    order: 0;
+    height: 560px;
+    margin: 0;
+  }
+
+  .promo:not(.promo--compact) .promo__disc {
+    top: 20px;
+    width: 470px;
+    height: 470px;
+    margin-left: -235px;
+  }
+
+  .promo:not(.promo--compact) .promo__ring {
+    top: 40px;
+    width: 430px;
+    height: 430px;
+    margin-left: -215px;
+  }
+
+  .promo:not(.promo--compact) .promo__stamp {
+    top: 56px;
+    width: 360px;
+    margin-left: -180px;
+  }
+
+  .promo:not(.promo--compact) .promo__stamp .stamp {
+    padding: 14px;
+  }
+
+  .promo:not(.promo--compact) .promo__stamp .stamp__image,
+  .promo:not(.promo--compact) .promo__stamp .stamp__fallback {
+    height: 340px;
+  }
+
+  .promo:not(.promo--compact) .promo__stamp .stamp__caption {
+    font-size: 0.75rem;
+  }
+
+  .promo:not(.promo--compact) .promo__seal {
+    right: 6px;
+    top: 28px;
+    width: 76px;
+    height: 76px;
+    font-size: 1.5rem;
+  }
+
+  .promo:not(.promo--compact) .promo__mascot {
+    display: block;
+    position: absolute;
+    right: -10px;
+    bottom: 0;
+    width: 150px;
+  }
+}
+
+/* ============ Vista previa en el tablero ============ */
+.promo--compact {
+  flex: none;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 12px 26px -20px rgb(var(--shadow-tint) / 0.7);
+}
+
+.promo--compact .promo__inner {
+  gap: 0;
+}
+
+.promo--compact .promo__stage {
+  height: 150px;
+  margin: 0;
+}
+
+.promo--compact .promo__disc {
+  top: 8px;
+  width: 136px;
+  height: 136px;
+  margin-left: -68px;
+}
+
+.promo--compact .promo__ring {
+  display: none;
+}
+
+.promo--compact .promo__stamp {
+  top: 14px;
+  width: 112px;
+  margin-left: -56px;
+}
+
+.promo--compact .promo__stamp .stamp {
+  padding: 7px;
+}
+
+.promo--compact .promo__stamp .stamp__image,
+.promo--compact .promo__stamp .stamp__fallback {
+  height: 104px;
+}
+
+.promo--compact .promo__stamp .stamp__caption {
+  display: none;
+}
+
+.promo--compact .promo__seal {
+  right: 14px;
+  top: 6px;
+  width: 38px;
+  height: 38px;
+  border-width: 1.5px;
+  font-size: 0.75rem;
+}
+
+.promo--compact .promo__copy {
+  gap: 6px;
+  padding: 0 14px 14px;
+}
+
+.promo--compact .promo__tag {
+  font-size: 0.625rem;
+  padding: 4px 9px;
+}
+
+.promo--compact .hero__title-block {
+  font-size: 1.375rem;
+  line-height: 1.04;
+}
+
+.promo--compact .hero__title-script {
+  font-size: 1.625rem;
+  line-height: 1.2;
+}
+
+.promo--compact .promo__text {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.promo--compact .promo__button {
+  min-height: 36px;
+  padding: 0 16px;
+  font-size: 0.8125rem;
+  margin-top: 0;
+}

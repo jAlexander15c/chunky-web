@@ -1585,6 +1585,12 @@ a.adm-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .adm-web-table__bar { display: block; height: 4px; margin-top: 0.3rem; background: var(--adm-panel-2); border-radius: 2px; }
 .adm-web-table__bar i { display: block; height: 100%; background: var(--adm-web); border-radius: 2px; }
 
+/* Clics por lámina del carrusel: filas con nombre, número y barra, sin tabla para que quepan en el teléfono */
+.adm-web-promos { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.8rem; }
+.adm-web-promos li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 0.8rem; align-items: baseline; }
+.adm-web-promos__name { min-width: 0; overflow-wrap: anywhere; }
+.adm-web-promos .adm-web-table__bar { grid-column: 1 / -1; }
+
 .adm-web-sources { min-width: 560px; }
 .adm-web-sources td { vertical-align: top; }
 .adm-web-sources .adm-web-table__bar { max-width: 220px; }

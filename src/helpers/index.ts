@@ -20,6 +20,7 @@ export * from "./gestion";
 export * from "./staff-access";
 export * from "./quote";
 export * from "./tracking";
+export * from "./home-slides";
 export * from "./app-version";
 export * from "./live-refresh";
 export * from "./pagination";

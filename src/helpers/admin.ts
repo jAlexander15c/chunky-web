@@ -2,6 +2,7 @@ import type {InventoryType,ProductAvailability} from "./inventory";
 import { httpDelete, httpGet, httpPost, httpPostBinary, httpPut } from "./getHttp";
 import type { ICreditTicket, IShiftDetail } from "./gestion";
 import type { IWeekHours, StoreOverride } from "./hours";
+import type { IHomeSlide, IHomeSlideInput } from "./home-slides";
 import type { IModifier } from "./modifiers";
 import type { QuoteKind } from "./quote";
 import type { IStaffLogin } from "./staff-access";
@@ -332,6 +333,14 @@ export interface IWebReport {
     quotes: IQuoteWebReport;
     /** Opcional: un API anterior no lo manda y la tarjeta no se muestra. */
     sources?: IWebSource[];
+    /** Clics en el botón de cada lámina del carrusel, de más a menos. Falta con un API anterior. */
+    promoClicks?: IPromoClick[];
+}
+
+export interface IPromoClick {
+    id: string;
+    name: string;
+    clicks: number;
 }
 
 /** Visitas y resultados por origen. source null: sesiones de antes de medir el origen. */
@@ -674,30 +683,74 @@ export const MENU_IMAGE_SIDE = 1320;
  * Recorta la foto cuadrada al centro, la deja en 1320x1320 y la pasa a JPEG antes de subirla.
  * Una foto del celular pesa varios MB; asi queda en unos cientos de KB.
  */
-export const cropMenuImage = async (file: File): Promise<Blob> => {
+export const cropMenuImage = (file: File): Promise<Blob> => cropImageCentered(file, MENU_IMAGE_SIDE, MENU_IMAGE_SIDE);
+
+/**
+ * Recorta la foto al centro con la proporcion width:height, la deja de ese tamaño exacto y la pasa a JPEG.
+ * De la foto se pierde lo que sobra de los lados o de arriba y abajo.
+ */
+const cropImageCentered = async (file: File, width: number, height: number): Promise<Blob> => {
     const bitmap = await createImageBitmap(file);
-    // El cuadrado mas grande que cabe, centrado: se pierde lo que sobra de los lados o de arriba y abajo
-    const side = Math.min(bitmap.width, bitmap.height);
-    const sourceX = (bitmap.width - side) / 2;
-    const sourceY = (bitmap.height - side) / 2;
+    // El rectangulo mas grande de esa proporcion que cabe en la foto, centrado
+    const scale = Math.min(bitmap.width / width, bitmap.height / height);
+    const sourceWidth = width * scale;
+    const sourceHeight = height * scale;
+    const sourceX = (bitmap.width - sourceWidth) / 2;
+    const sourceY = (bitmap.height - sourceHeight) / 2;
 
     const canvas = document.createElement("canvas");
-    canvas.width = MENU_IMAGE_SIDE;
-    canvas.height = MENU_IMAGE_SIDE;
+    canvas.width = width;
+    canvas.height = height;
 
     const context = canvas.getContext("2d");
     if (!context) throw new Error("No se pudo preparar la foto.");
     // Fondo blanco: un PNG transparente pasado a JPEG quedaria negro
     context.fillStyle = "#ffffff";
-    context.fillRect(0, 0, MENU_IMAGE_SIDE, MENU_IMAGE_SIDE);
+    context.fillRect(0, 0, width, height);
     context.imageSmoothingQuality = "high";
-    context.drawImage(bitmap, sourceX, sourceY, side, side, 0, 0, MENU_IMAGE_SIDE, MENU_IMAGE_SIDE);
+    context.drawImage(bitmap, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, width, height);
     bitmap.close();
 
     return new Promise((resolve, reject) =>
         canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("No se pudo preparar la foto."))), "image/jpeg", 0.85)
     );
 };
+
+/* ============ Inicio de la web (carrusel) ============ */
+
+/** La foto de una lamina sale 4:3 y de este tamaño exacto. */
+export const HOME_SLIDE_IMAGE_SIZE = { width: 1200, height: 900 } as const;
+
+export const cropHomeSlideImage = (file: File) => cropImageCentered(file, HOME_SLIDE_IMAGE_SIZE.width, HOME_SLIDE_IMAGE_SIZE.height);
+
+export const fetchAdminHomeSlides = (token: string, signal?: AbortSignal) =>
+    httpGet<{ slides: IHomeSlide[] }>("/admin/home-slides", { signal, headers: getAdminHeaders(token) });
+
+export const createHomeSlide = (token: string, slide: IHomeSlideInput) =>
+    httpPost<IHomeSlide>("/admin/home-slides", slide, { headers: getAdminHeaders(token) });
+
+/** Edita con el cuerpo completo (no hay cambios parciales). */
+export const updateHomeSlide = (token: string, id: string, slide: IHomeSlideInput) =>
+    httpPut<IHomeSlide>(`/admin/home-slides/${encodeURIComponent(id)}`, slide, { headers: getAdminHeaders(token) });
+
+export const deleteHomeSlide = (token: string, id: string) =>
+    httpDelete<{ deleted: boolean }>(`/admin/home-slides/${encodeURIComponent(id)}`, { headers: getAdminHeaders(token) });
+
+/** `ids` son todas las laminas existentes, en el orden nuevo. */
+export const reorderHomeSlides = (token: string, ids: string[]) =>
+    httpPut<{ slides: IHomeSlide[] }>("/admin/home-slides/order", { ids }, { headers: getAdminHeaders(token) });
+
+/** Crea las dos laminas de ejemplo (cotizador y menu). El API responde 409 si ya hay laminas. */
+export const createExampleHomeSlides = (token: string) =>
+    httpPost<{ slides: IHomeSlide[] }>("/admin/home-slides/examples", {}, { headers: getAdminHeaders(token) });
+
+export const uploadHomeSlideImage = (token: string, id: string, image: Blob) =>
+    httpPostBinary<{ imageVersion: number }>(`/admin/home-slides/${encodeURIComponent(id)}/image`, image, {
+        headers: getAdminHeaders(token),
+    });
+
+export const deleteHomeSlideImage = (token: string, id: string) =>
+    httpDelete<{ imageVersion: null }>(`/admin/home-slides/${encodeURIComponent(id)}/image`, { headers: getAdminHeaders(token) });
 
 /* ============ Descuadres de pago ============ */
 

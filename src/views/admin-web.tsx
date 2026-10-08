@@ -17,6 +17,7 @@ import type {
     IQuoteWebReport,
     IWebPoint,
     IWebReport,
+    IPromoClick,
     IWebSource,
     QuoteFunnelStep,
     QuoteReportKind,
@@ -365,6 +366,7 @@ const WebBody = ({ report }: { report: IWebReport }) => {
 
                 <ProductsCard report={report} />
                 <CategoriesCard report={report} />
+                {report.promoClicks ? <PromosCard promos={report.promoClicks} /> : null}
                 <HoursCard report={report} />
                 <ButtonsCard report={report} />
             </div>
@@ -795,6 +797,34 @@ const QuoteDropOffCard = ({ quotes }: { quotes: IQuoteWebReport }) => {
                         </tbody>
                     </table>
                 </div>
+            )}
+        </div>
+    );
+};
+
+/** Cuánta gente tocó el botón de cada lámina del carrusel del inicio. */
+const PromosCard = ({ promos }: { promos: IPromoClick[] }) => {
+    const topClicks = Math.max(1, ...promos.map((promo) => promo.clicks));
+
+    return (
+        <div className="adm-card adm-web-grid__wide">
+            <h3 className="script">Promos del inicio</h3>
+            <p className="adm-note">Clics en el botón de cada lámina del carrusel. La portada no cuenta: su botón es el del menú.</p>
+
+            {promos.length === 0 ? (
+                <p className="adm-empty">Nadie tocó el botón de una promo en este período.</p>
+            ) : (
+                <ul className="adm-web-promos">
+                    {promos.map((promo) => (
+                        <li key={promo.id}>
+                            <span className="adm-web-promos__name">{promo.name}</span>
+                            <b>{formatCount(promo.clicks)}</b>
+                            <span className="adm-web-table__bar" aria-hidden="true">
+                                <i style={{ width: `${(promo.clicks / topClicks) * 100}%` }} />
+                            </span>
+                        </li>
+                    ))}
+                </ul>
             )}
         </div>
     );

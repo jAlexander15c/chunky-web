@@ -1,13 +1,12 @@
 import { Link } from "react-router";
 import { PiArrowRightBold, PiArrowUpRightBold, PiStarFourFill } from "react-icons/pi";
 
-import { Mascot, MenuBoard, SpecialSpotlight, Stamp, usePastaBuilder } from "@/components";
+import { HomeCarousel, Mascot, MenuBoard, SpecialSpotlight, Stamp } from "@/components";
 import {
     PEDIDOS_YA_URL,
     getOpeningHoursRows,
     getCategoryByName,
     getCategoryImageUrl,
-    getOrderingStatusLabel,
     isAcceptingOrders,
     useCategories,
     useSettings,
@@ -67,7 +66,6 @@ const Marquee = () => (
 export const Home = () => {
     const getHomeCategory = useHomeCategory();
     const { settings } = useSettings();
-    const { open: openPastaBuilder } = usePastaBuilder();
     const isOpen = isAcceptingOrders(settings);
     // Los dias de pasta el resto del menu no se vende: no se ofrecen sus accesos
     const isPastaDay = settings.pastaMode;
@@ -77,44 +75,7 @@ export const Home = () => {
 
     return (
         <main className="home">
-            <section className="hero">
-                <div className="hero__copy">
-                    {isPastaDay && <span className="today-chip"><i aria-hidden />Hoy: día de pasta</span>}
-                    <h1 className="hero__title">
-                        <span className="hero__title-block">De New York a Kioto,</span>
-                        <span className="script hero__title-script">con escala en Italia.</span>
-                    </h1>
-                    <p className="hero__sub">
-                        {isPastaDay
-                            ? "Hoy armas tu pasta: eliges la pasta, la salsa y la proteína. También hay bebidas, y todo llega a tu puerta."
-                            : "Galletas estilo New York, focaccias con pesto y matcha, nuestra bebida estrella. Arma tu pedido y paga con Yappy."}
-                    </p>
-                    <div className="hero__actions">
-                        {isPastaDay && settings.pasta ? (
-                            <>
-                                <button type="button" className="button button--primary button--lg" onClick={openPastaBuilder}>
-                                    Arma tu pasta <PiArrowRightBold aria-hidden />
-                                </button>
-                                <Link to="/menu" className="text-link">Ver el menú de hoy</Link>
-                            </>
-                        ) : (
-                            <Link to="/menu" className="button button--primary button--lg">
-                                Ver el menú <PiArrowRightBold aria-hidden />
-                            </Link>
-                        )}
-                        <span className="hero__status">{getOrderingStatusLabel(settings, isOpen)}</span>
-                    </div>
-                </div>
-
-                <div className="hero__stage" aria-hidden>
-                    <div className="hero__disc" />
-                    <div className="hero__ring" />
-                    <Stamp src={cookiesPhoto} alt="" caption="New York" code="galletas" rotate={-9} className="hero__stamp hero__stamp--ny stamp-lift--cloud" imagePosition="45% 45%" loading="eager" />
-                    <Stamp src={savoryPhoto} alt="" caption="Italia" code="salados" rotate={7} className="hero__stamp hero__stamp--it stamp-lift--cloud" imagePosition="85% 20%" loading="eager" />
-                    <Stamp src={drinksPhoto} alt="" caption="Japón" code="matcha" rotate={6} className="hero__stamp hero__stamp--jp stamp-lift--cloud" imagePosition="28% 55%" loading="eager" />
-                    <Mascot bob className="hero__mascot" loading="eager" />
-                </div>
-            </section>
+            <HomeCarousel />
 
             <Marquee />
 

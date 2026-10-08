@@ -23,3 +23,4 @@ export * from "./quotes-panel";
 export * from "./quotes-income";
 export * from "./update-banner";
 export * from "./full-sheet";
+export * from "./home-carousel";
