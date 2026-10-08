@@ -27,9 +27,11 @@ FROM node:24-alpine AS runner
 
 WORKDIR /app
 
-# Version fija: un despliegue no debe cambiar de servidor sin que lo decidamos
-RUN npm install -g serve@14.2.6
+# server.mjs sirve igual que serve@14.2.6 (mismas librerias, versiones fijas) y ademas
+# manda el dominio sin www a www con un 301. Un despliegue no debe cambiar de servidor sin que lo decidamos
+RUN npm install --no-save --no-package-lock serve-handler@6.1.7 compression@1.8.1
 
+COPY --chown=node:node server.mjs ./
 COPY --from=builder --chown=node:node /app/dist ./dist
 
 # Sin privilegios de root dentro del contenedor
@@ -37,4 +39,4 @@ USER node
 
 EXPOSE 3000
 
-CMD ["serve", "-s", "dist", "-l", "3000"]
+CMD ["node", "server.mjs"]

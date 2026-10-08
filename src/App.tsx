@@ -12,7 +12,6 @@ import { getTrackedPath, isAppReloading, trackEvent, useAppUpdate, useSettings }
 import { useOperationalAutoUpdate } from "@/hooks/useOperationalAutoUpdate";
 import { useOperationalManifest } from "@/hooks/useOperationalManifest";
 import { useSilentSiteUpdate } from "@/hooks/useSilentSiteUpdate";
-import { useWwwRedirect } from "@/hooks/useWwwRedirect";
 
 import './App.css'
 
@@ -110,8 +109,6 @@ const SiteLayout = () => {
 };
 
 const App = () => {
-  useWwwRedirect();
-
   if (isMaintenanceMode) return <Mantenimiento />;
 
   return (

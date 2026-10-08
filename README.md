@@ -40,7 +40,10 @@ como build args (ver `Dockerfile`) y no se usa ningún archivo `.env`.
 
 - **Ramas:** `dev` → `staging` → `main` (producción). Solo pasa a `main` lo que el usuario aprobó en `staging`. Detalle en `AGENTS.md`.
 - **Orden:** si un cambio toca el API y la web, se despliega **primero el API** y después la web.
-- **Imagen:** `Dockerfile` en dos etapas con Node 24; el sitio lo sirve `serve@14.2.6` sin privilegios de root.
+- **Imagen:** `Dockerfile` en dos etapas con Node 24; el sitio lo sirve `server.mjs` sin privilegios de root,
+  con las mismas librerías que `serve@14.2.6` (`serve-handler` y `compression`, versiones fijas).
+- **Dominio:** `server.mjs` manda `ischunkybites.com` a `https://www.ischunkybites.com` con un 301, conservando
+  la ruta. El DNS (Hostinger) apunta los dos nombres al mismo servicio de Railway.
 - **Encabezados:** están en `public/serve.json` (nosniff, Referrer-Policy, X-Frame-Options, HSTS,
   Permissions-Policy y CSP en modo solo reporte). Tras desplegar, revisarlos con:
 
