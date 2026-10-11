@@ -34,7 +34,7 @@ const formatLastLogin = (value: string | null) => {
 const ROLE_HINT: Record<CollaboratorRole, string> = {
     inventario: "Compras, conteos y mermas",
     caja: "Mesas, cobrar y cerrar la caja",
-    pastelera: "Pastelería: cotizaciones de cakes con sus fotos, registro a mano e ingresos",
+    pastelera: "Repostería: cotizaciones con sus fotos, registro a mano, ingresos, ingredientes y recetas",
     repartidor: "Delivery: toma los pedidos listos, comparte su ubicación y cobra al entregar",
     admin: "Tablero completo (ventas, menú, colaboradores) y avisos de insumos en su teléfono",
 };

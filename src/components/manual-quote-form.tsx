@@ -2,25 +2,22 @@ import { useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 
 import {
-    DESSERT_SIZES,
     HttpError,
-    QUOTE_DESSERTS,
-    QUOTE_DOUGHS,
-    QUOTE_FILLINGS,
-    QUOTE_HEIGHTS,
-    QUOTE_SIZES,
-    canAddFilling,
+    canAddCatalogOption,
     createManualQuote,
     formatPrice,
-    getDessertPrice,
-    getFillingsLabel,
+    getCatalogBreakdown,
+    getCatalogGroupRule,
+    getCatalogOptionPrice,
+    getCatalogPickFor,
     getManualQuoteMissing,
     getPanamaTodayText,
-    getQuoteBreakdown,
-    getQuoteDessert,
-    getQuoteSurcharge,
+    resolveCatalogPick,
+    toggleCatalogOption,
 } from "@/helpers";
-import type { IManualQuoteDraft, IQuote } from "@/helpers";
+import type { ICatalogPick, IManualQuoteDraft, IQuote } from "@/helpers";
+
+import { useCatalog } from "./use-catalog";
 
 import "./manual-quote-form.css";
 
@@ -31,14 +28,9 @@ interface IManualQuoteFormProps {
     onSessionExpired: () => void;
 }
 
-const getEmptyDraft = (): IManualQuoteDraft => ({
-    kind: "cake",
-    size: "6",
-    height: 2,
-    doughId: QUOTE_DOUGHS[0].id,
-    fillingIds: [],
-    dessertId: QUOTE_DESSERTS[0].id,
-    dessertSize: "8",
+type IManualDetails = Omit<IManualQuoteDraft, keyof ICatalogPick>;
+
+const getEmptyDetails = (): IManualDetails => ({
     customerName: "",
     customerPhone: "",
     desiredDate: getPanamaTodayText(),
@@ -64,27 +56,24 @@ const Chip = ({
 );
 
 /**
- * La pastelera anota un pedido que llegó por WhatsApp o en persona. Solo cakes del catálogo y
- * postres, sin fotos ni topper: los personalizados siguen entrando por /cotizador.
+ * La pastelera anota un pedido que llegó por WhatsApp o en persona. Usa las recetas publicadas, sin
+ * fotos ni topper: los personalizados siguen entrando por /cotizador.
  */
 export const ManualQuoteForm = ({ token, onSaved, onCancel, onSessionExpired }: IManualQuoteFormProps) => {
-    const [draft, setDraft] = useState<IManualQuoteDraft>(getEmptyDraft);
+    const { catalog, isLoading, error: catalogError, reload } = useCatalog();
+    const [pick, setPick] = useState<ICatalogPick>({ productId: null, sizeId: null, optionIds: [] });
+    const [details, setDetails] = useState<IManualDetails>(getEmptyDetails);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState("");
 
-    const update = (changes: Partial<IManualQuoteDraft>) => setDraft((current) => ({ ...current, ...changes }));
+    const update = (changes: Partial<IManualDetails>) => setDetails((current) => ({ ...current, ...changes }));
 
-    const toggleFilling = (id: string) =>
-        update({
-            fillingIds: draft.fillingIds.includes(id)
-                ? draft.fillingIds.filter((one) => one !== id)
-                : [...draft.fillingIds, id],
-        });
-
-    const breakdown = getQuoteBreakdown({ ...draft, topper: false });
-    const dessert = getQuoteDessert(draft.dessertId);
-    const dessertPrice = getDessertPrice(dessert, draft.dessertSize);
-    const missing = getManualQuoteMissing(draft);
+    const { product, sizeId, optionIds } = resolveCatalogPick(catalog, pick);
+    const draft: IManualQuoteDraft = { ...details, productId: product?.id ?? null, sizeId, optionIds };
+    const breakdown = product ? getCatalogBreakdown(product, sizeId, optionIds, false) : null;
+    const missing = getManualQuoteMissing(draft, product);
+    const tabs = catalog?.tabs ?? [];
+    const tabProducts = catalog?.products.filter((one) => one.tab === product?.tab) ?? [];
 
     const save = async (event: FormEvent) => {
         event.preventDefault();
@@ -104,96 +93,61 @@ export const ManualQuoteForm = ({ token, onSaved, onCancel, onSessionExpired }: 
         }
     };
 
+    if (isLoading || catalogError || !catalog?.products.length) {
+        return (
+            <div className="mq" aria-busy={isLoading}>
+                <h2 className="mq-title script">Nueva cotización</h2>
+                {isLoading ? (
+                    <p className="mq-hint">Cargando las recetas…</p>
+                ) : catalogError ? (
+                    <>
+                        <p className="qp-error" role="alert">{catalogError}</p>
+                        <button type="button" className="qp-btn" onClick={() => void reload()}>
+                            Reintentar
+                        </button>
+                    </>
+                ) : (
+                    <p className="mq-hint">No hay recetas publicadas todavía. Publica una desde la pestaña Recetas.</p>
+                )}
+                <div className="mq-actions">
+                    <button type="button" className="qp-btn" onClick={onCancel}>
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <form className="mq" onSubmit={save} aria-label="Registrar cotización">
             <div className="mq-head">
                 <h2 className="mq-title script">Nueva cotización</h2>
                 <div className="mq-seg" role="group" aria-label="Tipo">
-                    <button type="button" aria-pressed={draft.kind === "cake"} onClick={() => update({ kind: "cake" })}>
-                        Cake
-                    </button>
-                    <button type="button" aria-pressed={draft.kind === "postre"} onClick={() => update({ kind: "postre" })}>
-                        Flan y cheesecake
-                    </button>
+                    {tabs.map((tab) => (
+                        <button
+                            key={tab}
+                            type="button"
+                            aria-pressed={product?.tab === tab}
+                            onClick={() => {
+                                const first = catalog.products.find((one) => one.tab === tab);
+                                if (first) setPick(getCatalogPickFor(first));
+                            }}
+                        >
+                            {tab}
+                        </button>
+                    ))}
                 </div>
             </div>
 
             <div className="mq-grid">
                 <div className="mq-options">
-                    {draft.kind === "cake" ? (
-                        <>
-                            <fieldset className="mq-fs">
-                                <legend>Tamaño</legend>
-                                <div className="mq-chips">
-                                    {QUOTE_SIZES.map((size) => (
-                                        <Chip key={size} isOn={draft.size === size} onClick={() => update({ size })}>
-                                            {size}"
-                                        </Chip>
-                                    ))}
-                                </div>
-                            </fieldset>
-
-                            <fieldset className="mq-fs">
-                                <legend>Altura</legend>
-                                <div className="mq-chips">
-                                    {QUOTE_HEIGHTS.map((height) => (
-                                        <Chip
-                                            key={height.value}
-                                            isOn={draft.height === height.value}
-                                            onClick={() => update({ height: height.value })}
-                                        >
-                                            {height.label}
-                                        </Chip>
-                                    ))}
-                                </div>
-                            </fieldset>
-
-                            <fieldset className="mq-fs">
-                                <legend>Masa</legend>
-                                <div className="mq-chips">
-                                    {QUOTE_DOUGHS.map((dough) => {
-                                        const extra = getQuoteSurcharge(dough.extra, draft.size, draft.height);
-                                        return (
-                                            <Chip key={dough.id} isOn={draft.doughId === dough.id} onClick={() => update({ doughId: dough.id })}>
-                                                {dough.name}
-                                                {extra ? <small>+{formatPrice(extra)}</small> : null}
-                                            </Chip>
-                                        );
-                                    })}
-                                </div>
-                            </fieldset>
-
-                            <fieldset className="mq-fs">
-                                <legend>
-                                    Rellenos <small>{getFillingsLabel(draft.fillingIds)}</small>
-                                </legend>
-                                <div className="mq-chips">
-                                    {QUOTE_FILLINGS.map((filling) => {
-                                        const extra = getQuoteSurcharge(filling.extra, draft.size, draft.height);
-                                        return (
-                                            <Chip
-                                                key={filling.id}
-                                                isOn={draft.fillingIds.includes(filling.id)}
-                                                isDisabled={!canAddFilling(draft.fillingIds, filling.id)}
-                                                onClick={() => toggleFilling(filling.id)}
-                                            >
-                                                {filling.name}
-                                                {extra ? <small>+{formatPrice(extra)}</small> : null}
-                                            </Chip>
-                                        );
-                                    })}
-                                </div>
-                            </fieldset>
-
-                            <p className="mq-hint">Sin fotos ni topper: esto es para cakes del catálogo. Los personalizados siguen entrando por el cotizador de la web.</p>
-                        </>
-                    ) : (
+                    {product ? (
                         <>
                             <fieldset className="mq-fs">
                                 <legend>Postre</legend>
                                 <div className="mq-chips">
-                                    {QUOTE_DESSERTS.map((one) => (
-                                        <Chip key={one.id} isOn={draft.dessertId === one.id} onClick={() => update({ dessertId: one.id })}>
+                                    {tabProducts.map((one) => (
+                                        <Chip key={one.id} isOn={one.id === product.id} onClick={() => setPick(getCatalogPickFor(one))}>
                                             {one.name}
                                         </Chip>
                                     ))}
@@ -203,15 +157,43 @@ export const ManualQuoteForm = ({ token, onSaved, onCancel, onSessionExpired }: 
                             <fieldset className="mq-fs">
                                 <legend>Tamaño</legend>
                                 <div className="mq-chips">
-                                    {DESSERT_SIZES.map((size) => (
-                                        <Chip key={size} isOn={draft.dessertSize === size} onClick={() => update({ dessertSize: size })}>
-                                            {size}" <small>{formatPrice(getDessertPrice(dessert, size))}</small>
+                                    {product.sizes.map((size) => (
+                                        <Chip key={size.id} isOn={size.id === sizeId} onClick={() => setPick({ productId: product.id, sizeId: size.id, optionIds })}>
+                                            {size.label} <small>{formatPrice(size.price)}</small>
                                         </Chip>
                                     ))}
                                 </div>
                             </fieldset>
+
+                            {product.groups.map((group) => (
+                                <fieldset className="mq-fs" key={group.id}>
+                                    <legend>
+                                        {group.name} <small>{getCatalogGroupRule(group)}</small>
+                                    </legend>
+                                    <div className="mq-chips">
+                                        {group.options.map((option) => {
+                                            const price = getCatalogOptionPrice(option, sizeId);
+                                            return (
+                                                <Chip
+                                                    key={option.id}
+                                                    isOn={optionIds.includes(option.id)}
+                                                    isDisabled={!canAddCatalogOption(group, optionIds, sizeId, option.id)}
+                                                    onClick={() =>
+                                                        setPick({ productId: product.id, sizeId, optionIds: toggleCatalogOption(group, optionIds, sizeId, option.id) })
+                                                    }
+                                                >
+                                                    {option.name}
+                                                    {price ? <small>+{formatPrice(price)}</small> : null}
+                                                </Chip>
+                                            );
+                                        })}
+                                    </div>
+                                </fieldset>
+                            ))}
+
+                            <p className="mq-hint">Sin fotos ni topper: esto es para recetas del catálogo. Los personalizados siguen entrando por el cotizador de la web.</p>
                         </>
-                    )}
+                    ) : null}
                 </div>
 
                 <div className="mq-side">
@@ -219,7 +201,7 @@ export const ManualQuoteForm = ({ token, onSaved, onCancel, onSessionExpired }: 
                         <label htmlFor="mq-name">Cliente</label>
                         <input
                             id="mq-name"
-                            value={draft.customerName}
+                            value={details.customerName}
                             autoComplete="off"
                             maxLength={60}
                             onChange={(event) => update({ customerName: event.target.value })}
@@ -235,7 +217,7 @@ export const ManualQuoteForm = ({ token, onSaved, onCancel, onSessionExpired }: 
                                 inputMode="numeric"
                                 autoComplete="off"
                                 placeholder="6000-0000"
-                                value={draft.customerPhone}
+                                value={details.customerPhone}
                                 onChange={(event) => update({ customerPhone: event.target.value })}
                             />
                         </div>
@@ -244,7 +226,7 @@ export const ManualQuoteForm = ({ token, onSaved, onCancel, onSessionExpired }: 
                             <input
                                 id="mq-date"
                                 type="date"
-                                value={draft.desiredDate}
+                                value={details.desiredDate}
                                 onChange={(event) => update({ desiredDate: event.target.value })}
                             />
                         </div>
@@ -256,7 +238,7 @@ export const ManualQuoteForm = ({ token, onSaved, onCancel, onSessionExpired }: 
                         <textarea
                             id="mq-note"
                             maxLength={500}
-                            value={draft.note}
+                            value={details.note}
                             onChange={(event) => update({ note: event.target.value })}
                         />
                     </div>
@@ -264,10 +246,10 @@ export const ManualQuoteForm = ({ token, onSaved, onCancel, onSessionExpired }: 
                     <fieldset className="mq-fs">
                         <legend>Estado inicial</legend>
                         <div className="mq-chips">
-                            <Chip isOn={draft.status === "nueva"} onClick={() => update({ status: "nueva" })}>
+                            <Chip isOn={details.status === "nueva"} onClick={() => update({ status: "nueva" })}>
                                 Nueva
                             </Chip>
-                            <Chip isOn={draft.status === "confirmada"} onClick={() => update({ status: "confirmada" })}>
+                            <Chip isOn={details.status === "confirmada"} onClick={() => update({ status: "confirmada" })}>
                                 Confirmada
                             </Chip>
                         </div>
@@ -275,28 +257,25 @@ export const ManualQuoteForm = ({ token, onSaved, onCancel, onSessionExpired }: 
 
                     <div className="mq-receipt">
                         <ul className="qp-spec">
-                            {draft.kind === "cake" ? (
+                            {product && breakdown ? (
                                 <>
                                     <li>
-                                        <span>Cake {draft.size}" · {draft.height === 2 ? "doble altura" : "1 altura"}</span>
+                                        <span>
+                                            {product.name} {product.sizes.find((size) => size.id === sizeId)?.label}
+                                        </span>
                                         <span>{formatPrice(breakdown.base)}</span>
                                     </li>
-                                    {breakdown.lines.map((line) => (
-                                        <li key={line.label}>
-                                            <span>{line.label} · {line.name}</span>
+                                    {breakdown.lines.map((line, index) => (
+                                        <li key={`${line.group}-${index}`}>
+                                            <span>{line.group} · {line.name}</span>
                                             {line.price ? <span>+{formatPrice(line.price)}</span> : <span className="is-free">incluido</span>}
                                         </li>
                                     ))}
                                 </>
-                            ) : (
-                                <li>
-                                    <span>{dessert.name} {draft.dessertSize}"</span>
-                                    <span>{formatPrice(dessertPrice)}</span>
-                                </li>
-                            )}
+                            ) : null}
                             <li className="qp-spec__sum">
                                 <span>Total</span>
-                                <span>{formatPrice(draft.kind === "cake" ? breakdown.total : dessertPrice)}</span>
+                                <span>{formatPrice(breakdown?.total ?? 0)}</span>
                             </li>
                         </ul>
 

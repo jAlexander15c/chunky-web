@@ -13,7 +13,7 @@ import {
     formatPrice,
     formatQuoteDate,
     getQuoteSizeLabel,
-    isDessertSelection,
+    getQuoteSpecLines,
 } from "@/helpers";
 import type { IQuote, IQuoteDetail, QuoteStatus } from "@/helpers";
 
@@ -176,7 +176,7 @@ const QuoteDetail = ({
                 </p>
             ) : null}
 
-            {/* Los postres enteros (flan, cheesecake…) se cotizan sin fotos */}
+            {/* Las recetas sin foto (flan, cheesecake…) se cotizan sin fotos */}
             {quote.cakeImage ? (
                 <div className="qp-photos">
                     <figure className="qp-photo">
@@ -206,20 +206,12 @@ const QuoteDetail = ({
                             <span>{getQuoteSizeLabel(selection)}</span>
                             <span>{formatPrice(selection.basePrice)}</span>
                         </li>
-                        {isDessertSelection(selection) ? null : [{ label: "Masa", line: selection.dough }, ...selection.fillings.map((line, index) => ({ label: `Relleno ${index + 1}`, line }))].map(
-                            ({ label, line }) => (
-                                <li key={label}>
-                                    <span>{label} · {line.name}</span>
-                                    {line.price ? <span>+{formatPrice(line.price)}</span> : <span className="is-free">incluido</span>}
-                                </li>
-                            )
-                        )}
-                        {!isDessertSelection(selection) && selection.topper ? (
-                            <li>
-                                <span>Topper</span>
-                                <span>+{formatPrice(selection.topperPrice)}</span>
+                        {getQuoteSpecLines(selection).map((line, index) => (
+                            <li key={`${line.label}-${index}`}>
+                                <span>{line.name ? `${line.label} · ${line.name}` : line.label}</span>
+                                {line.price ? <span>+{formatPrice(line.price)}</span> : <span className="is-free">incluido</span>}
                             </li>
-                        ) : null}
+                        ))}
                         <li className="qp-spec__sum">
                             <span>Total estimado</span>
                             <span>{formatPrice(quote.total)}</span>

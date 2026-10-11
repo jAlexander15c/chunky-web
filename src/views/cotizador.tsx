@@ -2,99 +2,64 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { PiArrowRightBold, PiCheckBold, PiImageBold, PiWhatsappLogoBold } from "react-icons/pi";
 
-import { AnimatedPrice, useCart } from "@/components";
+import { AnimatedPrice, useCart, useCatalog } from "@/components";
 import {
-    DESSERT_SIZES,
     HttpError,
-    MAX_FILLINGS,
-    QUOTE_DESSERTS,
-    QUOTE_DOUGHS,
-    QUOTE_FILLINGS,
-    QUOTE_HEIGHTS,
     QUOTE_LEAD_DAYS,
-    QUOTE_SIZES,
-    TOPPER_PRICE,
-    canAddFilling,
+    canAddCatalogOption,
     compressImage,
     formatPhone,
     formatPrice,
-    getFillingsLabel,
-    getQuoteBasePrice,
-    getQuoteBreakdown,
-    getQuoteMissing,
-    getQuoteSurcharge,
+    getCatalogBreakdown,
+    getCatalogGroupRule,
+    getCatalogOptionPrice,
+    getCatalogPickFor,
     getEarliestQuoteDate,
-    getDessertPrice,
-    getQuoteDessert,
+    getQuoteMissing,
     getWhatsAppUrl,
-    isDessertSelection,
+    resolveCatalogPick,
     submitQuote,
+    toggleCatalogOption,
     trackEvent,
 } from "@/helpers";
-import type { IQuote, IQuoteDessert, IQuoteDraft, IQuoteOption, QuoteHeight, QuoteKind, QuoteSize } from "@/helpers";
+import type { ICatalogGroup, ICatalogOption, ICatalogPick, ICatalogProduct, IQuote, IQuoteDraft, QuoteKind } from "@/helpers";
 
 import "./cotizador.css";
 
-const INITIAL_DRAFT: IQuoteDraft = {
-    kind: "cake",
-    size: "6",
-    height: 2,
-    doughId: QUOTE_DOUGHS[0].id,
-    fillingIds: [],
-    topper: false,
-    dessertId: QUOTE_DESSERTS[0].id,
-    dessertSize: "8",
+type ICustomerDraft = Omit<IQuoteDraft, keyof ICatalogPick | "topper" | "cakeImage" | "topperImage">;
+
+const INITIAL_CUSTOMER: ICustomerDraft = {
     customerName: "",
     customerPhone: "",
     customerEmail: "",
     desiredDate: "",
     note: "",
-    cakeImage: null,
-    topperImage: null,
     privacyConsent: false,
 };
 
-/**
- * Paso del cotizador que marca cada campo en el tracking (quote_step). Cambiar de pestaña
- * no es armar, y el topper es opcional: no marcan paso.
- */
-const QUOTE_STEP_BY_FIELD: Partial<Record<keyof IQuoteDraft, string>> = {
-    size: "tamano",
-    height: "tamano",
-    doughId: "masa",
-    fillingIds: "rellenos",
-    cakeImage: "fotos",
-    dessertId: "postre",
-    dessertSize: "tamano",
-    customerName: "datos",
-    customerPhone: "datos",
-    customerEmail: "datos",
-    desiredDate: "datos",
-    note: "datos",
-};
+const INITIAL_PICK: ICatalogPick = { productId: null, sizeId: null, optionIds: [] };
 
-/** Marca cada paso una sola vez por cake o postre: el tablero cuenta sesiones, no clics. */
+/** Pasos del embudo del cotizador (quote_step). Los de antes se conservan: masa y rellenos son el primer grupo de opciones y los demás. */
+type QuoteStep = "postre" | "tamano" | "masa" | "rellenos" | "fotos" | "datos";
+
+/** El tablero separa el embudo en cakes (con foto) y postres enteros: se sigue mandando así. */
+const getTrackKind = (product: ICatalogProduct): QuoteKind => (product.needsPhoto ? "cake" : "postre");
+
+/** Marca cada paso una sola vez por tipo: el tablero cuenta sesiones, no clics. */
 const useQuoteStepTracking = () => {
     const tracked = useRef(new Set<string>());
-    return useCallback((kind: QuoteKind, field: keyof IQuoteDraft) => {
-        const step = QUOTE_STEP_BY_FIELD[field];
+    return useCallback((kind: QuoteKind, step: QuoteStep) => {
         const key = `${kind}:${step}`;
-        if (!step || tracked.current.has(key)) return;
+        if (tracked.current.has(key)) return;
         tracked.current.add(key);
         trackEvent("quote_step", step, kind);
     }, []);
 };
 
-/** Lo que se cotizó, legible en el tablero: el tamaño del cake o el postre con su tamaño. */
-const getQuoteTrackLabel = (draft: IQuoteDraft, dessert: IQuoteDessert) =>
-    draft.kind === "postre"
-        ? `${dessert.name} ${draft.dessertSize}"`
-        : `${draft.size}" ${draft.height === 2 ? "doble altura" : "1 altura"}`;
-
 const useCotizadorHead = () => {
     useEffect(() => {
         const previousTitle = document.title;
-        document.title = "Cotiza tu cake · Chunky Bites";
+        document.title = "Cotiza tu postre · Chunky Bites";
         return () => {
             document.title = previousTitle;
         };
@@ -103,41 +68,36 @@ const useCotizadorHead = () => {
 
 /* ============ Piezas ============ */
 
-/** El cake dibujado: una capa o dos, para que la altura se vea y no solo se lea. */
-const CakeDrawing = ({ isDouble }: { isDouble: boolean }) => {
-    const top = isDouble ? 22 : 32;
-
-    return (
-        <svg className="quote-size__drawing" viewBox="0 0 92 78" aria-hidden="true">
-            <ellipse cx="46" cy="72" rx="40" ry="4" fill="var(--mora)" opacity=".14" />
-            {isDouble ? (
-                <>
-                    <rect x="14" y="30" width="64" height="20" rx="5" fill="var(--orquidea)" />
-                    <rect x="14" y="50" width="64" height="20" rx="5" fill="var(--mantequilla)" />
-                    <rect x="12" y="49" width="68" height="3" fill="var(--crema)" />
-                </>
-            ) : (
-                <rect x="14" y="40" width="64" height="24" rx="5" fill="var(--mantequilla)" />
-            )}
-            <path
-                d={`M14 ${top + 12}q8 -14 16 0t16 0t16 0t16 0H14z`}
-                fill="var(--mora)"
-                transform={isDouble ? "translate(0,-2)" : undefined}
-            />
-            <circle cx="46" cy={top - 4} r="4.5" fill="var(--lima)" stroke="var(--mora)" strokeWidth="2" />
-        </svg>
-    );
-};
+/** El cake dibujado: dos capas, para las recetas que piden foto de referencia. */
+const CakeDrawing = () => (
+    <svg className="quote-dessert__drawing" viewBox="0 0 92 78" aria-hidden="true">
+        <ellipse cx="46" cy="72" rx="40" ry="4" fill="var(--mora)" opacity=".14" />
+        <rect x="14" y="30" width="64" height="20" rx="5" fill="var(--orquidea)" />
+        <rect x="14" y="50" width="64" height="20" rx="5" fill="var(--mantequilla)" />
+        <rect x="12" y="49" width="68" height="3" fill="var(--crema)" />
+        <path d="M14 34q8 -14 16 0t16 0t16 0t16 0H14z" fill="var(--mora)" transform="translate(0,-2)" />
+        <circle cx="46" cy="18" r="4.5" fill="var(--lima)" stroke="var(--mora)" strokeWidth="2" />
+    </svg>
+);
 
 const DESSERT_COLORS: Record<string, { body: string; top: string }> = {
-    "flan-napolitano": { body: "var(--mantequilla)", top: "#b8742a" },
-    "beso-de-angel": { body: "var(--crema)", top: "var(--orquidea)" },
-    "cheesecake-ny": { body: "var(--mantequilla)", top: "var(--lima)" },
+    flan: { body: "var(--mantequilla)", top: "#b8742a" },
+    beso: { body: "var(--crema)", top: "var(--orquidea)" },
+    cheesecake: { body: "var(--mantequilla)", top: "var(--lima)" },
+};
+
+const DEFAULT_DESSERT_COLORS = { body: "var(--mantequilla)", top: "var(--orquidea)" };
+
+/** Los colores de los postres conocidos salen del nombre; cualquier receta nueva usa los de siempre. */
+const getDessertColors = (name: string) => {
+    const lower = name.toLowerCase();
+    const key = Object.keys(DESSERT_COLORS).find((one) => lower.includes(one));
+    return key ? DESSERT_COLORS[key] : DEFAULT_DESSERT_COLORS;
 };
 
 /** El postre dibujado: una sola capa baja con su cobertura. */
-const DessertDrawing = ({ dessert }: { dessert: IQuoteDessert }) => {
-    const colors = DESSERT_COLORS[dessert.id] ?? DESSERT_COLORS["cheesecake-ny"];
+const DessertDrawing = ({ name }: { name: string }) => {
+    const colors = getDessertColors(name);
 
     return (
         <svg className="quote-dessert__drawing" viewBox="0 0 92 70" aria-hidden="true">
@@ -148,15 +108,10 @@ const DessertDrawing = ({ dessert }: { dessert: IQuoteDessert }) => {
     );
 };
 
-const QUOTE_KINDS: { value: QuoteKind; label: string }[] = [
-    { value: "cake", label: "Cakes" },
-    { value: "postre", label: "Flan y cheesecake" },
-];
-
 interface ICustomerStepProps {
     step: number;
-    draft: IQuoteDraft;
-    update: <K extends keyof IQuoteDraft>(key: K, value: IQuoteDraft[K]) => void;
+    draft: ICustomerDraft;
+    update: <K extends keyof ICustomerDraft>(key: K, value: ICustomerDraft[K]) => void;
 }
 
 /** Los datos del cliente: iguales para un cake y un postre, y se conservan al cambiar de pestaña. */
@@ -252,7 +207,7 @@ const CustomerStep = ({ step, draft, update }: ICustomerStepProps) => (
 interface IOptionChipProps {
     type: "radio" | "checkbox";
     name: string;
-    option: IQuoteOption;
+    option: ICatalogOption;
     price: number;
     checked: boolean;
     disabled?: boolean;
@@ -270,12 +225,18 @@ const OptionChip = ({ type, name, option, price, checked, disabled, onChange }: 
             disabled={disabled}
             onChange={onChange}
         />
-        <span className={`quote-chip__body${option.extra ? " quote-chip__body--special" : ""}`}>
+        <span className={`quote-chip__body${price ? " quote-chip__body--special" : ""}`}>
             {option.name}
-            {option.extra ? <span className="quote-chip__extra">+{formatPrice(price)}</span> : null}
+            {price ? <span className="quote-chip__extra">+{formatPrice(price)}</span> : null}
         </span>
     </label>
 );
+
+/** Cómo se elige un grupo: "Elige 1", "Elige de 1 a 2"… y cuántas pueden ir sin recargo. */
+const getGroupHint = (group: ICatalogGroup) =>
+    group.freeMax !== null && group.max > 1
+        ? `${getCatalogGroupRule(group)}. ${group.freeMax === 0 ? "Todas suman su recargo." : `Máximo ${group.freeMax} sin recargo: las demás suman el suyo.`}`
+        : getCatalogGroupRule(group);
 
 interface IPhotoPickerProps {
     id: string;
@@ -334,9 +295,7 @@ const PhotoPicker = ({ id, label, hint, value, onChange }: IPhotoPickerProps) =>
 
 /* ============ Enviada ============ */
 
-const QuoteSent = ({ quote, onRestart }: { quote: IQuote; onRestart: () => void }) => {
-    // Los postres enteros no llevan fotos
-    const hasPhotos = !isDessertSelection(quote.selection);
+const QuoteSent = ({ quote, hasPhotos, onRestart }: { quote: IQuote; hasPhotos: boolean; onRestart: () => void }) => {
     const message =
         `Hola Chunky Bites, soy ${quote.customerName}. Acabo de enviar la cotización ${quote.code} desde la web ` +
         `(total estimado ${formatPrice(quote.total)}).${hasPhotos ? " Ya subí mis fotos de referencia." : ""}`;
@@ -366,58 +325,79 @@ const QuoteSent = ({ quote, onRestart }: { quote: IQuote; onRestart: () => void 
 export const Cotizador = () => {
     useCotizadorHead();
     const { count: cartCount } = useCart();
-    const [draft, setDraft] = useState<IQuoteDraft>(INITIAL_DRAFT);
+    const { catalog, isLoading, error: catalogError, reload, refresh } = useCatalog();
+    const [pick, setPick] = useState<ICatalogPick>(INITIAL_PICK);
+    const [customer, setCustomer] = useState<ICustomerDraft>(INITIAL_CUSTOMER);
+    const [topper, setTopper] = useState(false);
+    const [cakeImage, setCakeImage] = useState<string | null>(null);
+    const [topperImage, setTopperImage] = useState<string | null>(null);
     const [isSending, setIsSending] = useState(false);
     const [sendError, setSendError] = useState("");
-    const [sent, setSent] = useState<IQuote | null>(null);
+    const [sent, setSent] = useState<{ quote: IQuote; hasPhotos: boolean } | null>(null);
 
     const markStep = useQuoteStepTracking();
 
-    const update = <K extends keyof IQuoteDraft>(key: K, value: IQuoteDraft[K]) => {
-        // Quitar la foto no es avanzar
-        if (key !== "cakeImage" || value) markStep(draft.kind, key);
-        setDraft((current) => ({ ...current, [key]: value }));
+    const { product, sizeId, optionIds } = resolveCatalogPick(catalog, pick);
+    const size = product?.sizes.find((one) => one.id === sizeId);
+    const hasTopper = Boolean(product?.allowsTopper && topper);
+    const breakdown = product ? getCatalogBreakdown(product, sizeId, optionIds, hasTopper) : null;
+    const total = breakdown?.total ?? 0;
+    const draft: IQuoteDraft = {
+        ...customer,
+        productId: product?.id ?? null,
+        sizeId,
+        optionIds,
+        topper: hasTopper,
+        cakeImage,
+        topperImage,
+    };
+    const missing = getQuoteMissing(draft, product);
+
+    const updateCustomer = <K extends keyof ICustomerDraft>(key: K, value: ICustomerDraft[K]) => {
+        if (product && key !== "privacyConsent") markStep(getTrackKind(product), "datos");
+        setCustomer((current) => ({ ...current, [key]: value }));
     };
 
-    const selectSize = (size: QuoteSize) => {
-        markStep(draft.kind, "size");
-        setDraft((current) => ({ ...current, size }));
+    const selectProduct = (next: ICatalogProduct) => {
+        markStep(getTrackKind(next), "postre");
+        setPick(getCatalogPickFor(next));
+        setTopper(false);
+        setTopperImage(null);
     };
 
-    const toggleFilling = (id: string) => {
-        markStep(draft.kind, "fillingIds");
-        setDraft((current) => ({
-            ...current,
-            fillingIds: current.fillingIds.includes(id)
-                ? current.fillingIds.filter((one) => one !== id)
-                : canAddFilling(current.fillingIds, id)
-                  ? [...current.fillingIds, id]
-                  : current.fillingIds,
-        }));
+    const selectSize = (id: number) => {
+        if (!product) return;
+        markStep(getTrackKind(product), "tamano");
+        setPick({ productId: product.id, sizeId: id, optionIds });
     };
 
-    const dessert = getQuoteDessert(draft.dessertId);
-    const cakeBreakdown = getQuoteBreakdown(draft);
-    const { base, lines } = cakeBreakdown;
-    const total = draft.kind === "postre" ? getDessertPrice(dessert, draft.dessertSize) : cakeBreakdown.total;
-    const missing = getQuoteMissing(draft);
-    const surcharge = (extra: number) => getQuoteSurcharge(extra, draft.size, draft.height);
+    const toggleOption = (group: ICatalogGroup, groupIndex: number, optionId: number) => {
+        if (!product) return;
+        markStep(getTrackKind(product), groupIndex === 0 ? "masa" : "rellenos");
+        setPick({ productId: product.id, sizeId, optionIds: toggleCatalogOption(group, optionIds, sizeId, optionId) });
+    };
 
     const send = async () => {
-        if (missing.length || isSending) return;
+        if (!product || !size || missing.length || isSending) return;
         setIsSending(true);
         setSendError("");
         try {
-            const { quote } = await submitQuote(draft);
-            trackEvent("quote_submit", draft.kind, getQuoteTrackLabel(draft, dessert), quote.total);
-            setSent(quote);
+            const { quote } = await submitQuote(draft, product, total);
+            trackEvent("quote_submit", getTrackKind(product), `${product.name} ${size.label}`, quote.total);
+            setSent({ quote, hasPhotos: product.needsPhoto });
             document.getElementById("resumen")?.scrollIntoView({ block: "start" });
         } catch (error) {
-            setSendError(
-                error instanceof HttpError && error.status < 500
-                    ? error.message
-                    : "No pudimos enviar tu cotización. Revisa tu conexión e inténtalo otra vez."
-            );
+            if (error instanceof HttpError && error.status === 409 && error.code === "PRICE_CHANGED") {
+                // El precio cambió mientras armaba: se vuelve a pedir el catálogo y se avisa
+                await refresh();
+                setSendError("El precio cambió, revisa el total");
+            } else {
+                setSendError(
+                    error instanceof HttpError && error.status < 500
+                        ? error.message
+                        : "No pudimos enviar tu cotización. Revisa tu conexión e inténtalo otra vez."
+                );
+            }
         } finally {
             setIsSending(false);
         }
@@ -425,348 +405,290 @@ export const Cotizador = () => {
 
     const restart = () => {
         setSent(null);
-        setDraft((current) => ({ ...INITIAL_DRAFT, kind: current.kind }));
+        setPick((current) => ({ ...INITIAL_PICK, productId: current.productId }));
+        setCustomer(INITIAL_CUSTOMER);
+        setTopper(false);
+        setCakeImage(null);
+        setTopperImage(null);
         window.scrollTo(0, 0);
     };
 
-    const includedDoughs = QUOTE_DOUGHS.filter((one) => !one.extra);
-    const specialDoughs = QUOTE_DOUGHS.filter((one) => one.extra);
-    const includedFillings = QUOTE_FILLINGS.filter((one) => !one.extra);
-    const specialFillings = QUOTE_FILLINGS.filter((one) => one.extra);
+    const tabProducts = catalog?.products.filter((one) => one.tab === product?.tab) ?? [];
+    const hasExtras = Boolean(product && (product.needsPhoto || product.allowsTopper));
+    const groupsCount = product?.groups.length ?? 0;
+    const extrasStep = 3 + groupsCount;
+    const customerStep = extrasStep + (hasExtras ? 1 : 0);
+    const isReady = Boolean(product && !isLoading && !catalogError);
 
     return (
         <main className="quote">
             <section className="quote__intro">
                 <p className="quote__script script">a tu medida</p>
-                <h1>Cotiza tu cake y mira el precio al instante</h1>
+                <h1>Cotiza tu postre y mira el precio al instante</h1>
                 <p>
-                    {draft.kind === "postre"
-                        ? "Elige el postre y el tamaño y envíanos la cotización."
-                        : "Elige tamaño, masa y rellenos, sube tu foto de referencia y envíanos la cotización."}{" "}
+                    {product?.needsPhoto
+                        ? "Elige tamaño y opciones, sube tu foto de referencia y envíanos la cotización."
+                        : "Elige el postre, el tamaño y envíanos la cotización."}{" "}
                     Te la confirmamos por correo.
                 </p>
             </section>
 
-            <div className="quote-kinds" role="radiogroup" aria-label="Qué quieres cotizar">
-                {QUOTE_KINDS.map((kind) => (
-                    <label key={kind.value}>
-                        <input
-                            id={`kind-${kind.value}`}
-                            type="radio"
-                            name="kind"
-                            value={kind.value}
-                            checked={draft.kind === kind.value}
-                            onChange={() => update("kind", kind.value)}
-                        />
-                        <span>{kind.label}</span>
-                    </label>
-                ))}
-            </div>
+            {isLoading ? (
+                <div className="quote-skeleton" aria-busy="true" aria-label="Cargando los postres">
+                    <span /> <span /> <span />
+                </div>
+            ) : catalogError ? (
+                <div className="quote-notice" role="alert">
+                    <p>{catalogError}</p>
+                    <button type="button" className="quote-button" onClick={() => void reload()}>
+                        Reintentar
+                    </button>
+                </div>
+            ) : !product ? (
+                <div className="quote-notice">
+                    <p className="quote__script script">Muy pronto</p>
+                    <p>Estamos preparando los postres para cotizar. Vuelve en unos días.</p>
+                </div>
+            ) : null}
 
-            <div className="quote__layout">
-                {draft.kind === "postre" ? (
-                    <form className="quote__form" onSubmit={(event) => event.preventDefault()} noValidate>
-                        <fieldset className="quote-step">
-                            <legend className="quote-step__title">
-                                <span className="quote-step__n script">1</span>Postre
-                            </legend>
-                            <div className="quote-desserts">
-                                {QUOTE_DESSERTS.map((option) => (
-                                    <label key={option.id} className="quote-size quote-dessert">
-                                        <input
-                                            id={`dessert-${option.id}`}
-                                            type="radio"
-                                            name="dessert"
-                                            value={option.id}
-                                            checked={draft.dessertId === option.id}
-                                            onChange={() => update("dessertId", option.id)}
-                                        />
-                                        <span className="quote-size__card">
-                                            <DessertDrawing dessert={option} />
-                                            <span className="quote-dessert__text">
-                                                <b>{option.name}</b>
-                                                <small>{option.description}</small>
-                                            </span>
-                                            <span className="quote-size__price">
-                                                desde {formatPrice(getDessertPrice(option, DESSERT_SIZES[0]))}
-                                            </span>
-                                        </span>
-                                    </label>
-                                ))}
-                            </div>
-                        </fieldset>
-
-                        <fieldset className="quote-step">
-                            <legend className="quote-step__title">
-                                <span className="quote-step__n script">2</span>Tamaño
-                            </legend>
-                            <div className="quote-sizes">
-                                {DESSERT_SIZES.map((size) => (
-                                    <label key={size} className="quote-size">
-                                        <input
-                                            id={`dessert-size-${size}`}
-                                            type="radio"
-                                            name="dessert-size"
-                                            value={size}
-                                            checked={draft.dessertSize === size}
-                                            onChange={() => update("dessertSize", size)}
-                                        />
-                                        <span className="quote-size__card">
-                                            <span className="quote-size__inch">{size}"</span>
-                                            <span className="quote-size__price">{formatPrice(getDessertPrice(dessert, size))}</span>
-                                        </span>
-                                    </label>
-                                ))}
-                            </div>
-                            <p className="quote-step__hint">Postre entero. El precio cambia con el tamaño.</p>
-                        </fieldset>
-
-                        <CustomerStep step={3} draft={draft} update={update} />
-                    </form>
-                ) : (
-                    <form className="quote__form" onSubmit={(event) => event.preventDefault()} noValidate>
-                        <fieldset className="quote-step">
-                            <legend className="quote-step__title">
-                                <span className="quote-step__n script">1</span>Tamaño y altura
-                            </legend>
-                            <div className="quote-sizes">
-                                {QUOTE_SIZES.map((size) => (
-                                    <label key={size} className="quote-size">
-                                        <input
-                                            id={`size-${size}`}
-                                            type="radio"
-                                            name="size"
-                                            value={size}
-                                            checked={draft.size === size}
-                                            onChange={() => selectSize(size)}
-                                        />
-                                        <span className="quote-size__card">
-                                            <CakeDrawing isDouble={draft.height === 2} />
-                                            <span className="quote-size__inch">{size}"</span>
-                                            <span className="quote-size__price">{formatPrice(getQuoteBasePrice(size, draft.height))}</span>
-                                        </span>
-                                    </label>
-                                ))}
-                            </div>
-                            <div className="quote-heights" role="radiogroup" aria-label="Altura">
-                                {QUOTE_HEIGHTS.map((height) => (
-                                    <label key={height.value}>
-                                        <input
-                                            id={`height-${height.value}`}
-                                            type="radio"
-                                            name="height"
-                                            value={height.value}
-                                            checked={draft.height === height.value}
-                                            onChange={() => update("height", height.value as QuoteHeight)}
-                                        />
-                                        <span>{height.label}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </fieldset>
-
-                        <fieldset className="quote-step">
-                            <legend className="quote-step__title">
-                                <span className="quote-step__n script">2</span>Masa
-                            </legend>
-                            <p className="quote-step__hint">Los recargos se ajustan al tamaño y la altura.</p>
-                            <p className="quote-group">Incluida</p>
-                            <div className="quote-chips">
-                                {includedDoughs.map((option) => (
-                                    <OptionChip
-                                        key={option.id}
+            {isReady && catalog && product ? (
+                <>
+                    {catalog.tabs.length > 1 ? (
+                        <div className="quote-kinds" role="radiogroup" aria-label="Qué quieres cotizar">
+                            {catalog.tabs.map((tab) => (
+                                <label key={tab}>
+                                    <input
+                                        id={`kind-${tab}`}
                                         type="radio"
-                                        name="dough"
-                                        option={option}
-                                        price={0}
-                                        checked={draft.doughId === option.id}
-                                        onChange={() => update("doughId", option.id)}
+                                        name="kind"
+                                        value={tab}
+                                        checked={product.tab === tab}
+                                        onChange={() => {
+                                            const first = catalog.products.find((one) => one.tab === tab);
+                                            if (first) selectProduct(first);
+                                        }}
                                     />
-                                ))}
-                            </div>
-                            <p className="quote-group">Especiales</p>
-                            <div className="quote-chips">
-                                {specialDoughs.map((option) => (
-                                    <OptionChip
-                                        key={option.id}
-                                        type="radio"
-                                        name="dough"
-                                        option={option}
-                                        price={surcharge(option.extra)}
-                                        checked={draft.doughId === option.id}
-                                        onChange={() => update("doughId", option.id)}
-                                    />
-                                ))}
-                            </div>
-                        </fieldset>
+                                    <span>{tab}</span>
+                                </label>
+                            ))}
+                        </div>
+                    ) : null}
 
-                        <fieldset className="quote-step">
-                            <legend className="quote-step__title">
-                                <span className="quote-step__n script">3</span>Rellenos
-                            </legend>
-                            <span
-                                className={`quote-counter${draft.fillingIds.length ? " is-set" : ""}`}
-                                aria-live="polite"
-                            >
-                                {getFillingsLabel(draft.fillingIds)}
-                            </span>
-                            {[
-                                { label: "Incluidos", options: includedFillings },
-                                { label: "Especiales", options: specialFillings },
-                            ].map((group) => (
-                                <div key={group.label}>
-                                    <p className="quote-group">{group.label}</p>
+                    <div className="quote__layout">
+                        <form className="quote__form" onSubmit={(event) => event.preventDefault()} noValidate>
+                            <fieldset className="quote-step">
+                                <legend className="quote-step__title">
+                                    <span className="quote-step__n script">1</span>Postre
+                                </legend>
+                                <div className="quote-desserts">
+                                    {tabProducts.map((option) => (
+                                        <label key={option.id} className="quote-size quote-dessert">
+                                            <input
+                                                id={`product-${option.id}`}
+                                                type="radio"
+                                                name="product"
+                                                value={option.id}
+                                                checked={product.id === option.id}
+                                                onChange={() => selectProduct(option)}
+                                            />
+                                            <span className="quote-size__card">
+                                                {option.needsPhoto ? <CakeDrawing /> : <DessertDrawing name={option.name} />}
+                                                <span className="quote-dessert__text">
+                                                    <b>{option.name}</b>
+                                                    {option.description ? <small>{option.description}</small> : null}
+                                                </span>
+                                                {option.sizes.length ? (
+                                                    <span className="quote-size__price">
+                                                        desde {formatPrice(Math.min(...option.sizes.map((one) => one.price)))}
+                                                    </span>
+                                                ) : null}
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </fieldset>
+
+                            <fieldset className="quote-step">
+                                <legend className="quote-step__title">
+                                    <span className="quote-step__n script">2</span>Tamaño
+                                </legend>
+                                <div className="quote-sizes">
+                                    {product.sizes.map((one) => (
+                                        <label key={one.id} className="quote-size">
+                                            <input
+                                                id={`size-${one.id}`}
+                                                type="radio"
+                                                name="size"
+                                                value={one.id}
+                                                checked={sizeId === one.id}
+                                                onChange={() => selectSize(one.id)}
+                                            />
+                                            <span className="quote-size__card">
+                                                <span className={`quote-size__inch${one.label.length > 6 ? " quote-size__inch--long" : ""}`}>{one.label}</span>
+                                                <span className="quote-size__price">{formatPrice(one.price)}</span>
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
+                                <p className="quote-step__hint">El precio cambia con el tamaño.</p>
+                            </fieldset>
+
+                            {product.groups.map((group, groupIndex) => (
+                                <fieldset className="quote-step" key={group.id}>
+                                    <legend className="quote-step__title">
+                                        <span className="quote-step__n script">{3 + groupIndex}</span>
+                                        {group.name}
+                                    </legend>
+                                    <p className="quote-step__hint">{getGroupHint(group)}</p>
                                     <div className="quote-chips">
                                         {group.options.map((option) => (
                                             <OptionChip
                                                 key={option.id}
-                                                type="checkbox"
-                                                name="filling"
+                                                type={group.max === 1 && group.min >= 1 ? "radio" : "checkbox"}
+                                                name={`group-${group.id}`}
                                                 option={option}
-                                                price={surcharge(option.extra)}
-                                                checked={draft.fillingIds.includes(option.id)}
-                                                disabled={!canAddFilling(draft.fillingIds, option.id)}
-                                                onChange={() => toggleFilling(option.id)}
+                                                price={getCatalogOptionPrice(option, sizeId)}
+                                                checked={optionIds.includes(option.id)}
+                                                disabled={!canAddCatalogOption(group, optionIds, sizeId, option.id)}
+                                                onChange={() => toggleOption(group, groupIndex, option.id)}
                                             />
                                         ))}
                                     </div>
-                                </div>
+                                </fieldset>
                             ))}
-                            <p className="quote-step__rule">
-                                Elige uno o {MAX_FILLINGS}. Dos rellenos incluidos no se pueden combinar: uno de los dos tiene que
-                                ser especial. Cada relleno especial suma su recargo.
-                            </p>
-                        </fieldset>
 
-                        <fieldset className="quote-step">
-                            <legend className="quote-step__title">
-                                <span className="quote-step__n script">4</span>Fotos y topper
-                            </legend>
-                            <div className="quote-extras">
-                                <PhotoPicker
-                                    id="cake-photo"
-                                    label="Foto de referencia del cake"
-                                    hint="Una imagen del diseño que te gustaría. JPG o PNG."
-                                    value={draft.cakeImage}
-                                    onChange={(value) => update("cakeImage", value)}
-                                />
+                            {hasExtras ? (
+                                <fieldset className="quote-step">
+                                    <legend className="quote-step__title">
+                                        <span className="quote-step__n script">{extrasStep}</span>
+                                        {product.needsPhoto && product.allowsTopper ? "Fotos y topper" : product.needsPhoto ? "Foto de referencia" : "Topper"}
+                                    </legend>
+                                    <div className="quote-extras">
+                                        {product.needsPhoto ? (
+                                            <PhotoPicker
+                                                id="cake-photo"
+                                                label="Foto de referencia"
+                                                hint="Una imagen del diseño que te gustaría. JPG o PNG."
+                                                value={cakeImage}
+                                                onChange={(value) => {
+                                                    // Quitar la foto no es avanzar
+                                                    if (value) markStep(getTrackKind(product), "fotos");
+                                                    setCakeImage(value);
+                                                }}
+                                            />
+                                        ) : null}
 
-                                <label className="quote-check">
-                                    <input
-                                        id="topper"
-                                        type="checkbox"
-                                        checked={draft.topper}
-                                        onChange={(event) => update("topper", event.target.checked)}
-                                    />
-                                    <span className="quote-check__box" aria-hidden="true">
-                                        <PiCheckBold />
-                                    </span>
-                                    <span className="quote-check__text">
-                                        <b>Agregar topper</b>
-                                        <small>Un adorno para la parte de arriba del cake.</small>
-                                    </span>
-                                    <span className="quote-check__price">+{formatPrice(TOPPER_PRICE)}</span>
-                                </label>
+                                        {product.allowsTopper ? (
+                                            <>
+                                                <label className="quote-check">
+                                                    <input
+                                                        id="topper"
+                                                        type="checkbox"
+                                                        checked={topper}
+                                                        onChange={(event) => setTopper(event.target.checked)}
+                                                    />
+                                                    <span className="quote-check__box" aria-hidden="true">
+                                                        <PiCheckBold />
+                                                    </span>
+                                                    <span className="quote-check__text">
+                                                        <b>Agregar topper</b>
+                                                        <small>Un adorno para la parte de arriba.</small>
+                                                    </span>
+                                                    <span className="quote-check__price">+{formatPrice(product.topperPrice)}</span>
+                                                </label>
 
-                                {draft.topper ? (
-                                    <PhotoPicker
-                                        id="topper-photo"
-                                        label="Foto de referencia del topper"
-                                        hint="Cómo lo imaginas: letras, figura o personaje."
-                                        value={draft.topperImage}
-                                        onChange={(value) => update("topperImage", value)}
-                                    />
-                                ) : null}
-                            </div>
-                        </fieldset>
-
-                        <CustomerStep step={5} draft={draft} update={update} />
-                    </form>
-                )}
-
-                <aside className="quote-summary" id="resumen" aria-label="Resumen de tu cake">
-                    {sent ? (
-                        <QuoteSent quote={sent} onRestart={restart} />
-                    ) : (
-                        <>
-                            <p className="quote-summary__kicker script">{draft.kind === "postre" ? "tu postre" : "tu cake"}</p>
-                            {draft.kind === "postre" ? (
-                                <ul className="quote-lines">
-                                    <li>
-                                        <span className="quote-lines__what">Postre</span>
-                                        <span className="quote-lines__name">
-                                            {dessert.name} {draft.dessertSize}"
-                                        </span>
-                                        <span className="quote-lines__amount">{formatPrice(total)}</span>
-                                    </li>
-                                </ul>
-                            ) : (
-                                <ul className="quote-lines">
-                                    <li>
-                                        <span className="quote-lines__what">Tamaño</span>
-                                        <span className="quote-lines__name">
-                                            Cake de {draft.size}" · {draft.height === 2 ? "doble altura" : "1 altura"}
-                                        </span>
-                                        <span className="quote-lines__amount">{formatPrice(base)}</span>
-                                    </li>
-                                    {lines.map((line) => (
-                                        <li key={line.label}>
-                                            <span className="quote-lines__what">{line.label}</span>
-                                            <span className="quote-lines__name">{line.name}</span>
-                                            {line.price ? (
-                                                <span className="quote-lines__amount">+{formatPrice(line.price)}</span>
-                                            ) : (
-                                                <span className="quote-lines__amount is-free">incluido</span>
-                                            )}
-                                        </li>
-                                    ))}
-                                    {!draft.fillingIds.length ? (
-                                        <li>
-                                            <span className="quote-lines__what">Rellenos</span>
-                                            <span className="quote-lines__name is-empty">Elige al menos uno</span>
-                                        </li>
-                                    ) : null}
-                                </ul>
-                            )}
-                            <div className="quote-total">
-                                <span>Total estimado</span>
-                                <AnimatedPrice value={total} className="quote-total__value" />
-                            </div>
-                            <p className="quote-summary__fine">
-                                Precio estimado. Te lo confirmamos por correo antes de preparar nada.
-                            </p>
-                            {missing.length ? (
-                                <ul className="quote-missing" aria-live="polite">
-                                    {missing.map((item) => (
-                                        <li key={item}>{item}</li>
-                                    ))}
-                                </ul>
+                                                {topper ? (
+                                                    <PhotoPicker
+                                                        id="topper-photo"
+                                                        label="Foto de referencia del topper"
+                                                        hint="Cómo lo imaginas: letras, figura o personaje."
+                                                        value={topperImage}
+                                                        onChange={setTopperImage}
+                                                    />
+                                                ) : null}
+                                            </>
+                                        ) : null}
+                                    </div>
+                                </fieldset>
                             ) : null}
-                            {sendError ? <p className="quote-summary__error" role="alert">{sendError}</p> : null}
-                            <button
-                                type="button"
-                                className="quote-button"
-                                onClick={send}
-                                disabled={missing.length > 0 || isSending}
-                            >
-                                {isSending ? "Enviando…" : "Enviar cotización"}
-                            </button>
-                        </>
-                    )}
-                </aside>
-            </div>
 
-            {/* En el celular el resumen queda abajo: esta barra muestra el total mientras se elige */}
-            {!sent && cartCount === 0 ? (
-                <div className="quote-bar">
-                    <div>
-                        <span className="quote-bar__label">Total estimado</span>
-                        <AnimatedPrice value={total} className="quote-bar__value" />
+                            <CustomerStep step={customerStep} draft={customer} update={updateCustomer} />
+                        </form>
+
+                        <aside className="quote-summary" id="resumen" aria-label="Resumen de tu pedido">
+                            {sent ? (
+                                <QuoteSent quote={sent.quote} hasPhotos={sent.hasPhotos} onRestart={restart} />
+                            ) : (
+                                <>
+                                    <p className="quote-summary__kicker script">tu postre</p>
+                                    <ul className="quote-lines">
+                                        <li>
+                                            <span className="quote-lines__what">Tamaño</span>
+                                            <span className="quote-lines__name">
+                                                {product.name} {size?.label}
+                                            </span>
+                                            <span className="quote-lines__amount">{formatPrice(breakdown?.base ?? 0)}</span>
+                                        </li>
+                                        {breakdown?.lines.map((line, index) => (
+                                            <li key={`${line.group}-${index}`}>
+                                                <span className="quote-lines__what">{line.group}</span>
+                                                <span className="quote-lines__name">{line.name}</span>
+                                                {line.price ? (
+                                                    <span className="quote-lines__amount">+{formatPrice(line.price)}</span>
+                                                ) : (
+                                                    <span className="quote-lines__amount is-free">incluido</span>
+                                                )}
+                                            </li>
+                                        ))}
+                                        {breakdown && hasTopper ? (
+                                            <li>
+                                                <span className="quote-lines__what">Topper</span>
+                                                <span className="quote-lines__name">Con topper</span>
+                                                <span className="quote-lines__amount">+{formatPrice(breakdown.topperPrice)}</span>
+                                            </li>
+                                        ) : null}
+                                    </ul>
+                                    <div className="quote-total">
+                                        <span>Total estimado</span>
+                                        <AnimatedPrice value={total} className="quote-total__value" />
+                                    </div>
+                                    <p className="quote-summary__fine">
+                                        Precio estimado. Te lo confirmamos por correo antes de preparar nada.
+                                    </p>
+                                    {missing.length ? (
+                                        <ul className="quote-missing" aria-live="polite">
+                                            {missing.map((item) => (
+                                                <li key={item}>{item}</li>
+                                            ))}
+                                        </ul>
+                                    ) : null}
+                                    {sendError ? <p className="quote-summary__error" role="alert">{sendError}</p> : null}
+                                    <button
+                                        type="button"
+                                        className="quote-button"
+                                        onClick={send}
+                                        disabled={missing.length > 0 || isSending}
+                                    >
+                                        {isSending ? "Enviando…" : "Enviar cotización"}
+                                    </button>
+                                </>
+                            )}
+                        </aside>
                     </div>
-                    <a href="#resumen" className="quote-bar__link">
-                        Revisar y enviar <PiArrowRightBold aria-hidden />
-                    </a>
-                </div>
+
+                    {/* En el celular el resumen queda abajo: esta barra muestra el total mientras se elige */}
+                    {!sent && cartCount === 0 ? (
+                        <div className="quote-bar">
+                            <div>
+                                <span className="quote-bar__label">Total estimado</span>
+                                <AnimatedPrice value={total} className="quote-bar__value" />
+                            </div>
+                            <a href="#resumen" className="quote-bar__link">
+                                Revisar y enviar <PiArrowRightBold aria-hidden />
+                            </a>
+                        </div>
+                    ) : null}
+                </>
             ) : null}
         </main>
     );

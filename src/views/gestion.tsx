@@ -288,9 +288,9 @@ const SECTIONS: ISectionInfo[] = [
     },
     {
         id: "pasteleria",
-        label: "Pastelería",
+        label: "Repostería",
         roles: ["pastelera"],
-        sub: "Tus cotizaciones de cakes y postres, y lo que te dejan",
+        sub: "Cotizaciones, ingredientes y recetas de tus postres",
         icon: (
             <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M4 21V11h16v10M2 11h20M12 11V7" />
@@ -390,7 +390,7 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
                 <div className="ges-gate__panel">
                     <span className="ges-gate__mark script">Gestión</span>
                     <h1>Sin permisos</h1>
-                    <p>Tu PIN funciona, pero todavía no tiene ninguna sección asignada. Pídele al administrador que te dé caja, inventario, pastelería o repartidor.</p>
+                    <p>Tu PIN funciona, pero todavía no tiene ninguna sección asignada. Pídele al administrador que te dé caja, inventario, repostería o repartidor.</p>
                     <button type="button" className="ges-btn ges-btn--block" onClick={onLogout}>Salir</button>
                 </div>
             </div>

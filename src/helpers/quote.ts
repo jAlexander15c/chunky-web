@@ -1,155 +1,29 @@
 import { httpGet, httpPost } from "./getHttp";
 import { formatPrice } from "./order";
 import { formatPhone, getPhoneDigits } from "./payment";
+import { getCatalogGroupsMissing } from "./pastry";
+import type { ICatalogProduct } from "./pastry";
 import { PRIVACY_NOTICE_VERSION } from "./privacy";
 
 /**
- * Cotizador de cakes. Estos precios son una copia de los de chunky-api
- * (src/modules/quotes/quote.catalog.ts) solo para mostrar el total mientras el cliente elige:
- * el total que se guarda lo recalcula el API. Si cambian, se cambian en los dos lados.
- *
- * La hoja de costos da tres precios; los otros tres salen proporcionales:
- * - La doble altura sube lo mismo por pulgada que de 6" a 7".
- * - Una altura cuesta lo mismo, en proporción, que el 4.5" contra su doble altura.
+ * El catálogo (postres, tamaños, opciones y precios) lo publica el API en GET /quotes/catalog
+ * desde las recetas de Repostería: aquí solo viven los tipos de las cotizaciones viejas de
+ * cakes y postres, que se siguen leyendo, y lo que arma el cliente.
  */
 export type QuoteSize = "4.5" | "6" | "7";
 export type QuoteHeight = 1 | 2;
-
-const KNOWN_4_5_SINGLE = 23.44;
-const KNOWN_6_DOUBLE = 50.03;
-const KNOWN_7_DOUBLE = 57.92;
-
-const getCents = (value: number) => Math.round(value * 100) / 100;
-
-const DOUBLE_PER_INCH = KNOWN_7_DOUBLE - KNOWN_6_DOUBLE;
-const DOUBLE_4_5 = KNOWN_6_DOUBLE - 1.5 * DOUBLE_PER_INCH;
-const SINGLE_TO_DOUBLE = KNOWN_4_5_SINGLE / DOUBLE_4_5;
-
-const QUOTE_BASE_PRICES: Record<QuoteSize, Record<QuoteHeight, number>> = {
-    "4.5": { 1: KNOWN_4_5_SINGLE, 2: getCents(DOUBLE_4_5) },
-    "6": { 1: getCents(KNOWN_6_DOUBLE * SINGLE_TO_DOUBLE), 2: KNOWN_6_DOUBLE },
-    "7": { 1: getCents(KNOWN_7_DOUBLE * SINGLE_TO_DOUBLE), 2: KNOWN_7_DOUBLE },
-};
-
-/** Los recargos de masa y relleno están dados para el 6" doble altura. */
-const SURCHARGE_REFERENCE_PRICE = KNOWN_6_DOUBLE;
-
-export const QUOTE_SIZES: QuoteSize[] = ["4.5", "6", "7"];
-export const QUOTE_HEIGHTS: { value: QuoteHeight; label: string }[] = [
-    { value: 1, label: "1 altura" },
-    { value: 2, label: "Doble altura" },
-];
-
-export const TOPPER_PRICE = 10;
-export const MAX_FILLINGS = 2;
-
-export interface IQuoteOption {
-    id: string;
-    name: string;
-    /** Recargo en el 6" doble altura. Cero es incluido. */
-    extra: number;
-}
-
-export const QUOTE_DOUGHS: IQuoteOption[] = [
-    { id: "vainilla-caramelo", name: "Vainilla caramelo", extra: 0 },
-    { id: "zanahoria", name: "Zanahoria", extra: 6 },
-    { id: "banana-nueces", name: "Banana y nueces", extra: 6 },
-    { id: "especias-nueces", name: "Especias y nueces", extra: 5 },
-    { id: "chocolate-humeda", name: "Chocolate húmeda", extra: 5 },
-    { id: "cafe", name: "Cake de café", extra: 5 },
-    { id: "naranja", name: "Naranja", extra: 5 },
-];
-
-export const QUOTE_FILLINGS: IQuoteOption[] = [
-    { id: "dulce-de-leche", name: "Dulce de leche", extra: 0 },
-    { id: "fresas", name: "Fresas", extra: 0 },
-    { id: "moras", name: "Moras", extra: 0 },
-    { id: "crema-pastelera", name: "Crema pastelera", extra: 0 },
-    { id: "ganache-oscuro", name: "Ganache de chocolate oscuro", extra: 5 },
-    { id: "frosty-queso-crema", name: "Frosty de queso crema", extra: 5 },
-    { id: "compota-frutos-rojos", name: "Compota de frutos rojos", extra: 5 },
-    { id: "crema-bariloche", name: "Crema bariloche", extra: 5 },
-    { id: "caramelo-salado", name: "Caramelo salado", extra: 5 },
-    { id: "crema-avellanas", name: "Crema de avellanas", extra: 5 },
-    { id: "crema-oreo", name: "Crema de oreo", extra: 5 },
-];
-
-export const getQuoteBasePrice = (size: QuoteSize, height: QuoteHeight) => QUOTE_BASE_PRICES[size][height];
-
-/** El recargo crece o se achica con el precio base del cake elegido. */
-export const getQuoteSurcharge = (extra: number, size: QuoteSize, height: QuoteHeight) =>
-    getCents((extra * getQuoteBasePrice(size, height)) / SURCHARGE_REFERENCE_PRICE);
-
-const getFilling = (id: string) => QUOTE_FILLINGS.find((one) => one.id === id);
-
-const isIncludedFilling = (id: string) => getFilling(id)?.extra === 0;
-
-/**
- * Si un relleno se puede sumar a lo elegido. Uno o dos, y nunca dos incluidos:
- * con uno incluido ya elegido, el segundo tiene que ser especial.
- */
-export const canAddFilling = (chosen: string[], id: string) => {
-    if (chosen.includes(id)) return true;
-    if (chosen.length >= MAX_FILLINGS) return false;
-    return !(isIncludedFilling(id) && chosen.some(isIncludedFilling));
-};
-
-/** "1 incluido", "Incluido + especial"… para el contador del paso de rellenos. */
-export const getFillingsLabel = (chosen: string[]) => {
-    const included = chosen.filter(isIncludedFilling).length;
-    const special = chosen.length - included;
-    if (!chosen.length) return "Elige 1 o 2";
-    if (included && special) return "Incluido + especial";
-    if (included) return "1 incluido";
-    return special === 1 ? "1 especial" : "2 especiales";
-};
-
-/**
- * Postres enteros (pestaña aparte del cotizador): solo postre y tamaño, sin fotos.
- * Copia de chunky-api (quote.catalog.ts), el que vale. La hoja da los gastos del 8"; aquí van
- * sin empaque, que en realidad cuesta unos $3. Precio del 8" = (gastos + empaque) x 2.95; los
- * tamaños chicos bajan por área, empaque incluido, y todo se redondea al dólar.
- */
 type DessertSize = "5.5" | "7" | "8";
 
-export const DESSERT_SIZES: DessertSize[] = ["5.5", "7", "8"];
-
-const DESSERT_PACKAGING_COST = 3;
-const DESSERT_MARKUP = 2.95;
-const DESSERT_REFERENCE_INCHES = 8;
-
-export interface IQuoteDessert {
-    id: string;
-    name: string;
-    description: string;
-    /** Gastos del 8" en la hoja, sin empaque. */
-    cost: number;
-}
-
-export const QUOTE_DESSERTS: IQuoteDessert[] = [
-    { id: "flan-napolitano", name: "Flan napolitano", description: "Con caramelo", cost: 10.18 },
-    { id: "beso-de-angel", name: "Beso de ángel", description: "Con chantilly", cost: 16.7 },
-    { id: "cheesecake-ny", name: "Cheesecake NY", description: "Clásico", cost: 13.88 },
-];
-
-export const getDessertPrice = (dessert: IQuoteDessert, size: DessertSize) =>
-    Math.round(
-        (dessert.cost + DESSERT_PACKAGING_COST) * DESSERT_MARKUP * (Number(size) / DESSERT_REFERENCE_INCHES) ** 2
-    );
-
-export const getQuoteDessert = (id: string) => QUOTE_DESSERTS.find((one) => one.id === id) ?? QUOTE_DESSERTS[0];
-
+/** Qué es lo cotizado, para el tracking del embudo: un cake (con foto) o un postre entero. */
 export type QuoteKind = "cake" | "postre";
 
 export interface IQuoteDraft {
-    kind: QuoteKind;
-    size: QuoteSize;
-    height: QuoteHeight;
-    doughId: string;
-    fillingIds: string[];
+    /** Null mientras carga el catálogo o no hay recetas publicadas. */
+    productId: number | null;
+    sizeId: number | null;
+    /** Las opciones elegidas de todos los grupos. */
+    optionIds: number[];
     topper: boolean;
-    dessertId: string;
-    dessertSize: DessertSize;
     customerName: string;
     customerPhone: string;
     customerEmail: string;
@@ -161,32 +35,6 @@ export interface IQuoteDraft {
     privacyConsent: boolean;
 }
 
-interface IQuoteBreakdownLine {
-    label: string;
-    name: string;
-    price: number;
-}
-
-/** El desglose que ve el cliente y la suma. */
-export const getQuoteBreakdown = (draft: Pick<IQuoteDraft, "size" | "height" | "doughId" | "fillingIds" | "topper">) => {
-    const dough = QUOTE_DOUGHS.find((one) => one.id === draft.doughId) ?? QUOTE_DOUGHS[0];
-    const base = getQuoteBasePrice(draft.size, draft.height);
-    const lines: IQuoteBreakdownLine[] = [
-        { label: "Masa", name: dough.name, price: getQuoteSurcharge(dough.extra, draft.size, draft.height) },
-        ...draft.fillingIds.map((id, index) => {
-            const filling = getFilling(id);
-            return {
-                label: `Relleno ${index + 1}`,
-                name: filling?.name ?? id,
-                price: getQuoteSurcharge(filling?.extra ?? 0, draft.size, draft.height),
-            };
-        }),
-        ...(draft.topper ? [{ label: "Topper", name: "Con topper", price: TOPPER_PRICE }] : []),
-    ];
-    const total = getCents(base + lines.reduce((sum, line) => sum + line.price, 0));
-    return { base, lines, total };
-};
-
 /** Días que necesita la pastelería para preparar un cake. El API valida lo mismo. */
 export const QUOTE_LEAD_DAYS = 4;
 
@@ -197,13 +45,17 @@ export const getEarliestQuoteDate = () =>
 /** Un correo con forma de correo: el API lo valida igual y ahí le llegan el acuse y la confirmación. */
 export const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value.trim()) && value.trim().length <= 254;
 
-/** Lo que falta para poder enviar, en palabras del cliente. Vacío es listo. Un postre solo pide los datos. */
-export const getQuoteMissing = (draft: IQuoteDraft) => {
+/**
+ * Lo que falta para poder enviar, en palabras del cliente. Vacío es listo. Las reglas de cada receta
+ * (mínimo, máximo e incluidas de cada grupo, foto y topper) salen del catálogo.
+ */
+export const getQuoteMissing = (draft: IQuoteDraft, product: ICatalogProduct | undefined) => {
     const missing: string[] = [];
-    if (draft.kind === "cake") {
-        if (!draft.fillingIds.length) missing.push("Elige al menos un relleno");
-        if (!draft.cakeImage) missing.push("Sube la foto de referencia del cake");
-        if (draft.topper && !draft.topperImage) missing.push("Sube la foto de referencia del topper");
+    if (!product || draft.sizeId === null) missing.push("Elige el postre y el tamaño");
+    else {
+        missing.push(...getCatalogGroupsMissing(product, draft.sizeId, draft.optionIds));
+        if (product.needsPhoto && !draft.cakeImage) missing.push("Sube la foto de referencia");
+        if (product.allowsTopper && draft.topper && !draft.topperImage) missing.push("Sube la foto de referencia del topper");
     }
     if (draft.customerName.trim().length < 2) missing.push("Escribe tu nombre");
     if (!/^6\d{7}$/.test(getPhoneDigits(draft.customerPhone))) missing.push("Escribe tu WhatsApp (8 dígitos, empieza en 6)");
@@ -306,8 +158,23 @@ interface IDessertSelection {
     basePrice: number;
 }
 
+/** Cotizaciones de recetas de Repostería: lo elegido y los precios al momento de pedirla. */
+interface IRecipeSelection {
+    kind: "receta";
+    product: { id: number; name: string };
+    size: { id: number; label: string };
+    basePrice: number;
+    options: { group: string; id: number; name: string; price: number }[];
+    topper: boolean;
+    topperPrice: number;
+    estimatedCost: number;
+}
+
 export const isDessertSelection = (selection: IQuote["selection"]): selection is IDessertSelection =>
     selection.kind === "postre";
+
+export const isRecipeSelection = (selection: IQuote["selection"]): selection is IRecipeSelection =>
+    selection.kind === "receta";
 
 export interface IQuote {
     id: number;
@@ -320,7 +187,7 @@ export interface IQuote {
     customerEmail: string | null;
     desiredDate: string;
     note: string | null;
-    selection: ICakeSelection | IDessertSelection;
+    selection: ICakeSelection | IDessertSelection | IRecipeSelection;
     total: number;
     /** Web: la mandó el cliente desde /cotizador. Manual: la registró la pastelera. */
     source: "web" | "manual";
@@ -349,24 +216,22 @@ const getCustomerBody = (draft: IQuoteDraft) => ({
     privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
 });
 
-/** Un postre manda solo postre y tamaño; un cake, todo lo que armó con sus fotos. */
-export const submitQuote = (draft: IQuoteDraft) =>
-    httpPost<{ quote: IQuote }>(
-        "/quotes",
-        draft.kind === "postre"
-            ? { kind: "postre", dessertId: draft.dessertId, size: draft.dessertSize, ...getCustomerBody(draft) }
-            : {
-                  kind: "cake",
-                  size: draft.size,
-                  height: draft.height,
-                  doughId: draft.doughId,
-                  fillingIds: draft.fillingIds,
-                  topper: draft.topper,
-                  ...getCustomerBody(draft),
-                  cakeImage: draft.cakeImage,
-                  topperImage: draft.topper ? draft.topperImage : null,
-              }
-    );
+/**
+ * Manda la receta, el tamaño y las opciones elegidas con el total que vio el cliente: si el
+ * precio cambió mientras armaba, el API responde 409 y la web recarga el catálogo.
+ */
+export const submitQuote = (draft: IQuoteDraft, product: ICatalogProduct, expectedTotal: number) =>
+    httpPost<{ quote: IQuote }>("/quotes", {
+        kind: "receta",
+        productId: draft.productId,
+        sizeId: draft.sizeId,
+        optionIds: draft.optionIds,
+        topper: product.allowsTopper && draft.topper,
+        expectedTotal,
+        ...getCustomerBody(draft),
+        cakeImage: product.needsPhoto ? draft.cakeImage : null,
+        topperImage: product.allowsTopper && draft.topper ? draft.topperImage : null,
+    });
 
 /** Solo la pastelera las ve, desde /gestion con su PIN. */
 const getQuoteHeaders = (token: string) => ({ "x-gestion-token": token });
@@ -391,15 +256,11 @@ export const changeQuoteStatus = (token: string, id: number, status: QuoteStatus
         { headers: getQuoteHeaders(token) }
     );
 
-/** Lo que la pastelera anota a mano: un cake del catálogo o un postre, sin fotos ni topper. */
+/** Lo que la pastelera anota a mano: una receta del catálogo con sus opciones, sin fotos ni topper. */
 export interface IManualQuoteDraft {
-    kind: QuoteKind;
-    size: QuoteSize;
-    height: QuoteHeight;
-    doughId: string;
-    fillingIds: string[];
-    dessertId: string;
-    dessertSize: DessertSize;
+    productId: number | null;
+    sizeId: number | null;
+    optionIds: number[];
     customerName: string;
     customerPhone: string;
     desiredDate: string;
@@ -408,33 +269,35 @@ export interface IManualQuoteDraft {
 }
 
 /** Lo que falta para guardar un registro manual. Vacío es listo. */
-export const getManualQuoteMissing = (draft: IManualQuoteDraft) => {
+export const getManualQuoteMissing = (draft: IManualQuoteDraft, product: ICatalogProduct | undefined) => {
     const missing: string[] = [];
-    if (draft.kind === "cake" && !draft.fillingIds.length) missing.push("Elige al menos un relleno");
+    if (!product || draft.sizeId === null) missing.push("Elige el postre y el tamaño");
+    else missing.push(...getCatalogGroupsMissing(product, draft.sizeId, draft.optionIds));
     if (draft.customerName.trim().length < 2) missing.push("Escribe el nombre del cliente");
     const phone = getPhoneDigits(draft.customerPhone);
-    if (phone && !/^6\d{7}$/.test(phone)) missing.push("El celular tiene 8 dígitos y empieza en 6 (o déjalo vacío)");
+    if (phone && !/^6d{7}$/.test(phone)) missing.push("El celular tiene 8 dígitos y empieza en 6 (o déjalo vacío)");
     if (!draft.desiredDate) missing.push("Elige la fecha de entrega");
     return missing;
 };
 
 /** El precio lo pone el API: aquí solo se manda lo elegido. */
-export const createManualQuote = (token: string, draft: IManualQuoteDraft) => {
-    const customer = {
-        customerName: draft.customerName.trim(),
-        customerPhone: getPhoneDigits(draft.customerPhone) || null,
-        desiredDate: draft.desiredDate,
-        note: draft.note.trim() || null,
-        status: draft.status,
-    };
-    return httpPost<{ quote: IQuote }>(
+export const createManualQuote = (token: string, draft: IManualQuoteDraft) =>
+    httpPost<{ quote: IQuote }>(
         "/gestion/quotes",
-        draft.kind === "postre"
-            ? { kind: "postre", dessertId: draft.dessertId, size: draft.dessertSize, ...customer }
-            : { kind: "cake", size: draft.size, height: draft.height, doughId: draft.doughId, fillingIds: draft.fillingIds, ...customer },
+        {
+            kind: "receta",
+            productId: draft.productId,
+            sizeId: draft.sizeId,
+            optionIds: draft.optionIds,
+            topper: false,
+            customerName: draft.customerName.trim(),
+            customerPhone: getPhoneDigits(draft.customerPhone) || null,
+            desiredDate: draft.desiredDate,
+            note: draft.note.trim() || null,
+            status: draft.status,
+        },
         { headers: getQuoteHeaders(token) }
     );
-};
 
 /* ============ Ingresos de la pastelera ============ */
 
@@ -513,6 +376,7 @@ const foldIcsLine = (line: string) => {
 const getQuoteDetailLines = (quote: IQuote) => {
     const { selection } = quote;
     if (isDessertSelection(selection)) return [];
+    if (isRecipeSelection(selection)) return selection.options.map((one) => `${one.group}: ${one.name}`);
     return [`Masa: ${selection.dough.name}`, `Relleno: ${selection.fillings.map((one) => one.name).join(" + ")}`];
 };
 
@@ -577,7 +441,21 @@ export const formatQuoteDate = (value: string) => {
     return new Date(year, month - 1, day).toLocaleDateString("es-PA", { weekday: "short", day: "numeric", month: "short" });
 };
 
-export const getQuoteSizeLabel = (selection: IQuote["selection"]) =>
-    isDessertSelection(selection)
+export const getQuoteSizeLabel = (selection: IQuote["selection"]) => {
+    if (isRecipeSelection(selection)) return `${selection.product.name} ${selection.size.label}`;
+    return isDessertSelection(selection)
         ? `${selection.dessert.name} ${selection.size}"`
         : `Cake ${selection.size}" · ${selection.height === 2 ? "doble altura" : "1 altura"}`;
+};
+
+/** Las líneas del detalle de una cotización después de la base: masa, rellenos y opciones (cada una con su precio) y topper. */
+export const getQuoteSpecLines = (selection: IQuote["selection"]) => {
+    if (isDessertSelection(selection)) return [];
+    const lines = isRecipeSelection(selection)
+        ? selection.options.map((one) => ({ label: one.group, name: one.name, price: one.price }))
+        : [
+              { label: "Masa", name: selection.dough.name, price: selection.dough.price },
+              ...selection.fillings.map((line, index) => ({ label: `Relleno ${index + 1}`, name: line.name, price: line.price })),
+          ];
+    return selection.topper ? [...lines, { label: "Topper", name: "", price: selection.topperPrice }] : lines;
+};

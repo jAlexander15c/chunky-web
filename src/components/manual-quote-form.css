@@ -28,9 +28,11 @@
 
 .mq-seg {
     display: inline-flex;
+    flex-wrap: wrap;
+    max-width: 100%;
     gap: 0.25rem;
     padding: 0.25rem;
-    border-radius: var(--radius-pill);
+    border-radius: 22px;
     background: var(--qp-panel-2);
 }
 

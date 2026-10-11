@@ -1,10 +1,13 @@
 // src/lib/http.ts
 export class HttpError extends Error {
     status: number;
+    /** Código del API cuando lo manda (ej. PRICE_CHANGED). */
+    code?: string;
 
-    constructor(status: number, message: string) {
+    constructor(status: number, message: string, code?: string) {
         super(message);
         this.status = status;
+        this.code = code;
     }
 }
 
@@ -50,7 +53,7 @@ const sendJson = async <T>(
 
     if (!res.ok) {
         const data = await res.json().catch(() => null);
-        throw new HttpError(res.status, data?.message || res.statusText);
+        throw new HttpError(res.status, data?.message || data?.error || res.statusText, data?.code);
     }
 
     // 204 (ej. cerrar sesión) no trae cuerpo
@@ -97,7 +100,7 @@ export const httpPostBinary = async <T>(path: string, file: Blob, options?: { he
 
     if (!res.ok) {
         const data = await res.json().catch(() => null);
-        throw new HttpError(res.status, data?.message || res.statusText);
+        throw new HttpError(res.status, data?.message || data?.error || res.statusText, data?.code);
     }
 
     return res.json() as Promise<T>;
@@ -125,7 +128,7 @@ export async function httpGet<T>(
     // Como en los POST: solo el `message` del API, nunca el cuerpo completo del error
     if (!res.ok) {
         const data = await res.json().catch(() => null);
-        throw new HttpError(res.status, data?.message || res.statusText);
+        throw new HttpError(res.status, data?.message || data?.error || res.statusText, data?.code);
     }
 
     // Un 200 con HTML suele ser la URL del API mal configurada (responde la propia web)

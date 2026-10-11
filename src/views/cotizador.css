@@ -902,3 +902,62 @@
     line-height: 1.4;
     color: var(--text-soft);
 }
+
+/* ============ Catálogo dinámico: pestañas, tamaños, carga y vacío ============ */
+
+/* Las pestañas salen de las recetas publicadas: caben las que sean, bajando de línea en el teléfono */
+.quote-kinds {
+    display: flex;
+    flex-wrap: wrap;
+    max-width: 100%;
+    border-radius: 24px;
+}
+
+.quote-sizes {
+    grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+}
+
+.quote-size__inch--long {
+    font-size: 1.05rem;
+    overflow-wrap: anywhere;
+}
+
+.quote-skeleton {
+    display: grid;
+    gap: 0.75rem;
+    max-width: 40rem;
+}
+
+.quote-skeleton span {
+    height: 5.5rem;
+    border-radius: var(--radius-panel);
+    background: linear-gradient(90deg, var(--sky), var(--quote-field), var(--sky));
+    background-size: 200% 100%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .quote-skeleton span {
+        animation: quote-shimmer 1.4s linear infinite;
+    }
+}
+
+@keyframes quote-shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+}
+
+.quote-notice {
+    display: grid;
+    justify-items: start;
+    gap: 0.6rem;
+    max-width: 34rem;
+    padding: 1.4rem;
+    border-radius: var(--radius-panel);
+    background: var(--quote-field);
+    border: 2px dashed var(--quote-line);
+    color: var(--text-soft);
+}
+
+.quote-notice p {
+    margin: 0;
+}

@@ -19,6 +19,7 @@ export * from "./admin-period";
 export * from "./gestion";
 export * from "./staff-access";
 export * from "./quote";
+export * from "./pastry";
 export * from "./tracking";
 export * from "./home-slides";
 export * from "./app-version";
