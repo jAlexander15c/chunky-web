@@ -439,6 +439,10 @@ textarea.pa-input { min-height: 4.5rem; resize: vertical; }
     background: var(--pa-panel-2);
 }
 
+.pa-size__variant {
+    grid-column: 1 / -1;
+}
+
 .pa-size__foot {
     grid-column: 1 / -1;
     display: flex;

@@ -13,11 +13,18 @@ import {
     getCatalogBreakdown,
     getCatalogGroupRule,
     getCatalogOptionPrice,
+    getCatalogMeasures,
     getCatalogPickFor,
+    getCatalogSizeFor,
+    getCatalogSizeText,
+    getCatalogVariants,
+    isDoubleVariant,
     getEarliestQuoteDate,
     getQuoteMissing,
     getWhatsAppUrl,
     resolveCatalogPick,
+    resolveMeasureChange,
+    resolveVariantChange,
     submitQuote,
     toggleCatalogOption,
     trackEvent,
@@ -79,6 +86,32 @@ const CakeDrawing = () => (
         <circle cx="46" cy="18" r="4.5" fill="var(--lima)" stroke="var(--mora)" strokeWidth="2" />
     </svg>
 );
+
+/** El cake de cada tamaño dibujado con una capa o dos, para que la altura se vea y no solo se lea. */
+const HeightDrawing = ({ isDouble }: { isDouble: boolean }) => {
+    const top = isDouble ? 22 : 32;
+
+    return (
+        <svg className="quote-size__drawing" viewBox="0 0 92 78" aria-hidden="true">
+            <ellipse cx="46" cy="72" rx="40" ry="4" fill="var(--mora)" opacity=".14" />
+            {isDouble ? (
+                <>
+                    <rect x="14" y="30" width="64" height="20" rx="5" fill="var(--orquidea)" />
+                    <rect x="14" y="50" width="64" height="20" rx="5" fill="var(--mantequilla)" />
+                    <rect x="12" y="49" width="68" height="3" fill="var(--crema)" />
+                </>
+            ) : (
+                <rect x="14" y="40" width="64" height="24" rx="5" fill="var(--mantequilla)" />
+            )}
+            <path
+                d={`M14 ${top + 12}q8 -14 16 0t16 0t16 0t16 0H14z`}
+                fill="var(--mora)"
+                transform={isDouble ? "translate(0,-2)" : undefined}
+            />
+            <circle cx="46" cy={top - 4} r="4.5" fill="var(--lima)" stroke="var(--mora)" strokeWidth="2" />
+        </svg>
+    );
+};
 
 const DESSERT_COLORS: Record<string, { body: string; top: string }> = {
     flan: { body: "var(--mantequilla)", top: "#b8742a" },
@@ -339,6 +372,7 @@ export const Cotizador = () => {
 
     const { product, sizeId, optionIds } = resolveCatalogPick(catalog, pick);
     const size = product?.sizes.find((one) => one.id === sizeId);
+    const variants = product ? getCatalogVariants(product) : [];
     const hasTopper = Boolean(product?.allowsTopper && topper);
     const breakdown = product ? getCatalogBreakdown(product, sizeId, optionIds, hasTopper) : null;
     const total = breakdown?.total ?? 0;
@@ -365,8 +399,8 @@ export const Cotizador = () => {
         setTopperImage(null);
     };
 
-    const selectSize = (id: number) => {
-        if (!product) return;
+    const selectSize = (id: number | null) => {
+        if (!product || id === null) return;
         markStep(getTrackKind(product), "tamano");
         setPick({ productId: product.id, sizeId: id, optionIds });
     };
@@ -383,7 +417,7 @@ export const Cotizador = () => {
         setSendError("");
         try {
             const { quote } = await submitQuote(draft, product, total);
-            trackEvent("quote_submit", getTrackKind(product), `${product.name} ${size.label}`, quote.total);
+            trackEvent("quote_submit", getTrackKind(product), `${product.name} ${getCatalogSizeText(size)}`, quote.total);
             setSent({ quote, hasPhotos: product.needsPhoto });
             document.getElementById("resumen")?.scrollIntoView({ block: "start" });
         } catch (error) {
@@ -512,24 +546,67 @@ export const Cotizador = () => {
                                 <legend className="quote-step__title">
                                     <span className="quote-step__n script">2</span>Tamaño
                                 </legend>
-                                <div className="quote-sizes">
-                                    {product.sizes.map((one) => (
-                                        <label key={one.id} className="quote-size">
-                                            <input
-                                                id={`size-${one.id}`}
-                                                type="radio"
-                                                name="size"
-                                                value={one.id}
-                                                checked={sizeId === one.id}
-                                                onChange={() => selectSize(one.id)}
-                                            />
-                                            <span className="quote-size__card">
-                                                <span className={`quote-size__inch${one.label.length > 6 ? " quote-size__inch--long" : ""}`}>{one.label}</span>
-                                                <span className="quote-size__price">{formatPrice(one.price)}</span>
-                                            </span>
-                                        </label>
-                                    ))}
-                                </div>
+                                {variants.length ? (
+                                    <>
+                                        <div className="quote-sizes">
+                                            {getCatalogMeasures(product).map((measure) => {
+                                                // Una medida que no existe en esta variante (el 4.5" en 1 altura) se ve con el precio de donde sí existe
+                                                const shown = getCatalogSizeFor(product, measure, size?.variant ?? null) ?? product.sizes.find((one) => one.label === measure);
+                                                return (
+                                                    <label key={measure} className="quote-size">
+                                                        <input
+                                                            id={`size-${measure}`}
+                                                            type="radio"
+                                                            name="size"
+                                                            value={measure}
+                                                            checked={size?.label === measure}
+                                                            onChange={() => selectSize(resolveMeasureChange(product, sizeId, measure)?.id ?? null)}
+                                                        />
+                                                        <span className="quote-size__card">
+                                                            <HeightDrawing isDouble={isDoubleVariant(shown?.variant)} />
+                                                            <span className={`quote-size__inch${measure.length > 6 ? " quote-size__inch--long" : ""}`}>{measure}</span>
+                                                            <span className="quote-size__price">{formatPrice(shown?.price ?? 0)}</span>
+                                                        </span>
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="quote-heights" role="radiogroup" aria-label="Altura">
+                                            {variants.map((variant) => (
+                                                <label key={variant}>
+                                                    <input
+                                                        id={`variant-${variant}`}
+                                                        type="radio"
+                                                        name="variant"
+                                                        value={variant}
+                                                        checked={size?.variant === variant}
+                                                        onChange={() => selectSize(resolveVariantChange(product, sizeId, variant)?.id ?? null)}
+                                                    />
+                                                    <span>{variant}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="quote-sizes">
+                                        {product.sizes.map((one) => (
+                                            <label key={one.id} className="quote-size">
+                                                <input
+                                                    id={`size-${one.id}`}
+                                                    type="radio"
+                                                    name="size"
+                                                    value={one.id}
+                                                    checked={sizeId === one.id}
+                                                    onChange={() => selectSize(one.id)}
+                                                />
+                                                <span className="quote-size__card">
+                                                    <span className={`quote-size__inch${one.label.length > 6 ? " quote-size__inch--long" : ""}`}>{one.label}</span>
+                                                    <span className="quote-size__price">{formatPrice(one.price)}</span>
+                                                </span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                )}
                                 <p className="quote-step__hint">El precio cambia con el tamaño.</p>
                             </fieldset>
 
@@ -625,7 +702,7 @@ export const Cotizador = () => {
                                         <li>
                                             <span className="quote-lines__what">Tamaño</span>
                                             <span className="quote-lines__name">
-                                                {product.name} {size?.label}
+                                                {product.name} {size ? getCatalogSizeText(size) : null}
                                             </span>
                                             <span className="quote-lines__amount">{formatPrice(breakdown?.base ?? 0)}</span>
                                         </li>

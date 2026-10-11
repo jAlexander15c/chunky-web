@@ -9,10 +9,16 @@ import {
     getCatalogBreakdown,
     getCatalogGroupRule,
     getCatalogOptionPrice,
+    getCatalogMeasures,
     getCatalogPickFor,
+    getCatalogSizeFor,
+    getCatalogSizeText,
+    getCatalogVariants,
     getManualQuoteMissing,
     getPanamaTodayText,
     resolveCatalogPick,
+    resolveMeasureChange,
+    resolveVariantChange,
     toggleCatalogOption,
 } from "@/helpers";
 import type { ICatalogPick, IManualQuoteDraft, IQuote } from "@/helpers";
@@ -69,6 +75,7 @@ export const ManualQuoteForm = ({ token, onSaved, onCancel, onSessionExpired }: 
     const update = (changes: Partial<IManualDetails>) => setDetails((current) => ({ ...current, ...changes }));
 
     const { product, sizeId, optionIds } = resolveCatalogPick(catalog, pick);
+    const chosenSize = product?.sizes.find((size) => size.id === sizeId);
     const draft: IManualQuoteDraft = { ...details, productId: product?.id ?? null, sizeId, optionIds };
     const breakdown = product ? getCatalogBreakdown(product, sizeId, optionIds, false) : null;
     const missing = getManualQuoteMissing(draft, product);
@@ -156,13 +163,43 @@ export const ManualQuoteForm = ({ token, onSaved, onCancel, onSessionExpired }: 
 
                             <fieldset className="mq-fs">
                                 <legend>Tamaño</legend>
-                                <div className="mq-chips">
-                                    {product.sizes.map((size) => (
-                                        <Chip key={size.id} isOn={size.id === sizeId} onClick={() => setPick({ productId: product.id, sizeId: size.id, optionIds })}>
-                                            {size.label} <small>{formatPrice(size.price)}</small>
-                                        </Chip>
-                                    ))}
-                                </div>
+                                {getCatalogVariants(product).length ? (
+                                    <>
+                                        <div className="mq-chips">
+                                            {getCatalogMeasures(product).map((measure) => {
+                                                const shown = getCatalogSizeFor(product, measure, chosenSize?.variant ?? null) ?? product.sizes.find((one) => one.label === measure);
+                                                return (
+                                                    <Chip
+                                                        key={measure}
+                                                        isOn={chosenSize?.label === measure}
+                                                        onClick={() => setPick({ productId: product.id, sizeId: resolveMeasureChange(product, sizeId, measure)?.id ?? sizeId, optionIds })}
+                                                    >
+                                                        {measure} <small>{formatPrice(shown?.price ?? 0)}</small>
+                                                    </Chip>
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="mq-chips" role="radiogroup" aria-label="Altura">
+                                            {getCatalogVariants(product).map((variant) => (
+                                                <Chip
+                                                    key={variant}
+                                                    isOn={chosenSize?.variant === variant}
+                                                    onClick={() => setPick({ productId: product.id, sizeId: resolveVariantChange(product, sizeId, variant)?.id ?? sizeId, optionIds })}
+                                                >
+                                                    {variant}
+                                                </Chip>
+                                            ))}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="mq-chips">
+                                        {product.sizes.map((size) => (
+                                            <Chip key={size.id} isOn={size.id === sizeId} onClick={() => setPick({ productId: product.id, sizeId: size.id, optionIds })}>
+                                                {size.label} <small>{formatPrice(size.price)}</small>
+                                            </Chip>
+                                        ))}
+                                    </div>
+                                )}
                             </fieldset>
 
                             {product.groups.map((group) => (
@@ -261,7 +298,7 @@ export const ManualQuoteForm = ({ token, onSaved, onCancel, onSessionExpired }: 
                                 <>
                                     <li>
                                         <span>
-                                            {product.name} {product.sizes.find((size) => size.id === sizeId)?.label}
+                                            {product.name} {chosenSize ? getCatalogSizeText(chosenSize) : null}
                                         </span>
                                         <span>{formatPrice(breakdown.base)}</span>
                                     </li>

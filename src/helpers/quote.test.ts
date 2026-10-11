@@ -12,7 +12,7 @@ const FLAN: ICatalogProduct = {
     needsPhoto: false,
     allowsTopper: false,
     topperPrice: 10,
-    sizes: [{ id: 5, label: '8"', price: 39 }],
+    sizes: [{ id: 5, label: '8"', variant: null, price: 39 }],
     groups: [],
 };
 
@@ -22,7 +22,7 @@ const CAKE: ICatalogProduct = {
     name: "Cake",
     needsPhoto: true,
     allowsTopper: true,
-    sizes: [{ id: 1, label: '6" doble altura', price: 50 }],
+    sizes: [{ id: 1, label: '6" doble altura', variant: null, price: 50 }],
     groups: [{ id: 1, name: "Masa", min: 1, max: 1, freeMax: null, options: [{ id: 10, name: "Vainilla caramelo", prices: { "1": 0 } }] }],
 };
 

@@ -41,6 +41,8 @@ export type IPastryItem = { ingredientId: number; qty: number } | { label: strin
 export interface IPastrySize {
     id?: number;
     label: string;
+    /** Altura u otra versión de la misma medida (ej. "1 altura"). Null: sin variante. */
+    variant: string | null;
     scale: number;
     isBase: boolean;
 }
@@ -188,6 +190,14 @@ export const parseDecimal = (value: string) => {
 /* ============ Validación del editor (misma que el API) ============ */
 
 const MAX_NAME = 80;
+const MAX_VARIANT = 40;
+
+/** `6" doble altura`: la medida con su variante en minúscula, o solo la medida si no tiene. */
+export const getPastrySizeText = (size: { label: string; variant?: string | null }) => {
+    const label = size.label.trim();
+    const variant = size.variant?.trim();
+    return variant ? `${label} ${variant.toLowerCase()}` : label;
+};
 
 const isValidItem = (item: IPastryItem) =>
     isIngredientItem(item) ? item.qty > 0 : item.label.trim().length > 0 && item.fixedCost >= 0;
@@ -202,7 +212,7 @@ export const createEmptyPastryProduct = (): IPastryProductInput => ({
     allowsTopper: false,
     topperPrice: PASTRY_DEFAULT_TOPPER_PRICE,
     sort: 0,
-    sizes: [{ label: "", scale: 1, isBase: true }],
+    sizes: [{ label: "", variant: null, scale: 1, isBase: true }],
     base: [],
     groups: [],
 });
@@ -224,6 +234,9 @@ export const getPastryProductMissing = (product: IPastryProductInput) => {
         if (product.sizes.filter((size) => size.isBase).length !== 1) missing.push("Marca un solo tamaño como base");
         if (product.sizes.some((size) => !size.label.trim())) missing.push("Cada tamaño necesita su nombre");
         if (product.sizes.some((size) => !(size.scale > 0))) missing.push("Cada tamaño necesita una escala mayor que 0");
+        if (product.sizes.some((size) => (size.variant?.trim().length ?? 0) > MAX_VARIANT)) missing.push("Una variante es muy larga");
+        const keys = product.sizes.filter((size) => size.label.trim()).map((size) => getPastrySizeText(size).toLowerCase());
+        if (new Set(keys).size !== keys.length) missing.push("Hay dos tamaños con la misma medida y variante");
     }
 
     if (!product.base.every(isValidItem)) missing.push("Revisa los ingredientes de la receta base");
@@ -263,6 +276,15 @@ export interface ICatalogGroup {
     options: ICatalogOption[];
 }
 
+export interface ICatalogSize {
+    id: number;
+    label: string;
+    variant: string | null;
+    price: number;
+    /** Si el API lo manda, marca el tamaño base; si no, el primero hace de base. */
+    isBase?: boolean;
+}
+
 export interface ICatalogProduct {
     id: number;
     name: string;
@@ -271,7 +293,7 @@ export interface ICatalogProduct {
     needsPhoto: boolean;
     allowsTopper: boolean;
     topperPrice: number;
-    sizes: { id: number; label: string; price: number }[];
+    sizes: ICatalogSize[];
     groups: ICatalogGroup[];
 }
 
@@ -279,6 +301,54 @@ export interface ICatalog {
     tabs: string[];
     products: ICatalogProduct[];
 }
+
+/** El tamaño con que arranca la receta: el base si se sabe, si no el primero. */
+export const getCatalogDefaultSizeId = (product: ICatalogProduct) =>
+    (product.sizes.find((size) => size.isBase) ?? product.sizes[0])?.id ?? null;
+
+/** Las medidas únicas, en el orden de los tamaños. */
+export const getCatalogMeasures = (product: ICatalogProduct) => {
+    const measures = [...new Set(product.sizes.map((size) => size.label))];
+    // Si todas son pulgadas (4.5", 6"…) van de menor a mayor; si no, en el orden de la receta
+    const inches = measures.map((label) => parseFloat(label));
+    if (inches.some((value) => Number.isNaN(value))) return measures;
+    return measures.sort((a, b) => parseFloat(a) - parseFloat(b));
+};
+
+/** Las variantes únicas (1 altura, doble altura…), en el orden en que aparecen. Vacío: la receta no usa variantes. */
+export const getCatalogVariants = (product: ICatalogProduct) => [
+    ...new Set(product.sizes.flatMap((size) => (size.variant ? [size.variant] : []))),
+];
+
+/** El tamaño de esa medida en esa variante, si existe. */
+export const getCatalogSizeFor = (product: ICatalogProduct, label: string, variant: string | null) =>
+    product.sizes.find((size) => size.label === label && (size.variant ?? null) === variant);
+
+/** `6" doble altura`: como se nombra el tamaño en el resumen. */
+export const getCatalogSizeText = (size: ICatalogSize) => getPastrySizeText(size);
+
+/** El dibujo de dos capas cuando la variante habla de doble altura. */
+export const isDoubleVariant = (variant: string | null | undefined) => Boolean(variant && variant.toLowerCase().includes("doble"));
+
+/**
+ * El tamaño que queda al tocar una medida: la misma variante si existe ahí; si no (el 4.5" solo en doble
+ * altura), cambia a la variante donde sí existe.
+ */
+export const resolveMeasureChange = (product: ICatalogProduct, sizeId: number | null, measure: string) => {
+    const current = product.sizes.find((size) => size.id === sizeId);
+    return (current && getCatalogSizeFor(product, measure, current.variant ?? null)) ?? product.sizes.find((size) => size.label === measure) ?? null;
+};
+
+/**
+ * El tamaño que queda al cambiar de variante: la misma medida si existe en esa variante; si no, la
+ * primera medida disponible en ella.
+ */
+export const resolveVariantChange = (product: ICatalogProduct, sizeId: number | null, variant: string) => {
+    const current = product.sizes.find((size) => size.id === sizeId);
+    return (
+        (current && getCatalogSizeFor(product, current.label, variant)) ?? product.sizes.find((size) => (size.variant ?? null) === variant) ?? null
+    );
+};
 
 export const getCatalogOptionPrice = (option: ICatalogOption, sizeId: number | null) =>
     sizeId === null ? 0 : option.prices[String(sizeId)] ?? 0;
@@ -377,12 +447,12 @@ export const resolveCatalogPick = (catalog: ICatalog | null, pick: ICatalogPick)
     const first = catalog?.products[0];
     const chosen = catalog?.products.find((one) => one.id === pick.productId);
     if (!chosen) {
-        return { product: first, sizeId: first?.sizes[0]?.id ?? null, optionIds: first ? getCatalogDefaultOptionIds(first) : [] };
+        return { product: first, sizeId: first ? getCatalogDefaultSizeId(first) : null, optionIds: first ? getCatalogDefaultOptionIds(first) : [] };
     }
     const existing = new Set(chosen.groups.flatMap((group) => group.options.map((option) => option.id)));
     return {
         product: chosen,
-        sizeId: chosen.sizes.some((size) => size.id === pick.sizeId) ? pick.sizeId : chosen.sizes[0]?.id ?? null,
+        sizeId: chosen.sizes.some((size) => size.id === pick.sizeId) ? pick.sizeId : getCatalogDefaultSizeId(chosen),
         optionIds: pick.optionIds.filter((id) => existing.has(id)),
     };
 };
@@ -390,7 +460,7 @@ export const resolveCatalogPick = (catalog: ICatalog | null, pick: ICatalogPick)
 /** Al elegir otra receta: su primer tamaño y las opciones obligatorias de un solo lugar. */
 export const getCatalogPickFor = (product: ICatalogProduct): ICatalogPick => ({
     productId: product.id,
-    sizeId: product.sizes[0]?.id ?? null,
+    sizeId: getCatalogDefaultSizeId(product),
     optionIds: getCatalogDefaultOptionIds(product),
 });
 

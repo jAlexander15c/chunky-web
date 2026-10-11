@@ -12,6 +12,7 @@ import {
     getPastryOptionPrice,
     getPastryProductMissing,
     getPastrySizeMargin,
+    getPastrySizeText,
     getRecipeCost,
     createEmptyPastryProduct,
     updatePastryProduct,
@@ -38,7 +39,7 @@ const getInput = (product: IPastryProductInput): IPastryProductInput => ({
     allowsTopper: product.allowsTopper,
     topperPrice: product.topperPrice,
     sort: product.sort,
-    sizes: product.sizes.map((size) => ({ id: size.id, label: size.label.trim(), scale: size.scale, isBase: size.isBase })),
+    sizes: product.sizes.map((size) => ({ id: size.id, label: size.label.trim(), variant: size.variant?.trim() || null, scale: size.scale, isBase: size.isBase })),
     base: product.base,
     groups: product.groups.map((group) => ({
         id: group.id,
@@ -323,7 +324,7 @@ export const PastryRecipeEditor = ({ token, productId, tabs, onBack, onChanged, 
 
                     <section className="pa-block">
                         <h3>
-                            Receta base <small>{baseSize.scale === 1 && baseSize.label.trim() ? `para el tamaño ${baseSize.label.trim()}` : "a escala 1"}</small>
+                            Receta base <small>{baseSize.scale === 1 && baseSize.label.trim() ? `para el tamaño ${getPastrySizeText(baseSize)}` : "a escala 1"}</small>
                         </h3>
                         <PastryItems
                             token={token}
@@ -361,6 +362,17 @@ export const PastryRecipeEditor = ({ token, productId, tabs, onBack, onChanged, 
                                         Escala
                                         <DecimalInput value={size.scale} onChange={(scale) => patchSize(index, { scale })} />
                                     </label>
+                                    <label className="pa-field pa-size__variant">
+                                        Variante (opcional, ej. 1 altura)
+                                        <input
+                                            className="pa-input"
+                                            value={size.variant ?? ""}
+                                            maxLength={40}
+                                            autoComplete="off"
+                                            placeholder="Sin variante"
+                                            onChange={(event) => patchSize(index, { variant: event.target.value })}
+                                        />
+                                    </label>
                                     <div className="pa-size__foot">
                                         <button
                                             type="button"
@@ -387,7 +399,7 @@ export const PastryRecipeEditor = ({ token, productId, tabs, onBack, onChanged, 
                             type="button"
                             className="pa-btn pa-btn--small"
                             style={{ justifySelf: "start" }}
-                            onClick={() => patch({ sizes: [...product.sizes, { label: "", scale: 1, isBase: false }] })}
+                            onClick={() => patch({ sizes: [...product.sizes, { label: "", variant: null, scale: 1, isBase: false }] })}
                         >
                             + Tamaño
                         </button>
@@ -537,7 +549,7 @@ export const PastryRecipeEditor = ({ token, productId, tabs, onBack, onChanged, 
                             return (
                                 <div key={size.id ?? `nuevo-${index}`}>
                                     <div className="pa-price-row pa-price-row--big">
-                                        <span>{size.label.trim() || "Tamaño sin nombre"}</span>
+                                        <span>{getPastrySizeText(size) || "Tamaño sin nombre"}</span>
                                         <span className="pa-money">{formatPrice(getPastryBasePrice(product, size, byId))}</span>
                                     </div>
                                     <div className="pa-price-row">
@@ -552,7 +564,7 @@ export const PastryRecipeEditor = ({ token, productId, tabs, onBack, onChanged, 
                     </div>
                     {product.groups.some((group) => group.options.length) ? (
                         <p className="pa-muted">
-                            Opciones en {baseSize.label.trim() || "el tamaño base"}:{" "}
+                            Opciones en {getPastrySizeText(baseSize) || "el tamaño base"}:{" "}
                             {product.groups
                                 .flatMap((group) => group.options)
                                 .map((option) => `${option.name.trim() || "Sin nombre"} +$${getPastryOptionPrice(option, product, baseSize, byId)}`)
@@ -591,7 +603,7 @@ export const PastryRecipeEditor = ({ token, productId, tabs, onBack, onChanged, 
                     token={token}
                     option={isOpen}
                     ingredients={ingredients}
-                    baseLabel={baseSize.label.trim()}
+                    baseLabel={getPastrySizeText(baseSize)}
                     price={getPastryOptionPrice(isOpen, product, baseSize, byId)}
                     cost={getRecipeCost(isOpen.items, byId)}
                     onChange={(option) => patchOption(editingOption.group, editingOption.option, option)}
