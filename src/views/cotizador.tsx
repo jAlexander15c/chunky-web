@@ -448,9 +448,12 @@ export const Cotizador = () => {
     };
 
     const tabProducts = catalog?.products.filter((one) => one.tab === product?.tab) ?? [];
+    // Con un solo postre en la pestaña no hay nada que elegir: el paso se esconde y los demás suben un número
+    const showProductStep = tabProducts.length > 1;
+    const sizeStep = showProductStep ? 2 : 1;
     const hasExtras = Boolean(product && (product.needsPhoto || product.allowsTopper));
     const groupsCount = product?.groups.length ?? 0;
-    const extrasStep = 3 + groupsCount;
+    const extrasStep = sizeStep + 1 + groupsCount;
     const customerStep = extrasStep + (hasExtras ? 1 : 0);
     const isReady = Boolean(product && !isLoading && !catalogError);
 
@@ -513,41 +516,43 @@ export const Cotizador = () => {
 
                     <div className="quote__layout">
                         <form className="quote__form" onSubmit={(event) => event.preventDefault()} noValidate>
-                            <fieldset className="quote-step">
-                                <legend className="quote-step__title">
-                                    <span className="quote-step__n script">1</span>Postre
-                                </legend>
-                                <div className="quote-desserts">
-                                    {tabProducts.map((option) => (
-                                        <label key={option.id} className="quote-size quote-dessert">
-                                            <input
-                                                id={`product-${option.id}`}
-                                                type="radio"
-                                                name="product"
-                                                value={option.id}
-                                                checked={product.id === option.id}
-                                                onChange={() => selectProduct(option)}
-                                            />
-                                            <span className="quote-size__card">
-                                                {option.needsPhoto ? <CakeDrawing /> : <DessertDrawing name={option.name} />}
-                                                <span className="quote-dessert__text">
-                                                    <b>{option.name}</b>
-                                                    {option.description ? <small>{option.description}</small> : null}
-                                                </span>
-                                                {option.sizes.length ? (
-                                                    <span className="quote-size__price">
-                                                        desde {formatPrice(Math.min(...option.sizes.map((one) => one.price)))}
+                            {showProductStep ? (
+                                <fieldset className="quote-step">
+                                    <legend className="quote-step__title">
+                                        <span className="quote-step__n script">1</span>Postre
+                                    </legend>
+                                    <div className="quote-desserts">
+                                        {tabProducts.map((option) => (
+                                            <label key={option.id} className="quote-size quote-dessert">
+                                                <input
+                                                    id={`product-${option.id}`}
+                                                    type="radio"
+                                                    name="product"
+                                                    value={option.id}
+                                                    checked={product.id === option.id}
+                                                    onChange={() => selectProduct(option)}
+                                                />
+                                                <span className="quote-size__card">
+                                                    {option.needsPhoto ? <CakeDrawing /> : <DessertDrawing name={option.name} />}
+                                                    <span className="quote-dessert__text">
+                                                        <b>{option.name}</b>
+                                                        {option.description ? <small>{option.description}</small> : null}
                                                     </span>
-                                                ) : null}
-                                            </span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </fieldset>
+                                                    {option.sizes.length ? (
+                                                        <span className="quote-size__price">
+                                                            desde {formatPrice(Math.min(...option.sizes.map((one) => one.price)))}
+                                                        </span>
+                                                    ) : null}
+                                                </span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </fieldset>
+                            ) : null}
 
                             <fieldset className="quote-step">
                                 <legend className="quote-step__title">
-                                    <span className="quote-step__n script">2</span>Tamaño
+                                    <span className="quote-step__n script">{sizeStep}</span>Tamaño
                                 </legend>
                                 {variants.length ? (
                                     <>
@@ -616,7 +621,7 @@ export const Cotizador = () => {
                             {product.groups.map((group, groupIndex) => (
                                 <fieldset className="quote-step" key={group.id}>
                                     <legend className="quote-step__title">
-                                        <span className="quote-step__n script">{3 + groupIndex}</span>
+                                        <span className="quote-step__n script">{sizeStep + 1 + groupIndex}</span>
                                         {group.name}
                                     </legend>
                                     <p className="quote-step__hint">{getGroupHint(group)}</p>

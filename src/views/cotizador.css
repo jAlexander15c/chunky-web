@@ -924,6 +924,8 @@
 .quote-kinds {
     display: flex;
     flex-wrap: wrap;
+    /* Solo el ancho de sus pestañas, no la fila entera */
+    width: fit-content;
     max-width: 100%;
     border-radius: 24px;
 }
