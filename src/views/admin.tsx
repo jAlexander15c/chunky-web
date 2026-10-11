@@ -33,7 +33,7 @@ import { AdminHours } from "./admin-hours";
 import { AdminIncidents } from "./admin-incidents";
 import { AdminInventory } from "./admin-inventory";
 import { AdminMenu } from "./admin-menu";
-import { AdminHomeSlides } from "./admin-home-slides";
+import { AdminSite } from "./admin-site";
 import { AdminWeb } from "./admin-web";
 import { AdminCustomers } from "./admin-customers";
 import { AdminOverview } from "./admin-overview";
@@ -683,7 +683,7 @@ const AdminDashboard = ({ token, personName, onLogout, onTokenChange }: IAdminDa
                     ) : section === "menu" ? (
                         <AdminMenu token={token} onSessionExpired={onLogout} />
                     ) : section === "inicio" ? (
-                        <AdminHomeSlides token={token} onSessionExpired={onLogout} />
+                        <AdminSite token={token} onSessionExpired={onLogout} />
                     ) : section === "caja" ? (
                         <AdminCaja token={token} onSessionExpired={onLogout} />
                     ) : section === "local" ? (

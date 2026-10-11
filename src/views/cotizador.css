@@ -12,6 +12,21 @@
 
 /* ============ Intro ============ */
 
+/* Título a la izquierda y galería a la derecha; en el teléfono la galería va debajo, a todo el ancho */
+.quote__top {
+    display: grid;
+    gap: 0.5rem;
+    padding-bottom: 1.25rem;
+}
+
+@media (min-width: 900px) {
+    .quote__top {
+        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+        align-items: center;
+        gap: 2rem;
+    }
+}
+
 .quote__intro {
     max-width: 40rem;
     padding-block: 1.5rem 2.25rem;

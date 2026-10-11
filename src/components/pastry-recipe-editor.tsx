@@ -542,7 +542,7 @@ export const PastryRecipeEditor = ({ token, productId, tabs, onBack, onChanged, 
                         Multiplicador
                         <DecimalInput value={product.factor} onChange={(factor) => patch({ factor })} />
                     </label>
-                    <p className="pa-muted">Precio = costo × escala × multiplicador, redondeado al dólar.</p>
+                    <p className="pa-muted">Precio = costo × escala × multiplicador.</p>
                     <div className="pa-prices">
                         {product.sizes.map((size, index) => {
                             const { cost, price, margin } = getPastrySizeMargin(product, size, byId);

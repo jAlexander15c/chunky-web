@@ -22,6 +22,7 @@ export * from "./quote";
 export * from "./pastry";
 export * from "./tracking";
 export * from "./home-slides";
+export * from "./quote-gallery";
 export * from "./app-version";
 export * from "./live-refresh";
 export * from "./pagination";

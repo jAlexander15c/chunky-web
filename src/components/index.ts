@@ -27,3 +27,4 @@ export * from "./use-catalog";
 export * from "./update-banner";
 export * from "./full-sheet";
 export * from "./home-carousel";
+export * from "./quote-gallery";

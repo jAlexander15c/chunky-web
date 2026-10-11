@@ -132,14 +132,14 @@ export const getPastryBasePrice = (
     product: Pick<IPastryProductInput, "base" | "factor">,
     size: Pick<IPastrySize, "scale">,
     ingredients: PastryIngredientMap
-) => Math.round(getRecipeCost(product.base, ingredients) * size.scale * product.factor);
+) => round2(getRecipeCost(product.base, ingredients) * size.scale * product.factor);
 
 export const getPastryOptionPrice = (
     option: Pick<IPastryOption, "items">,
     product: Pick<IPastryProductInput, "factor">,
     size: Pick<IPastrySize, "scale">,
     ingredients: PastryIngredientMap
-) => Math.round(getRecipeCost(option.items, ingredients) * size.scale * product.factor);
+) => round2(getRecipeCost(option.items, ingredients) * size.scale * product.factor);
 
 /** El costo del tamaño con la base y las opciones elegidas, sin topper ni multiplicador. */
 export const getPastryEstimatedCost = (

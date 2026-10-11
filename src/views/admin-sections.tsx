@@ -93,10 +93,10 @@ export const ADMIN_GROUPS: IAdminSectionGroup[] = [
                 ),
             },
             {
-                // Láminas del carrusel de la página de inicio
+                // Carrusel del inicio y galería del cotizador (el id se queda para no romper enlaces ?s=)
                 id: "inicio",
-                label: "Inicio de la web",
-                subtitle: "Las láminas del carrusel que ve la gente al entrar.",
+                label: "Web",
+                subtitle: "Lo que ve la gente en la página: el carrusel del inicio y la galería del cotizador.",
                 source: "Postgres",
                 icon: (
                     <>

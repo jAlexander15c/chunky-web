@@ -60,8 +60,8 @@ describe("fórmula de precio (vectores del contrato)", () => {
 
     test("precio base con escala 1 y 0.4727", () => {
         const product = { base: BASE, factor: 2.95 };
-        expect(getPastryBasePrice(product, { scale: 1 }, INGREDIENTS)).toBe(55);
-        expect(getPastryBasePrice(product, { scale: 0.4727 }, INGREDIENTS)).toBe(26);
+        expect(getPastryBasePrice(product, { scale: 1 }, INGREDIENTS)).toBe(55.25);
+        expect(getPastryBasePrice(product, { scale: 0.4727 }, INGREDIENTS)).toBe(26.12);
     });
 
     test("una opción de 1.6949 vale $5", () => {

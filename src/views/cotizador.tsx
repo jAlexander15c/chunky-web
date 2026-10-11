@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { PiArrowRightBold, PiCheckBold, PiImageBold, PiWhatsappLogoBold } from "react-icons/pi";
 
-import { AnimatedPrice, useCart, useCatalog } from "@/components";
+import { AnimatedPrice, QuoteGallery, useCart, useCatalog } from "@/components";
 import {
     HttpError,
     QUOTE_LEAD_DAYS,
@@ -456,16 +456,19 @@ export const Cotizador = () => {
 
     return (
         <main className="quote">
-            <section className="quote__intro">
-                <p className="quote__script script">a tu medida</p>
-                <h1>Cotiza tu postre y mira el precio al instante</h1>
-                <p>
-                    {product?.needsPhoto
-                        ? "Elige tamaño y opciones, sube tu foto de referencia y envíanos la cotización."
-                        : "Elige el postre, el tamaño y envíanos la cotización."}{" "}
-                    Te la confirmamos por correo.
-                </p>
-            </section>
+            <div className="quote__top">
+                <section className="quote__intro">
+                    <p className="quote__script script">a tu medida</p>
+                    <h1>Cotiza tu postre y mira el precio al instante</h1>
+                    <p>
+                        {product?.needsPhoto
+                            ? "Elige tamaño y opciones, sube tu foto de referencia y envíanos la cotización."
+                            : "Elige el postre, el tamaño y envíanos la cotización."}{" "}
+                        Te la confirmamos por correo.
+                    </p>
+                </section>
+                <QuoteGallery />
+            </div>
 
             {isLoading ? (
                 <div className="quote-skeleton" aria-busy="true" aria-label="Cargando los postres">

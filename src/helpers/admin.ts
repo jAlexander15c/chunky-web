@@ -4,6 +4,7 @@ import type { ICreditTicket, IShiftDetail } from "./gestion";
 import type { IWeekHours, StoreOverride } from "./hours";
 import type { IHomeSlide, IHomeSlideInput } from "./home-slides";
 import type { IModifier } from "./modifiers";
+import type { IGalleryPhoto, IGalleryPhotoInput } from "./quote-gallery";
 import type { QuoteKind } from "./quote";
 import type { IStaffLogin } from "./staff-access";
 
@@ -751,6 +752,36 @@ export const uploadHomeSlideImage = (token: string, id: string, image: Blob) =>
 
 export const deleteHomeSlideImage = (token: string, id: string) =>
     httpDelete<{ imageVersion: null }>(`/admin/home-slides/${encodeURIComponent(id)}/image`, { headers: getAdminHeaders(token) });
+
+/* ============ Galería del cotizador ============ */
+
+/** Mismo tamaño 4:3 que las laminas del inicio. */
+export const cropQuoteGalleryImage = (file: File) => cropHomeSlideImage(file);
+
+export const fetchAdminQuoteGallery = (token: string, signal?: AbortSignal) =>
+    httpGet<{ photos: IGalleryPhoto[] }>("/admin/quote-gallery", { signal, headers: getAdminHeaders(token) });
+
+export const createQuoteGalleryPhoto = (token: string, photo: IGalleryPhotoInput) =>
+    httpPost<IGalleryPhoto>("/admin/quote-gallery", photo, { headers: getAdminHeaders(token) });
+
+/** Edita con el cuerpo completo (no hay cambios parciales). */
+export const updateQuoteGalleryPhoto = (token: string, id: string, photo: IGalleryPhotoInput) =>
+    httpPut<IGalleryPhoto>(`/admin/quote-gallery/${encodeURIComponent(id)}`, photo, { headers: getAdminHeaders(token) });
+
+export const deleteQuoteGalleryPhoto = (token: string, id: string) =>
+    httpDelete<{ deleted: boolean }>(`/admin/quote-gallery/${encodeURIComponent(id)}`, { headers: getAdminHeaders(token) });
+
+/** `ids` son todas las fotos existentes, en el orden nuevo. */
+export const reorderQuoteGallery = (token: string, ids: string[]) =>
+    httpPut<{ photos: IGalleryPhoto[] }>("/admin/quote-gallery/order", { ids }, { headers: getAdminHeaders(token) });
+
+export const uploadQuoteGalleryImage = (token: string, id: string, image: Blob) =>
+    httpPostBinary<{ imageVersion: number }>(`/admin/quote-gallery/${encodeURIComponent(id)}/image`, image, {
+        headers: getAdminHeaders(token),
+    });
+
+export const deleteQuoteGalleryImage = (token: string, id: string) =>
+    httpDelete<{ imageVersion: null }>(`/admin/quote-gallery/${encodeURIComponent(id)}/image`, { headers: getAdminHeaders(token) });
 
 /* ============ Descuadres de pago ============ */
 

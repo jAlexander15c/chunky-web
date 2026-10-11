@@ -22,7 +22,6 @@ export const SiteHeader = () => {
                     <NavLink to="/cotizador" className="site-header__link" aria-label="Cotiza tu cake">
                         Cotiza<span className="site-header__cart-label"> tu cake</span>
                     </NavLink>
-                    <Link to="/#pasaporte" className="site-header__link site-header__link--secondary">Nuestra carta</Link>
                     <Link to="/#como-pedir" className="site-header__link site-header__link--secondary">Cómo pedir</Link>
                 </nav>
 
