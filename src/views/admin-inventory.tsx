@@ -4,6 +4,7 @@ import {fetchInventoryReceiptFailures,availabilityLabel} from "@/helpers/invento
 import type {InventoryReceiptFailure,ProductAvailability} from "@/helpers/inventory";
 import {PurchaseDialog} from "./inventory-purchase-dialog";
 import {InventoryBatchDialog} from "./inventory-batch-dialog";
+import {SupplyToProductDialog} from "./supply-to-product-dialog";
 import {WASTE_REASON_LABEL} from "@/helpers/product-waste";
 import type {IWasteMovement} from "@/helpers/product-waste";
 import {compatibleUnits,expirationLabel,isIntermediate} from "@/helpers/inventory";
@@ -206,9 +207,11 @@ interface ISupplyFormProps {
     supply?: ISupplyStatus;
     onSave: (supply: ISupplyInput, conversion?: ISupplyConversion) => Promise<void>;
     onClose: () => void;
+    /** Solo al editar: el insumo se vende tal cual y pasa a lotes del producto del menú. */
+    onConvertToProduct?: () => void;
 }
 
-const SupplyFormDialog = ({ supply, onSave, onClose }: ISupplyFormProps) => {
+const SupplyFormDialog = ({ supply, onSave, onClose, onConvertToProduct }: ISupplyFormProps) => {
     const isEditing = Boolean(supply);
     const [name, setName] = useState(supply?.name ?? "");
     const [unit, setUnit] = useState(supply?.unit ?? "kg");
@@ -405,6 +408,15 @@ const SupplyFormDialog = ({ supply, onSave, onClose }: ISupplyFormProps) => {
                     )}
                 </p>
 
+                {onConvertToProduct && !isElaborado ? (
+                    <p className="adm-form__note">
+                        <button type="button" className="adm-link" onClick={onConvertToProduct} disabled={isSending}>
+                            Es un producto del menú →
+                        </button>{" "}
+                        Se vende tal cual: pásalo a lotes y deja de avisar para comprar.
+                    </p>
+                ) : null}
+
                 {error ? <p className="adm-gate__error">{error}</p> : null}
 
                 <div className="adm-modal__actions">
@@ -419,7 +431,7 @@ const SupplyFormDialog = ({ supply, onSave, onClose }: ISupplyFormProps) => {
 };
 
 type PendingAction =
-    | { kind: "purchase" | "count" | "waste" | "edit" | "batches"; supply: ISupplyStatus }
+    | { kind: "purchase" | "count" | "waste" | "edit" | "batches" | "to-product"; supply: ISupplyStatus }
     | { kind: "production" | "arrival"; product: IProductStatus };
 
 /* ============ Piezas de filtro ============ */
@@ -1035,7 +1047,12 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey, from, to }
                         await reloadAll();
                     }}
                     onClose={() => setPending(null)}
+                    onConvertToProduct={() => setPending({ kind: "to-product", supply: pending.supply })}
                 />
+            ) : null}
+
+            {pending?.kind === "to-product" ? (
+                <SupplyToProductDialog token={token} supply={pending.supply} onSaved={reloadAll} onClose={() => setPending(null)} />
             ) : null}
 
             {pending?.kind === "purchase" ? <PurchaseDialog token={token} supply={pending.supply} onSaved={reloadAll} onClose={()=>setPending(null)}/> : null}

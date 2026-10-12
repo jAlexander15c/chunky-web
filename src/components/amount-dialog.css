@@ -293,6 +293,11 @@
     font-weight: 700;
 }
 
+/* Lo que cambia al pasar un insumo a producto: una línea por consecuencia */
+.lot__summary--list { list-style: none; display: grid; gap: 0.35rem; font-weight: 600; }
+.lot__summary--list li { display: flex; gap: 0.45rem; }
+.lot__summary--list li::before { content: "✓"; font-weight: 800; }
+
 @media (prefers-reduced-motion: reduce) {
     .lot__step, .lot__day { transition: none; }
 }

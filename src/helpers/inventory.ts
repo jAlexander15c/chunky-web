@@ -1,5 +1,6 @@
 import { httpGet, httpPost, httpPut, httpDelete } from "./getHttp";
 import type { ISupplyStatus } from "./admin";
+import type { ISaleAvailability } from "./gestion";
 import type { IModifier } from "./modifiers";
 import type {
     ExtendDays,
@@ -290,6 +291,24 @@ export const fetchExpiredLots = (token: string, signal?: AbortSignal) =>
 
 export const discardExpiredLots = (token: string, batchIds: number[], requestId: string) =>
     httpPost<IDiscardExpiredResponse>("/gestion/products/expired/discard", { batchIds, requestId }, inventoryHeaders(token, "gestion"));
+
+export interface ISupplyToProductResponse {
+    supplyId: number;
+    variantId: string;
+    quantity: string;
+    batchId: number | null;
+}
+
+/** Productos del menú desde el tablero, para elegir a cuál pasa un insumo. */
+export const fetchAdminMenuProducts = (token: string, signal?: AbortSignal) =>
+    httpGet<{ products: ISaleAvailability[] }>("/admin/availability", { signal, headers: { "x-admin-token": token } });
+
+/** Un insumo que se vende tal cual pasa a lotes del producto: se archiva y deja de avisar para comprar. */
+export const convertSupplyToProduct = (
+    token: string,
+    supplyId: number,
+    input: { variantId: string; quantity: number; shelfLifeDays?: number; requestId: string }
+) => httpPost<ISupplyToProductResponse>(`/admin/supplies/${supplyId}/to-product`, input, { headers: { "x-admin-token": token } });
 
 /** Lotes vencidos que siguen buenos: vuelven a venderse con N días más. */
 export const extendExpiredLots = (token: string, lots: { batchId: number; days: ExtendDays }[], requestId: string) =>
