@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { getExpiredAgoLabel, getExpiredLotsTitle, getWasteTone, groupExpiredLots, formatWastePercent, WASTE_REASON_LABEL } from "./product-waste";
+import { getExpiredAgoLabel, getExpiredLotsTitle, getExtendedUntilLabel, getWasteTone, groupExpiredLots, formatWastePercent, WASTE_REASON_LABEL } from "./product-waste";
 
 describe("merma de productos por lotes", () => {
     test("las etiquetas de motivo", () => {
@@ -49,5 +49,15 @@ describe("merma de productos por lotes", () => {
             { variantId: "a", name: "Galleta", quantity: 6, expirationDate: "2026-10-03T05:00:00Z" },
             { variantId: "b", name: "Cheesecake", quantity: 1, expirationDate: "2026-10-03T05:00:00Z" },
         ]);
+    });
+});
+
+describe("getExtendedUntilLabel", () => {
+    test("cuenta días de 24 horas desde ahora y muestra el día de Panamá", () => {
+        const now = new Date("2026-10-12T17:00:00Z");
+        expect(getExtendedUntilLabel(1, now)).toBe("Vence el martes 13 oct");
+        expect(getExtendedUntilLabel(3, now)).toBe("Vence el jueves 15 oct");
+        // 11 p. m. en Panamá ya es el día siguiente en UTC
+        expect(getExtendedUntilLabel(1, new Date("2026-10-13T04:00:00Z"))).toBe("Vence el martes 13 oct");
     });
 });

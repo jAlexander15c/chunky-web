@@ -1644,6 +1644,31 @@
 .ges-expired .ges-btn--danger { width: 100%; }
 .ges-expired__list { border: 1px solid var(--ges-line); border-radius: 14px; padding: 0.5rem 0.75rem; background: #fff; }
 
+/* Revisar vencidos: por producto, botar o sigue bueno con días extra */
+.ges-expired__choices { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.6rem; }
+.ges-expired__choice { border: 1px solid var(--ges-line); border-radius: 16px; padding: 0.7rem; background: #fff; display: grid; gap: 0.6rem; }
+.ges-expired__head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.6rem; font-size: 0.92rem; font-weight: 600; }
+.ges-expired__head span { min-width: 0; overflow-wrap: anywhere; }
+.ges-expired__head b { font-variant-numeric: tabular-nums; }
+.ges-expired__head small { color: var(--ges-crit); font-weight: 700; font-size: 0.78rem; white-space: nowrap; }
+.ges-modal .ges-expired__seg { margin: 0; }
+.ges-expired__seg button.is-discard[aria-pressed="true"] { background: var(--ges-crit); color: var(--crema); }
+.ges-expired__seg button.is-keep[aria-pressed="true"] { background: var(--ges-good); color: var(--crema); }
+.ges-expired__days { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; font-size: 0.8rem; font-weight: 700; color: var(--ges-text-2); }
+.ges-expired__days button {
+    font: inherit;
+    color: var(--ink);
+    border: 1.5px solid var(--ges-line);
+    background: transparent;
+    border-radius: var(--radius-pill);
+    min-height: 34px;
+    padding: 0 0.75rem;
+    cursor: pointer;
+}
+.ges-expired__days button[aria-pressed="true"] { border-color: var(--ges-good); background: var(--ges-good-bg); color: var(--ges-good); }
+.ges-expired__days button:focus-visible { outline: 3px solid var(--mora); outline-offset: 2px; }
+.ges-expired__days small { width: 100%; color: var(--ges-good); font-size: 0.78rem; }
+
 @media (min-width: 720px) {
     .ges-expired { max-width: 640px; margin-inline: auto; width: 100%; box-sizing: border-box; }
 }

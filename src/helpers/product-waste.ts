@@ -53,6 +53,16 @@ export interface IDiscardExpiredResponse {
     skipped: number[];
 }
 
+/** Días que se le dan a un lote vencido que sigue bueno; el API acepta de 1 a 3. */
+export const EXTEND_DAY_OPTIONS = [1, 2, 3] as const;
+
+export type ExtendDays = (typeof EXTEND_DAY_OPTIONS)[number];
+
+export interface IExtendExpiredResponse {
+    extended: (IDiscardedLot & { expirationDate: string })[];
+    skipped: number[];
+}
+
 export interface IProductWasteInput {
     quantity: number;
     reason: ManualWasteReason;
@@ -121,6 +131,16 @@ export const getExpiredAgoLabel = (expirationDate: string, now: Date = new Date(
     if (days <= 0) return "venció hoy";
     if (days === 1) return "venció ayer";
     return `venció hace ${days} días`;
+};
+
+/** "Vence el martes 14 oct": la fecha que queda si se le dan N días más desde ahora (24 h cada uno, como el API). */
+export const getExtendedUntilLabel = (days: number, now: Date = new Date()) => {
+    const date = new Date(now.getTime() + days * 86400000);
+    const label = new Intl.DateTimeFormat("es-PA", { timeZone: "America/Panama", weekday: "long", day: "numeric", month: "short" })
+        .format(date)
+        .replace(",", "")
+        .replace(".", "");
+    return `Vence el ${label}`;
 };
 
 /** Las unidades vencidas llegan como texto ("6" o "6.000"). */

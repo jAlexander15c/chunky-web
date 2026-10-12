@@ -297,7 +297,7 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                     ))}
                 </ul>
                 <button type="button" className="ges-btn ges-btn--danger" onClick={() => setPending({ kind: "expired" })}>
-                    Botar como vencido
+                    Revisar vencidos
                 </button>
             </section>
         ) : null;
@@ -625,12 +625,17 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                                               ? "Preparación"
                                             : movement.referenceType === "INVENTORY_EXIT"
                                               ? `Salida${movement.reference ? ` · ${movement.reference}` : ""}`
+                                            : movement.referenceType === "PRODUCT_EXPIRY_EXTENDED"
+                                              ? "Sigue bueno"
                                               : MOVEMENT_LABEL[movement.type] ?? movement.type}
                                     </b>{" "}
                                     · {movement.name}{" "}
                                     <em>
                                         {/* En un conteo importa lo que se contó, no la diferencia que corrigió */}
-                                        {movement.type === "conteo"
+                                        {/* Un lote que sigue bueno no mueve unidades: lo que cuenta es la fecha nueva */}
+                                        {movement.referenceType === "PRODUCT_EXPIRY_EXTENDED"
+                                            ? movement.note?.replace(/^Sigue bueno: /, "") ?? ""
+                                            : movement.type === "conteo"
                                             ? `${formatQuantity(movement.balance ?? 0)} ${movement.unit}`
                                             : `${movement.quantity < 0 ? "−" : "+"}${formatQuantity(Math.abs(movement.quantity))} ${movement.unit}`}
                                     </em>

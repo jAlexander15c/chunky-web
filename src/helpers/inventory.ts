@@ -2,8 +2,10 @@ import { httpGet, httpPost, httpPut, httpDelete } from "./getHttp";
 import type { ISupplyStatus } from "./admin";
 import type { IModifier } from "./modifiers";
 import type {
+    ExtendDays,
     IDiscardExpiredResponse,
     IExpiredLotsResponse,
+    IExtendExpiredResponse,
     IProductWasteInput,
     IProductWasteResponse,
     IWasteReport,
@@ -288,6 +290,10 @@ export const fetchExpiredLots = (token: string, signal?: AbortSignal) =>
 
 export const discardExpiredLots = (token: string, batchIds: number[], requestId: string) =>
     httpPost<IDiscardExpiredResponse>("/gestion/products/expired/discard", { batchIds, requestId }, inventoryHeaders(token, "gestion"));
+
+/** Lotes vencidos que siguen buenos: vuelven a venderse con N días más. */
+export const extendExpiredLots = (token: string, lots: { batchId: number; days: ExtendDays }[], requestId: string) =>
+    httpPost<IExtendExpiredResponse>("/gestion/products/expired/extend", { lots, requestId }, inventoryHeaders(token, "gestion"));
 
 export const registerProductWaste = (token: string, variantId: string, input: IProductWasteInput) =>
     httpPost<IProductWasteResponse>(
