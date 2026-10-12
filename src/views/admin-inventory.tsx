@@ -408,7 +408,7 @@ const SupplyFormDialog = ({ supply, onSave, onClose, onConvertToProduct }: ISupp
                     )}
                 </p>
 
-                {onConvertToProduct && !isElaborado ? (
+                {onConvertToProduct && !isElaborado && supply?.inventoryType !== "PREPARED_PRODUCT" ? (
                     <p className="adm-form__note">
                         <button type="button" className="adm-link" onClick={onConvertToProduct} disabled={isSending}>
                             Es un producto del menú →
@@ -547,7 +547,8 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey, from, to }
             try {
                 const [suppliesData, productsData, failureData] = await Promise.all([fetchSupplies(token, signal), fetchProducts(token, signal),fetchInventoryReceiptFailures(token,signal)]);
                 setReceiptFailures(failureData.failures);
-                setSupplies(suppliesData.supplies);
+                // El inventario de un producto por lotes se ve en Productos, no como insumo (igual que en Gestión)
+                setSupplies(suppliesData.supplies.filter((supply) => supply.inventoryType !== "PREPARED_PRODUCT"));
                 setProducts(productsData.products);
                 setError("");
             } catch (requestError) {

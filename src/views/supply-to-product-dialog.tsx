@@ -142,7 +142,7 @@ export const SupplyToProductDialog = ({
                     </div>
                 )}
 
-                <div className="lot__fields">
+                <div className="lot__fields lot__fields--stack">
                     <div>
                         <label className="lot__label" htmlFor="to-product-quantity">¿Cuántas hay ahora?</label>
                         <div className="dlg__field lot__other">
