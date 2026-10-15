@@ -6,6 +6,7 @@ import {
     PAYMENT_LABEL,
     addTicketLine,
     assignTicketCustomer,
+    buildPastaItem,
     changeTicketLine,
     fetchCustomerMatches,
     fetchTables,
@@ -30,6 +31,7 @@ import {
     useCategories,
     useItems,
     useModifiers,
+    useSettings,
     voidTicket,
 } from "@/helpers";
 import type {
@@ -812,11 +814,13 @@ const LINE_NOTE_MAX = 120;
 
 interface IOptionsDialogProps {
     item: IItem;
+    /** La pasta exige una opcion de cada grupo (pasta, salsa y proteina); lo demas es opcional. */
+    isEveryGroupRequired?: boolean;
     onAdd: (modifierOptionIds: string[], note: string | null) => Promise<void>;
     onClose: () => void;
 }
 
-const OptionsDialog = ({ item, onAdd, onClose }: IOptionsDialogProps) => {
+const OptionsDialog = ({ item, isEveryGroupRequired = false, onAdd, onClose }: IOptionsDialogProps) => {
     const [chosen, setChosen] = useState<ICartModifier[]>([]);
     const modifiers = useModifiers({
         live: true,
@@ -827,12 +831,15 @@ const OptionsDialog = ({ item, onAdd, onClose }: IOptionsDialogProps) => {
     const [isSending, setIsSending] = useState(false);
 
     const itemModifiers = getItemModifiers(item, modifiers, chosen.map((entry) => entry.modifierOptionId));
+    const missingGroups = isEveryGroupRequired
+        ? itemModifiers.filter((modifier) => !chosen.some((entry) => entry.modifierId === modifier.id))
+        : [];
 
     return (
         <div className="ges-modal" role="dialog" aria-modal="true" aria-label={`Opciones de ${item.item_name}`}>
             <div className="ges-modal__panel">
                 <h3 className="script">{item.item_name}</h3>
-                <ModifierPicker modifiers={itemModifiers} chosen={chosen} onChange={setChosen} showSoldOutReason />
+                <ModifierPicker modifiers={itemModifiers} chosen={chosen} onChange={setChosen} showSoldOutReason isEveryGroupRequired={isEveryGroupRequired} />
                 <label className="ges-field">
                     <span>Nota para cocina</span>
                     <input
@@ -845,12 +852,15 @@ const OptionsDialog = ({ item, onAdd, onClose }: IOptionsDialogProps) => {
                         onChange={(event) => setNote(event.target.value)}
                     />
                 </label>
+                {missingGroups.length > 0 ? (
+                    <p className="ges-note">Falta elegir: {missingGroups.map((modifier) => modifier.name).join(", ")}</p>
+                ) : null}
                 <div className="ges-modal__acts">
                     <button type="button" className="ges-btn" onClick={onClose} disabled={isSending}>Cancelar</button>
                     <button
                         type="button"
                         className="ges-btn ges-btn--solid"
-                        disabled={isSending}
+                        disabled={isSending || missingGroups.length > 0}
                         onClick={async () => {
                             setIsSending(true);
                             await onAdd(chosen.map((one) => one.modifierOptionId), note.trim() || null);
@@ -1181,6 +1191,9 @@ const MoveDialog = ({ line, accounts, onMove, onClose }: IMoveDialogProps) => {
 
 /* ============ Caja ============ */
 
+/** Pestaña de la pasta armable; no es una categoria de Loyverse. */
+const PASTA_TAB_ID = "pasta";
+
 interface IGestionCajaProps {
     token: string;
     onSessionExpired: () => void;
@@ -1212,9 +1225,21 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
     );
 
     // La caja queda abierta todo el dia: revalida el menu para ver los cambios del tablero sin recargar
-    const { categories } = useCategories({ live: true });
+    const { categories: menuCategories } = useCategories({ live: true });
+    // La pasta no tiene categoria en Loyverse: el dia de pasta va en su propia pestaña, de primera
+    const { settings } = useSettings();
+    const pastaItem = useMemo(
+        () => (settings.pasta?.modifierIds ? { ...buildPastaItem(settings.pasta), modifier_ids: settings.pasta.modifierIds } : null),
+        [settings.pasta]
+    );
+    const categories = useMemo(
+        () => (pastaItem ? [{ id: PASTA_TAB_ID, name: "Pasta" }, ...menuCategories] : menuCategories),
+        [pastaItem, menuCategories]
+    );
     const currentCategory = categoryId ?? categories[0]?.id;
-    const { items } = useItems(currentCategory, "normal", { live: true });
+    const isPastaTab = currentCategory === PASTA_TAB_ID;
+    const { items: categoryItems } = useItems(isPastaTab ? undefined : currentCategory, "normal", { live: true });
+    const items = useMemo(() => (isPastaTab && pastaItem ? [pastaItem] : categoryItems), [isPastaTab, pastaItem, categoryItems]);
     const modifiers = useModifiers({ live: true });
 
     const handleError = useCallback(
@@ -1706,6 +1731,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
             {options ? (
                 <OptionsDialog
                     item={options}
+                    isEveryGroupRequired={options.id === pastaItem?.id}
                     onClose={() => setOptions(null)}
                     onAdd={async (modifierOptionIds, note) => {
                         const variantId = options.variants?.[0]?.variant_id;

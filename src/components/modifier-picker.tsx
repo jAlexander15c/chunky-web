@@ -9,6 +9,8 @@ interface IModifierPickerProps {
     onChange: (next: ICartModifier[]) => void;
     /** El equipo ve por qué no está (apagada o sin insumo); el cliente solo ve "Agotado". */
     showSoldOutReason?: boolean;
+    /** Cada grupo pide una opcion (la pasta en la Caja); quien lo usa no deja agregar sin ellas. */
+    isEveryGroupRequired?: boolean;
 }
 
 const getSoldOutLabel = (option: IModifierOption, showReason: boolean) =>
@@ -21,7 +23,7 @@ const getExtraLabel = (option: IModifierOption) => (option.price > 0 ? `+${forma
  * con varias, se elige una (tocar la elegida la quita). Loyverse no distingue obligatorios.
  * Las opciones agotadas se ven, tachadas y con "Agotado", pero no se pueden elegir.
  */
-export const ModifierPicker = ({ modifiers, chosen, onChange, showSoldOutReason = false }: IModifierPickerProps) => {
+export const ModifierPicker = ({ modifiers, chosen, onChange, showSoldOutReason = false, isEveryGroupRequired = false }: IModifierPickerProps) => {
     const getChosenOptionId = (modifierId: string) =>
         chosen.find((entry) => entry.modifierId === modifierId)?.modifierOptionId;
 
@@ -62,7 +64,7 @@ export const ModifierPicker = ({ modifiers, chosen, onChange, showSoldOutReason 
                     <fieldset key={modifier.id} className="opts__group">
                         <legend className="opts__legend">
                             {modifier.name}
-                            <span>elige una, opcional</span>
+                            <span>{isEveryGroupRequired ? "elige una" : "elige una, opcional"}</span>
                         </legend>
                         <div className="opts__chips">
                             {modifier.options.map((option) => {

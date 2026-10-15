@@ -20,6 +20,8 @@ export interface IPastaSettings {
     price: number;
     imageUrl: string | null;
     options: Record<PastaOptionKey, string[]>;
+    /** Los modificadores Pasta, Salsa y Proteína, para elegirlos en la Caja. Falta con un API anterior. */
+    modifierIds?: string[];
 }
 
 /** Los tres pasos del armador, en orden. */
