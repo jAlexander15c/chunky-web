@@ -10,16 +10,18 @@ import {
     isAcceptingOrders,
     useCategories,
     useSettings,
+    isPastaDeliveryOnly,
+    isPastaOnlyNow,
 } from "@/helpers";
 
 const MARQUEE_WORDS = ["Galletas estilo New York", "Focaccias", "Pasta", "Tostadas", "Matcha", "Desayunos"];
 
 /** Los pasos del pedido en la web. El segundo cambia segun como se entrega hoy. */
-const getOrderSteps = (settings: { pastaMode: boolean; deliveryMode: boolean }) => [
+const getOrderSteps = (settings: { pastaMode: boolean; pastaFullMenu?: boolean; deliveryMode: boolean }) => [
     { title: "Elige en el tablero", text: "Agrega lo que se te antoje." },
     {
         title: "Revisa tu carrito",
-        text: settings.pastaMode
+        text: isPastaDeliveryOnly(settings)
             ? "Suma, resta y dinos a dónde te lo llevamos."
             : settings.deliveryMode
                 ? "Suma, resta y elige si lo retiras o te lo llevamos."
@@ -67,8 +69,8 @@ export const Home = () => {
     const getHomeCategory = useHomeCategory();
     const { settings } = useSettings();
     const isOpen = isAcceptingOrders(settings);
-    // Los dias de pasta el resto del menu no se vende: no se ofrecen sus accesos
-    const isPastaDay = settings.pastaMode;
+    // Con solo pasta y bebidas el resto del menu no se vende: no se ofrecen sus accesos
+    const isPastaDay = isPastaOnlyNow(settings);
     const { link: cookies, photo: cookiesPhoto } = getHomeCategory("galletas");
     const { link: savory, photo: savoryPhoto } = getHomeCategory("salados");
     const { link: drinks, photo: drinksPhoto } = getHomeCategory("bebidas");
@@ -182,7 +184,9 @@ export const Home = () => {
                                 <p className="hours__note">Hoy no abrimos: no recibimos pedidos en línea aunque este horario diga otra cosa.</p>
                             ) : settings.storeOverride === "open" ? (
                                 <p className="hours__note">Hoy abrimos en un horario especial: recibimos pedidos en línea todo el día.</p>
-                            ) : isPastaDay ? (
+                            ) : settings.pastaMode && settings.pastaFullMenu ? (
+                                <p className="hours__note">Hoy es día de pasta: fuera de este horario igual recibimos pedidos de pasta y bebidas.</p>
+                            ) : settings.pastaMode ? (
                                 <p className="hours__note">Hoy es día de pasta: recibimos pedidos en línea aunque este horario diga otra cosa.</p>
                             ) : null}
                         </div>

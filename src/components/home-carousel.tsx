@@ -20,6 +20,7 @@ import {
     useCategories,
     useHomeSlides,
     useSettings,
+    isPastaOnlyNow,
 } from "@/helpers";
 import type { IHomeSlide } from "@/helpers";
 
@@ -39,8 +40,8 @@ const HeroSlide = ({ inCarousel = false }: { inCarousel?: boolean }) => {
     const { settings } = useSettings();
     const { open: openPastaBuilder } = usePastaBuilder();
     const isOpen = isAcceptingOrders(settings);
-    // Los dias de pasta el resto del menu no se vende: no se ofrecen sus accesos
-    const isPastaDay = settings.pastaMode;
+    // Con solo pasta y bebidas el resto del menu no se vende: no se ofrecen sus accesos
+    const isPastaDay = isPastaOnlyNow(settings);
     const cookiesPhoto = getCategoryImageUrl(getCategoryByName(categories, "galletas"));
     const savoryPhoto = getCategoryImageUrl(getCategoryByName(categories, "salados"));
     const drinksPhoto = getCategoryImageUrl(getCategoryByName(categories, "bebidas"));

@@ -153,6 +153,7 @@ const OrderTicket = ({ order }: { order: IPublicOrder }) => {
                     <li key={`${line.name}-${index}`} className="order-ticket__row">
                         <span>
                             {line.name} × {line.quantity}
+                            {line.promoName && <small className="order-ticket__options">{line.promoName}</small>}
                             {(line.options || line.modifiers?.length) && (
                                 <small className="order-ticket__options">
                                     {[
@@ -162,9 +163,10 @@ const OrderTicket = ({ order }: { order: IPublicOrder }) => {
                                 </small>
                             )}
                         </span>
-                        <span className="order-ticket__amount">{formatPrice(line.price * line.quantity)}</span>
+                        <span className="order-ticket__amount">{formatPrice(line.price * line.quantity - (line.discount ?? 0))}</span>
                     </li>
                 ))}
+                {(order.discount ?? 0) > 0 && <li className="order-ticket__row"><span>Ahorraste con promos</span><span>−{formatPrice(order.discount ?? 0)}</span></li>}
                 {Boolean(order.serviceFee) && (
                     <li className="order-ticket__row">
                         <span>Servicio web (tarjeta)</span>

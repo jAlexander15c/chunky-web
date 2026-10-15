@@ -1,3 +1,4 @@
+import type { IPromo, IPromoAdmin, IPromoInput } from "./promos";
 import type {InventoryType,ProductAvailability} from "./inventory";
 import { httpDelete, httpGet, httpPost, httpPostBinary, httpPut } from "./getHttp";
 import type { ICreditTicket, IShiftDetail } from "./gestion";
@@ -537,6 +538,10 @@ export const setCollaboratorActive = (token: string, id: number, isActive: boole
 export const setPastaMode = (token: string, enabled: boolean) =>
     httpPost<{ pastaMode: boolean }>("/admin/pasta-mode", { enabled }, { headers: getAdminHeaders(token) });
 
+/** Con el modo pasta, vende tambien el resto del menu (dentro del horario de la semana). */
+export const setPastaFullMenu = (token: string, enabled: boolean) =>
+    httpPost<{ pastaFullMenu: boolean }>("/admin/pasta-full-menu", { enabled }, { headers: getAdminHeaders(token) });
+
 /** Enciende o apaga el delivery de la web: con el, el cliente elige entre retirar o recibir en su casa. */
 export const setDeliveryMode = (token: string, enabled: boolean) =>
     httpPost<{ deliveryMode: boolean }>("/admin/delivery-mode", { enabled }, { headers: getAdminHeaders(token) });
@@ -1016,3 +1021,12 @@ export const exportCustomer = (token: string, id: number) =>
 
 export const deleteCustomer = (token: string, id: number) =>
     httpDelete<{ ok: true }>(`/admin/customers/${id}`, { headers: getAdminHeaders(token) });
+
+export const fetchAdminPromos = (token: string, signal?: AbortSignal) =>
+    httpGet<{ promos: IPromoAdmin[] }>("/admin/promos", { signal, headers: getAdminHeaders(token) });
+export const createPromo = (token: string, input: IPromoInput) =>
+    httpPost<IPromo>("/admin/promos", input, { headers: getAdminHeaders(token) });
+export const updatePromo = (token: string, id: number, input: IPromoInput) =>
+    httpPut<IPromo>(`/admin/promos/${id}`, input, { headers: getAdminHeaders(token) });
+export const deletePromo = (token: string, id: number) =>
+    httpDelete<{ deleted: true }>(`/admin/promos/${id}`, { headers: getAdminHeaders(token) });

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 /** Las secciones del tablero. El id es el que va en la dirección: /admin?s=inventario. */
-export type AdminSection = "resumen" | "ventas" | "web" | "clientes" | "inventario" | "menu" | "inicio" | "caja" | "local" | "colaboradores" | "acceso";
+export type AdminSection = "resumen" | "ventas" | "web" | "clientes" | "inventario" | "menu" | "promos" | "inicio" | "caja" | "local" | "colaboradores" | "acceso";
 
 export interface IAdminSectionInfo {
     id: AdminSection;
@@ -91,6 +91,13 @@ export const ADMIN_GROUPS: IAdminSectionGroup[] = [
                         <path d="M9 9h6M9 13h6M9 17h4" />
                     </>
                 ),
+            },
+            {
+                id: "promos",
+                label: "Promos",
+                subtitle: "Descuentos para los productos del menú.",
+                source: "Postgres",
+                icon: <path d="M3 3h8l10 10-8 8L3 11zM7 7h.01" />,
             },
             {
                 // Carrusel del inicio y galería del cotizador (el id se queda para no romper enlaces ?s=)

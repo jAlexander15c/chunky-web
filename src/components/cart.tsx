@@ -1,3 +1,4 @@
+import "./promos.css";
 import { useEffect } from "react";
 import { Drawer, Portal, useBreakpointValue } from "@chakra-ui/react";
 import { Link } from "react-router";
@@ -11,21 +12,23 @@ import { Mascot } from "./mascot";
 import { QuantityStepper } from "./quantity-stepper";
 import { Stamp } from "./stamp";
 
-import { formatCartLineDetails, formatPrice, getAvailableQuantity, getCartLinePrice, getItemCartQuantity, getLineMax, getStockNote, useSettings } from "@/helpers";
+import { formatCartLineDetails, formatPrice, getAvailableQuantity, getPromoLabel, getItemCartQuantity, getLineMax, getStockNote, isPastaOnlyNow, useSettings } from "@/helpers";
 import type { ICartLine, IPublicSettings } from "@/helpers";
 
 /**
- * Lineas que ya no se venden hoy. El dia de pasta solo quedan la pasta (lleva opciones) y las bebidas;
- * los demas dias no hay pasta. Si aun no se sabe cual es la categoria de bebidas no se quita nada.
+ * Lineas que ya no se venden hoy. Con solo pasta y bebidas quedan la pasta (lleva opciones) y las bebidas;
+ * con el resto del menu se vende todo; los demas dias no hay pasta. Si aun no se sabe cual es la
+ * categoria de bebidas no se quita nada.
  */
 const getUnavailableLines = (lines: ICartLine[], settings: IPublicSettings) => {
     if (!settings.pastaMode) return lines.filter((line) => line.options);
+    if (!isPastaOnlyNow(settings)) return [];
     if (!settings.beveragesCategoryId) return [];
     return lines.filter((line) => !line.options && line.item.category_id !== settings.beveragesCategoryId);
 };
 
 export const Cart = () => {
-    const { lines, total, isOpen, setIsOpen, setQuantity, removeUnavailable, removedNames, dismissRemoved } = useCart();
+    const { lines, total, discount, prices, isOpen, setIsOpen, setQuantity, removeUnavailable, removedNames, dismissRemoved } = useCart();
     const { open: openPastaBuilder } = usePastaBuilder();
     const { settings, isReady } = useSettings();
     // Hoja inferior en movil, panel lateral desde tablet
@@ -112,6 +115,8 @@ export const Cart = () => {
                                                 {formatCartLineDetails(line) && (
                                                     <span className="carrito__options">{formatCartLineDetails(line)}</span>
                                                 )}
+                                                {prices[line.lineKey]?.promo && <small className="promo-note">{getPromoLabel(prices[line.lineKey].promo!)} · {prices[line.lineKey].promo!.name}</small>}
+                                                {prices[line.lineKey]?.hasOddUnit && <small className="promo-note">Agrega otra {line.item.item_name} y te sale gratis</small>}
                                                 <QuantityStepper
                                                     size="sm"
                                                     quantity={line.quantity}
@@ -121,7 +126,7 @@ export const Cart = () => {
                                                     note={getStockNote(getAvailableQuantity(line.item), getItemCartQuantity(lines, line.item))}
                                                 />
                                             </div>
-                                            <span className="carrito__price">{formatPrice(getCartLinePrice(line) * line.quantity)}</span>
+                                            <span className="carrito__price">{prices[line.lineKey]?.discount > 0 && <del className="promo-original">{formatPrice(prices[line.lineKey].subtotal)}</del>}{formatPrice(prices[line.lineKey]?.total ?? 0)}</span>
                                         </li>
                                     ))}
                                 </ul>
@@ -136,6 +141,7 @@ export const Cart = () => {
                             {/* Total, datos y pago dentro del area con scroll: en movil no tapan los productos */}
                             {lines.length > 0 && (
                                 <footer className="carrito__foot carrito__foot--inline">
+                                    {discount > 0 && <div className="comanda__row promo-note"><span>Ahorras con promos</span><span>−{formatPrice(discount)}</span></div>}
                                     <div className="carrito__total">
                                         <span>Total</span>
                                         <AnimatedPrice value={total} className="carrito__total-value" />

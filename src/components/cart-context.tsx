@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 import { CartContext } from "./use-cart";
 
-import { getCartCount, getCartTotal, getLineKey, getLineMax, trackEvent } from "@/helpers";
+import { getCartCount, getPromoCart, usePromos, getLineKey, getLineMax, trackEvent } from "@/helpers";
 import type { ICartLine, ICartModifier, IPastaOptions } from "@/helpers";
 import type { IItem } from "@/interfaces";
 
@@ -25,6 +25,8 @@ const readStoredLines = (): ICartLine[] => {
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
     const [lines, setLines] = useState<ICartLine[]>(readStoredLines);
+    const { promos } = usePromos();
+    const pricing = useMemo(() => getPromoCart(lines, promos), [lines, promos]);
     const [isOpen, setIsOpen] = useState(false);
     const [removedNames, setRemovedNames] = useState<string[]>([]);
 
@@ -85,7 +87,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     const value = useMemo(() => ({
         lines,
         count: getCartCount(lines),
-        total: getCartTotal(lines),
+        ...pricing,
         isOpen,
         setIsOpen,
         addItem,
@@ -95,7 +97,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         removedNames,
         dismissRemoved,
         clearCart,
-    }), [lines, isOpen, addItem, setQuantity, getQuantity, removeUnavailable, removedNames, dismissRemoved, clearCart]);
+    }), [lines, pricing, isOpen, addItem, setQuantity, getQuantity, removeUnavailable, removedNames, dismissRemoved, clearCart]);
 
     return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 };

@@ -1,12 +1,15 @@
 import { createContext, useContext } from "react";
 
-import type { ICartLine, ICartModifier, IPastaOptions } from "@/helpers";
+import type { ICartLine, ICartModifier, IPastaOptions, IPromoLinePrice } from "@/helpers";
 import type { IItem } from "@/interfaces";
 
 interface ICartContext {
     lines: ICartLine[];
     count: number;
     total: number;
+    subtotal: number;
+    discount: number;
+    prices: Record<string, IPromoLinePrice>;
     isOpen: boolean;
     setIsOpen: (open: boolean) => void;
     /** Suma una unidad. Lo elegido (opciones o modificadores) define la linea: otra eleccion es otra linea. */

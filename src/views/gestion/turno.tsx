@@ -12,10 +12,8 @@ import {
     formatCash,
     formatClock,
     formatDayClock,
-    formatQuantity,
     getPaymentsSummary,
     getShiftEntries,
-    getTicketLineTotal,
     getWebOrderPaymentLabel,
     openShift,
     refundTicket,
@@ -31,6 +29,7 @@ import type {
     ManualFundMovementType,
     PaymentMethod,
 } from "@/helpers";
+import { TicketLinePricing } from "./ticket-pricing";
 
 const parseAmount = (value: string) => {
     if (value.trim() === "") return NaN;
@@ -292,9 +291,8 @@ const RefundDialog = ({ token, ticket, onRefunded, onClose, onSessionExpired }: 
                         <p className="ges-empty">Cargando la cuenta…</p>
                     ) : (
                         lines.map((line) => (
-                            <div className="ges-r" key={line.id}>
-                                <span>{formatQuantity(line.quantity)} × {line.name}</span>
-                                <b>{formatCash(getTicketLineTotal(line))}</b>
+                            <div className="ges-tl" key={line.id}>
+                                <TicketLinePricing line={line} showQuantity />
                             </div>
                         ))
                     )}

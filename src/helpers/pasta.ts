@@ -1,3 +1,5 @@
+import { isWithinOperatingHours } from "./hours";
+import type { IWeekHours, StoreOverride } from "./hours";
 import type { ICartModifier } from "./modifiers";
 
 import type { IItem } from "@/interfaces";
@@ -64,3 +66,26 @@ export const buildPastaItem = (pasta: IPastaSettings): IItem => ({
         },
     ],
 } as unknown as IItem);
+
+/** Lo que decide que se vende el dia de pasta: sale de GET /settings/public. */
+export interface IPastaDayContext {
+    pastaMode: boolean;
+    /** Tambien se vende el resto del menu (segundo interruptor del tablero). Falta con un API anterior. */
+    pastaFullMenu?: boolean;
+    openingHours?: IWeekHours;
+    storeOverride?: StoreOverride | null;
+}
+
+/**
+ * Si ahora solo se vende pasta y bebidas. Con el resto del menu encendido, eso pasa solo fuera del
+ * horario de la semana (abierto a mano desde el tablero cuenta como dentro del horario).
+ */
+export const isPastaOnlyNow = (context: IPastaDayContext, date = new Date()) => {
+    if (!context.pastaMode) return false;
+    if (!context.pastaFullMenu || !context.openingHours) return true;
+    if (context.storeOverride === "open") return false;
+    return !isWithinOperatingHours(context.openingHours, date);
+};
+
+/** El dia de solo pasta y bebidas todo es delivery; con el resto del menu la entrega sigue el modo delivery. */
+export const isPastaDeliveryOnly = (context: IPastaDayContext) => context.pastaMode && !context.pastaFullMenu;

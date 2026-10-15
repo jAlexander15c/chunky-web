@@ -1,3 +1,4 @@
+import { AdminPromos } from "./admin-promos";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useSearchParams } from "react-router";
@@ -19,6 +20,8 @@ import {
     setClientUpdateNotice,
     setCardPayments,
     setDeliveryMode,
+    isPastaDeliveryOnly,
+    setPastaFullMenu,
     setPastaMode,
     syncReceiptsNow,
     useSettings,
@@ -228,7 +231,7 @@ const DeliveryModePanel = ({ token, onSessionExpired }: { token: string; onSessi
                     : "Los pedidos de la web son solo para retirar en el local."}
             </p>
 
-            {settings.pastaMode ? <p className="adm-warning">Hoy es día de pasta: todo pedido es delivery igual.</p> : null}
+            {isPastaDeliveryOnly(settings) ? <p className="adm-warning">Hoy es día de pasta: todo pedido es delivery igual.</p> : null}
             {error ? <p className="adm-error">{error}</p> : null}
         </section>
     );
@@ -353,6 +356,22 @@ const PastaModePanel = ({ token, onSessionExpired }: { token: string; onSessionE
     const [error, setError] = useState("");
 
     const isOn = settings.pastaMode;
+    const isFullMenu = Boolean(settings.pastaFullMenu);
+
+    const changeFullMenu = async () => {
+        setIsSaving(true);
+        setError("");
+
+        try {
+            await setPastaFullMenu(token, !isFullMenu);
+            await loadSettings();
+        } catch (requestError) {
+            if (requestError instanceof HttpError && requestError.status === 401) return onSessionExpired();
+            setError(requestError instanceof HttpError ? requestError.message : "No pudimos cambiar el menú del día de pasta.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     const change = async (enabled: boolean) => {
         setIsSaving(true);
@@ -378,7 +397,7 @@ const PastaModePanel = ({ token, onSessionExpired }: { token: string; onSessionE
         <section className="adm-band adm-pasta">
             <div className="adm-band__head">
                 <h2 className="script">Modo pasta</h2>
-                <span className="adm-band__sub">Un día de pasta: solo pasta y bebidas, todo con entrega</span>
+                <span className="adm-band__sub">Un día de pasta: la pasta armable, solo con bebidas o con todo el menú</span>
             </div>
 
             <div className="adm-pasta__row">
@@ -393,10 +412,25 @@ const PastaModePanel = ({ token, onSessionExpired }: { token: string; onSessionE
             </div>
 
             <p className="adm-pasta__desc">
-                {isOn
-                    ? "Ahora el menú muestra solo la pasta armable y las bebidas, y los pedidos son con entrega a domicilio."
-                    : "Ahora el menú se ve completo y la entrega sigue lo que diga el panel de Delivery."}
+                {!isOn
+                    ? "Ahora el menú se ve completo y la entrega sigue lo que diga el panel de Delivery."
+                    : isFullMenu
+                        ? "Ahora se vende la pasta armable y todo el menú en el horario de la semana; fuera de ese horario, solo pasta y bebidas. La entrega sigue lo que diga el panel de Delivery."
+                        : "Ahora el menú muestra solo la pasta armable y las bebidas, y los pedidos son con entrega a domicilio."}
             </p>
+
+            {isOn ? (
+                <div className="adm-pasta__row adm-pasta__row--sub">
+                    <label className="adm-switch">
+                        <input type="checkbox" checked={isFullMenu} onChange={() => void changeFullMenu()} disabled={!isReady || isSaving} />
+                        <span className="adm-switch__track" aria-hidden />
+                        <span className="adm-switch__label">Vender también el resto del menú</span>
+                    </label>
+                    <span className={`adm-pasta__state ${isFullMenu ? "adm-pasta__state--on" : ""}`} role="status">
+                        {isFullMenu ? "Activo" : "Apagado"}
+                    </span>
+                </div>
+            ) : null}
 
             {isOn && !settings.pasta ? (
                 <p className="adm-warning">
@@ -410,8 +444,17 @@ const PastaModePanel = ({ token, onSessionExpired }: { token: string; onSessionE
                     <div className="adm-modal__panel">
                         <h3 className="script">¿Activar el modo pasta?</h3>
                         <ul className="adm-pasta__list">
-                            <li>El menú mostrará solo la pasta armable y las bebidas.</li>
-                            <li>Todo pedido nuevo será delivery y pedirá dirección.</li>
+                            {isFullMenu ? (
+                                <>
+                                    <li>El menú sumará la pasta armable; el resto se vende en el horario de la semana.</li>
+                                    <li>La entrega sigue lo que diga el panel de Delivery.</li>
+                                </>
+                            ) : (
+                                <>
+                                    <li>El menú mostrará solo la pasta armable y las bebidas.</li>
+                                    <li>Todo pedido nuevo será delivery y pedirá dirección.</li>
+                                </>
+                            )}
                             <li>Los pedidos ya creados no cambian.</li>
                         </ul>
                         <div className="adm-modal__actions">
@@ -682,6 +725,8 @@ const AdminDashboard = ({ token, personName, onLogout, onTokenChange }: IAdminDa
                         <AdminInventory token={token} onSessionExpired={onLogout} refreshKey={refreshKey} from={range.from} to={range.to} />
                     ) : section === "menu" ? (
                         <AdminMenu token={token} onSessionExpired={onLogout} />
+                    ) : section === "promos" ? (
+                        <AdminPromos token={token} onSessionExpired={onLogout} />
                     ) : section === "inicio" ? (
                         <AdminSite token={token} onSessionExpired={onLogout} />
                     ) : section === "caja" ? (

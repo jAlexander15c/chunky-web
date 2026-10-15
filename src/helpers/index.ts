@@ -29,3 +29,5 @@ export * from "./pagination";
 export * from "./delivery-orders";
 export * from "./stock";
 export * from "./presentation";
+
+export * from "./promos";

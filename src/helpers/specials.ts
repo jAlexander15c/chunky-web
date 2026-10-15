@@ -75,7 +75,7 @@ export const useCategoryStock = (categories: ICategory[], scope: ReturnType<type
 export const useSpecialCategories = (): ISpecialCategory[] => {
     const { categories } = useCategories();
     const { settings, isReady } = useSettings();
-    const scope = getCatalogScope(settings.pastaMode);
+    const scope = getCatalogScope(settings.pastaMode, settings.pastaFullMenu);
     const pastaItemId = settings.pasta?.itemId;
 
     const specials = useMemo(

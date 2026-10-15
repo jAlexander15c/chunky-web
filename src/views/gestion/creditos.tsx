@@ -8,12 +8,11 @@ import {
     fetchTicket,
     formatCash,
     formatCreditDay,
-    formatQuantity,
     getCreditAge,
-    getTicketLineTotal,
     payCreditTicket,
 } from "@/helpers";
 import type { ICreditTicket, IShiftDetail, ITicketLine, PaymentMethod } from "@/helpers";
+import { TicketLinePricing } from "./ticket-pricing";
 
 const PAYMENT_METHODS: PaymentMethod[] = ["efectivo", "tarjeta", "yappy"];
 
@@ -93,9 +92,8 @@ const CollectDialog = ({ token, credit, onPaid, onClose, onSessionExpired }: ICo
                         <p className="ges-empty">Cargando la cuenta…</p>
                     ) : (
                         lines.map((line) => (
-                            <div className="ges-r" key={line.id}>
-                                <span>{formatQuantity(line.quantity)} × {line.name}</span>
-                                <b>{formatCash(getTicketLineTotal(line))}</b>
+                            <div className="ges-tl" key={line.id}>
+                                <TicketLinePricing line={line} showQuantity />
                             </div>
                         ))
                     )}

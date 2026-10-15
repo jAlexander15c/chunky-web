@@ -50,11 +50,19 @@ export interface ITicketLine {
     /** Null mientras no se haya mandado a cocina. Lo enviado ya no se edita. */
     sentAt: string | null;
     addedByName: string;
+    discount: number;
+    freeQuantity: number;
+    promoName: string | null;
+    promoLabel: string | null;
 }
 
-/** Lo que vale la línea con sus modificadores. */
-export const getTicketLineTotal = (line: Pick<ITicketLine, "unitPrice" | "modifiers" | "quantity">) =>
+/** Precio original de la línea con sus modificadores. */
+export const getTicketLineSubtotal = (line: Pick<ITicketLine, "unitPrice" | "modifiers" | "quantity">) =>
     (line.unitPrice + line.modifiers.reduce((sum, one) => sum + one.price, 0)) * line.quantity;
+
+/** Total rebajado calculado por el API; los precios unitarios siguen siendo originales. */
+export const getTicketLineTotal = (line: ITicketLine) =>
+    Math.round((getTicketLineSubtotal(line) - line.discount) * 100) / 100;
 
 /**
  * anulada: se cerró sin cobrar. reembolsada: se cobró y luego se devolvió completa.
@@ -79,6 +87,8 @@ export interface ITicket {
     status: TicketStatus;
     openedByName: string;
     openedAt: string;
+    subtotal: number;
+    discount: number;
     total: number;
     /** Mientras está abierta, los pagos por partes; al cobrarla, cómo se pagó. */
     payments: ITicketPayment[] | null;

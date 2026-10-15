@@ -959,6 +959,11 @@ select.adm-form__input { cursor: pointer; }
     gap: 0.8rem 1.2rem;
 }
 
+/* Segundo interruptor del dia de pasta, debajo de la descripcion */
+.adm-pasta__row--sub {
+    margin-top: 0.9rem;
+}
+
 .adm-switch {
     position: relative;
     display: inline-flex;

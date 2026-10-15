@@ -1,3 +1,5 @@
+import { getPromoCart, getPromoLabel, hasPromoForItem, formatPromoDate, usePromos } from "@/helpers/promos";
+import "../components/promos.css";
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router";
 import { PiArrowLeftBold, PiPlusBold, PiSlidersHorizontalBold, PiStarFourFill, PiWhatsappLogoBold } from "react-icons/pi";
@@ -27,6 +29,7 @@ import {
     getItemCartQuantity,
     getLineMax,
     getStockNote,
+    isPastaOnlyNow,
 } from "@/helpers";
 import type { IModifier } from "@/helpers";
 import type { IItem } from "@/interfaces";
@@ -63,6 +66,9 @@ interface IProductCardProps {
 
 const ProductCard = ({ item, index, closedLabel, modifiers, onChooseOptions }: IProductCardProps) => {
     const { lines, addItem, setQuantity, getQuantity } = useCart();
+    const { promos } = usePromos();
+    const promo = getPromoCart([{ lineKey: item.id, item, quantity: 2 }], promos).prices[item.id]?.promo;
+    const promoPrice = getPromoCart([{ lineKey: item.id, item, quantity: 1 }], promo ? [promo] : []).total;
     const quantity = getQuantity(item.id);
     const description = getPlainText(item.description);
     // Con modificadores se elige antes de agregar, asi que la tarjeta no lleva contador
@@ -78,13 +84,14 @@ const ProductCard = ({ item, index, closedLabel, modifiers, onChooseOptions }: I
             className="product-lift"
         >
             <div className="product">
+                {promo && <span className="promo-seal">{getPromoLabel(promo)}</span>}
                 <h2 className="product__name">{item.item_name}</h2>
                 {description && <p className="product__desc">{description}</p>}
                 {isCustomizable && (
                     <span className="product__tag"><PiSlidersHorizontalBold aria-hidden /> Personalizable</span>
                 )}
                 <div className="product__foot">
-                    <span className="product__price">{formatPrice(getItemPrice(item))}</span>
+                    <span className="product__price">{promo?.kind === "percent" ? <><del className="promo-original">{formatPrice(getItemPrice(item))}</del>{formatPrice(promoPrice)}</> : <>{formatPrice(getItemPrice(item))}{promo && <small> · 2 por {formatPrice(getItemPrice(item))}</small>}</>}</span>
                     {closedLabel ? (
                         <span className="product__closed">{closedLabel}</span>
                     ) : isCustomizable ? (
@@ -114,6 +121,7 @@ const ProductCard = ({ item, index, closedLabel, modifiers, onChooseOptions }: I
 };
 
 export const Items = () => {
+    const { promos } = usePromos();
     const [searchParams] = useSearchParams();
     const location = useLocation();
     const selectedCategoryId = searchParams.get("categoryId") ?? "";
@@ -134,11 +142,11 @@ export const Items = () => {
         trackedCategoryRef.current = selectedCategoryId;
         trackEvent("category_open", selectedCategoryId, categoryName);
     }, [selectedCategoryId, categoryName]);
-    // El dia de pasta solo se venden bebidas aqui; la pasta se arma en su propia hoja
-    const isBlockedToday = settings.pastaMode && selectedCategoryId !== settings.beveragesCategoryId;
+    // Con solo pasta y bebidas aqui solo se venden bebidas; la pasta se arma en su propia hoja
+    const isBlockedToday = isPastaOnlyNow(settings) && selectedCategoryId !== settings.beveragesCategoryId;
     const { items, loading: isLoadingItems, error } = useItems(
         isSettingsReady && !isBlockedToday ? selectedCategoryId : "",
-        getCatalogScope(settings.pastaMode)
+        getCatalogScope(settings.pastaMode, settings.pastaFullMenu)
     );
     const loading = isLoadingItems || !isSettingsReady;
     const isOpen = isAcceptingOrders(settings);
@@ -225,6 +233,8 @@ export const Items = () => {
                 )}
 
                 {selectedCategoryId && !isBlockedToday && !loading && !error && availableItems.length > 0 && (
+                    <>
+                    {promos.filter((promo) => availableItems.some((item) => hasPromoForItem(promo, item))).map((promo) => <p className="promo-banner" key={promo.id}><b>{promo.name}</b> · {promo.kind === "two_for_one" ? "Llévate 2 y paga 1" : getPromoLabel(promo)}{promo.endsOn && <small>Hasta el {formatPromoDate(promo.endsOn)}</small>}</p>)}
                     <div className="products">
                         {availableItems.map((item, index) => (
                             <ProductCard
@@ -237,6 +247,7 @@ export const Items = () => {
                             />
                         ))}
                     </div>
+                    </>
                 )}
 
                 <ProductOptions

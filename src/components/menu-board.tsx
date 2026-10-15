@@ -20,6 +20,8 @@ import {
     useSettings,
     useSpecialCategories,
     trackEvent,
+    isPastaDeliveryOnly,
+    isPastaOnlyNow,
 } from "@/helpers";
 
 const MenuBoardSkeleton = () => (
@@ -52,7 +54,7 @@ export const MenuBoard = () => {
     );
     const visibleCategories = [...specials.map((special) => special.category), ...fixedCategories];
     // Del menu fijo tambien se sabe si hoy queda algo: sin nada a la venta, la fila sale tachada
-    const fixedStock = useCategoryStock(fixedCategories, getCatalogScope(settings.pastaMode), settings.pasta?.itemId);
+    const fixedStock = useCategoryStock(fixedCategories, getCatalogScope(settings.pastaMode, settings.pastaFullMenu), settings.pasta?.itemId);
     const isSoldOutToday = (categoryId: string) => {
         const entry = fixedStock[categoryId];
         return Boolean(entry && !entry.failed && entry.count === 0);
@@ -67,7 +69,11 @@ export const MenuBoard = () => {
             </div>
 
             {settings.pastaMode && (
-                <p className="board__today">Hoy: día de pasta · solo pasta y bebidas, con entrega a domicilio</p>
+                <p className="board__today">
+                    {isPastaOnlyNow(settings)
+                        ? `Hoy: día de pasta · solo pasta y bebidas${isPastaDeliveryOnly(settings) ? ", con entrega a domicilio" : ""}`
+                        : "Hoy: día de pasta · y todo el menú de siempre"}
+                </p>
             )}
 
             {loading && <MenuBoardSkeleton />}

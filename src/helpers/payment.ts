@@ -75,11 +75,15 @@ export interface IPublicOrder {
         quantity: number;
         /** Precio por unidad, con sus modificadores ya incluidos. */
         price: number;
+        discount?: number;
+        promoName?: string | null;
         options?: IPastaOptions;
         modifiers?: { name: string; option: string; price: number }[];
     }[];
     // La dirección escrita; el punto exacto (lat/lng) solo llega mientras va en camino, para el mapa
     delivery: { address: string; details: string | null; lat?: number | null; lng?: number | null } | null;
+    subtotal?: number;
+    discount?: number;
     total: number;
     yappyConfirmation: string | null;
     // Los marca la cocina en /gestion
@@ -297,14 +301,14 @@ const getOrderBody = (lines: ICartLine[], form: ICheckoutForm, requiresDelivery:
 const getIdempotencyOptions = (idempotencyKey?: string) =>
     idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : undefined;
 
-export const createOrder = (lines: ICartLine[], form: ICheckoutForm, requiresDelivery = false, idempotencyKey?: string) =>
-    httpPost<IYappyPaymentSession>("/orders", getOrderBody(lines, form, requiresDelivery), getIdempotencyOptions(idempotencyKey));
+export const createOrder = (lines: ICartLine[], form: ICheckoutForm, requiresDelivery = false, idempotencyKey?: string, expectedTotal?: number) =>
+    httpPost<IYappyPaymentSession>("/orders", { ...getOrderBody(lines, form, requiresDelivery), expectedTotal }, getIdempotencyOptions(idempotencyKey));
 
 /** Guarda el pedido y pide el enlace de PagueloFacil para pagarlo con tarjeta. */
-export const createCardOrder = (lines: ICartLine[], form: ICheckoutForm, requiresDelivery = false, idempotencyKey?: string) =>
+export const createCardOrder = (lines: ICartLine[], form: ICheckoutForm, requiresDelivery = false, idempotencyKey?: string, expectedTotal?: number) =>
     httpPost<ICardPaymentSession>(
         "/orders",
-        { ...getOrderBody(lines, form, requiresDelivery), paymentMethod: "card" },
+        { ...getOrderBody(lines, form, requiresDelivery), paymentMethod: "card", expectedTotal },
         getIdempotencyOptions(idempotencyKey)
     );
 
@@ -314,11 +318,12 @@ export const createWhatsappOrder = (
     form: ICheckoutForm,
     requiresDelivery = false,
     idempotencyKey?: string,
-    cashTendered?: number | null
+    cashTendered?: number | null,
+    expectedTotal?: number
 ) =>
     httpPost<IWhatsappOrderSession>(
         "/orders",
-        { ...getOrderBody(lines, form, requiresDelivery), paymentMethod: "whatsapp", cashTendered: cashTendered ?? undefined },
+        { ...getOrderBody(lines, form, requiresDelivery), paymentMethod: "whatsapp", cashTendered: cashTendered ?? undefined, expectedTotal },
         getIdempotencyOptions(idempotencyKey)
     );
 
@@ -454,7 +459,8 @@ export const buildWhatsappOrderMessage = (
         Partial<Pick<ICheckoutForm, "deliveryAddress" | "deliveryDetails" | "deliveryLat" | "deliveryLng" | "isForSomeoneElse">>,
     orderId: string,
     orderUrl: string,
-    cashTendered?: number | null
+    cashTendered?: number | null,
+    expectedTotal?: number
 ) => {
     const detail = lines.map(formatCartLine).join("\n");
     // Para otra persona la ubicación es el pin que marcó donde recibe
@@ -466,7 +472,7 @@ export const buildWhatsappOrderMessage = (
         ? `\n\n${delivery}${forOther ? "\nEs para otra persona." : ""}`
         : "\n\nPaso a retirarlo.";
     const cash = cashTendered ? `\nPago en efectivo con ${formatPrice(cashTendered)}` : "";
-    return `¡Hola! ${who}Quiero coordinar mi pedido ${orderId}:\n\n${detail}\n\nTotal: ${formatPrice(getCartTotal(lines))}${cash}${fulfillment}${note}\n\nVer pedido: ${orderUrl}`;
+    return `¡Hola! ${who}Quiero coordinar mi pedido ${orderId}:\n\n${detail}\n\nTotal: ${formatPrice(expectedTotal ?? getCartTotal(lines))}${cash}${fulfillment}${note}\n\nVer pedido: ${orderUrl}`;
 };
 
 /** Para volver a abrir el chat desde /pedido: el código y lo pedido, sin la dirección. */

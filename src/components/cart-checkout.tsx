@@ -19,7 +19,8 @@ import {
     formatPhone,
     formatPrice,
     getCartCount,
-    getCartTotal,
+    fetchPromosCached,
+    getPromoCart,
     getCheckoutErrors,
     getClosedLabel,
     getDeliveryReach,
@@ -37,6 +38,7 @@ import {
     setLastOrderId,
     useSettings,
     trackEvent,
+    isPastaDeliveryOnly,
 } from "@/helpers";
 import type { CheckoutErrors, Fulfillment, ICheckoutForm, OrderPaymentMethod } from "@/helpers";
 
@@ -89,15 +91,17 @@ const PAYMENT_OPTIONS: { value: OrderPaymentMethod; label: string; detail: strin
 
 /** Pie del carrito: datos del cliente y el pago, con Yappy, con tarjeta o al recibir (coordinado por WhatsApp). */
 export const CartCheckout = () => {
-    const { lines, setIsOpen } = useCart();
+    const { lines, total, subtotal, discount, setIsOpen } = useCart();
     const navigate = useNavigate();
     const reduceMotion = useReducedMotion();
     const { settings } = useSettings();
     const [form, setForm] = useState<ICheckoutForm>(readStoredForm);
-    // El dia de pasta todo pedido es con entrega a domicilio y no rige el horario semanal.
-    // Los demas dias el cliente elige solo si el delivery esta activo; si no, es para retirar.
-    const canChooseDelivery = settings.deliveryMode && !settings.pastaMode;
-    const requiresDelivery = settings.pastaMode || (canChooseDelivery && form.fulfillment === "delivery");
+    // El dia de solo pasta y bebidas todo pedido es con entrega a domicilio y no rige el horario semanal.
+    // Los demas dias (tambien el de pasta con el resto del menu) el cliente elige solo si el delivery
+    // esta activo; si no, es para retirar.
+    const isDeliveryOnly = isPastaDeliveryOnly(settings);
+    const canChooseDelivery = settings.deliveryMode && !isDeliveryOnly;
+    const requiresDelivery = isDeliveryOnly || (canChooseDelivery && form.fulfillment === "delivery");
     const isBarOpen = isAcceptingOrders(settings);
 
     const [errors, setErrors] = useState<CheckoutErrors>({});
@@ -238,7 +242,6 @@ export const CartCheckout = () => {
         : null;
 
     // "Pagas con": solo al recibir, opcional, y tiene que alcanzar para el total
-    const total = getCartTotal(lines);
     // Con tarjeta se suma el servicio web; el API calcula lo mismo y es lo que cobra PagueloFacil
     const cardServiceFee = settings.cardServiceFee ?? DEFAULT_CARD_SERVICE_FEE;
     const cardTotal = Math.round((total + cardServiceFee) * 100) / 100;
@@ -272,6 +275,18 @@ export const CartCheckout = () => {
         return Object.keys(formErrors).length === 0 && !reachError && !cashError;
     };
 
+    const refreshChangedPromo = async (error: unknown) => {
+        if (!(error instanceof HttpError) || error.status !== 409 || error.code !== "PROMO_CHANGED") return false;
+        try {
+            const next = await fetchPromosCached(true);
+            const nextTotal = error.total ?? (getPromoCart(lines, next).total + (paymentMethod === "card" ? cardServiceFee : 0));
+            setPaymentError(`Una promo cambió y el total ahora es ${formatPrice(nextTotal)}. Revisa y vuelve a pagar.`);
+        } catch {
+            setPaymentError(`${error.message} Revisa y vuelve a pagar. No pudimos recargar las promos; intenta de nuevo.`);
+        }
+        return true;
+    };
+
     const createPayment = async () => {
         markCheckoutStart();
         trackEvent("pay_click");
@@ -280,13 +295,14 @@ export const CartCheckout = () => {
 
         try {
             idempotencyKeyRef.current ??= createIdempotencyKey();
-            const session = await createOrder(lines, form, requiresDelivery, idempotencyKeyRef.current);
+            const session = await createOrder(lines, form, requiresDelivery, idempotencyKeyRef.current, total);
             idempotencyKeyRef.current = null;
             rememberOrderAccess(session.orderId, session.accessToken);
             orderIdRef.current = session.orderId;
             setLastOrderId(session.orderId);
             return session;
         } catch (error) {
+            if (await refreshChangedPromo(error)) return null;
             setPaymentError(error instanceof HttpError && error.status < 500
                 ? error.message
                 : "No pudimos iniciar el pago con Yappy. Intenta de nuevo o elige pagar al recibir.");
@@ -307,7 +323,7 @@ export const CartCheckout = () => {
         setIsOpeningCard(true);
         try {
             idempotencyKeyRef.current ??= createIdempotencyKey();
-            const session = await createCardOrder(lines, form, requiresDelivery, idempotencyKeyRef.current);
+            const session = await createCardOrder(lines, form, requiresDelivery, idempotencyKeyRef.current, cardTotal);
             idempotencyKeyRef.current = null;
             rememberOrderAccess(session.orderId, session.accessToken);
             setLastOrderId(session.orderId);
@@ -315,6 +331,7 @@ export const CartCheckout = () => {
             setForm((current) => ({ ...current, note: "", privacyConsent: false }));
             window.location.assign(session.paymentUrl);
         } catch (error) {
+            if (await refreshChangedPromo(error)) { setIsOpeningCard(false); return; }
             setPaymentError(error instanceof HttpError && error.status < 500
                 ? error.message
                 : "No pudimos abrir el pago con tarjeta. Intenta de nuevo o paga con Yappy.");
@@ -358,7 +375,7 @@ export const CartCheckout = () => {
         setIsSendingWhatsapp(true);
         try {
             idempotencyKeyRef.current ??= createIdempotencyKey();
-            const session = await createWhatsappOrder(lines, form, requiresDelivery, idempotencyKeyRef.current, tendered);
+            const session = await createWhatsappOrder(lines, form, requiresDelivery, idempotencyKeyRef.current, tendered, total);
             idempotencyKeyRef.current = null;
             rememberOrderAccess(session.orderId, session.accessToken);
             setLastOrderId(session.orderId);
@@ -370,7 +387,8 @@ export const CartCheckout = () => {
                 requiresDelivery ? form : { ...form, deliveryAddress: "" },
                 session.orderId,
                 orderUrl,
-                tendered
+                tendered,
+                total
             );
             setCashText("");
             if (chat) chat.location.href = getWhatsAppUrl(message);
@@ -379,6 +397,7 @@ export const CartCheckout = () => {
             goToOrder();
         } catch (error) {
             chat?.close();
+            if (await refreshChangedPromo(error)) return;
             setPaymentError(error instanceof HttpError && error.status < 500
                 ? error.message
                 : "No pudimos guardar tu pedido. Revisa tu conexión e intenta de nuevo.");
@@ -442,7 +461,7 @@ export const CartCheckout = () => {
                             ))}
                         </div>
                     </>
-                ) : !settings.pastaMode ? (
+                ) : !isDeliveryOnly ? (
                     <p className="checkout__pickup">
                         <strong>Pedido para retirar en el local.</strong> Te avisamos cuando esté listo.
                     </p>
@@ -726,8 +745,9 @@ export const CartCheckout = () => {
                 <div className="comanda__rows">
                     <div className="comanda__row">
                         <span>{itemCount === 1 ? "1 producto" : `${itemCount} productos`}</span>
-                        <span>{formatPrice(total)}</span>
+                        <span>{formatPrice(subtotal)}</span>
                     </div>
+                    {discount > 0 && <div className="comanda__row promo-note"><span>Ahorras con promos</span><span>−{formatPrice(discount)}</span></div>}
                     {paymentMethod === "card" && cardServiceFee > 0 && (
                         <div className="comanda__row">
                             <span>Servicio web (tarjeta)</span>

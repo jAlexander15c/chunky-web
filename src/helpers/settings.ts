@@ -8,7 +8,9 @@ import type { IPastaSettings } from "./pasta";
 /** Ajustes publicos de chunky-api: dia de pasta, datos del armador y horario del local. */
 export interface IPublicSettings {
     pastaMode: boolean;
-    /** El cliente elige retiro o delivery. El dia de pasta todo es delivery igual. */
+    /** El dia de pasta tambien se vende el resto del menu, dentro del horario. Falta con un API anterior. */
+    pastaFullMenu?: boolean;
+    /** El cliente elige retiro o delivery. El dia de solo pasta y bebidas todo es delivery igual. */
     deliveryMode: boolean;
     pasta: IPastaSettings | null;
     beveragesCategoryId: string | null;
@@ -62,6 +64,7 @@ interface ISettingsState {
 // Sin la respuesta del API se asume el menu y el horario de siempre: el servidor igual rechaza lo que no se vende hoy
 const DEFAULT_SETTINGS: IPublicSettings = {
     pastaMode: false,
+    pastaFullMenu: false,
     deliveryMode: false,
     pasta: null,
     beveragesCategoryId: null,

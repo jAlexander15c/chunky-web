@@ -15,7 +15,6 @@ import {
     getItemModifiers,
     getItemPrice,
     getTicketLabel,
-    getTicketLineTotal,
     giveTicketCredit,
     hasItemAvailableForSale,
     hasItemModifiers,
@@ -45,6 +44,7 @@ import type {
     PaymentMethod,
 } from "@/helpers";
 import type { IItem } from "@/interfaces";
+import { TicketLinePricing, TicketTotals } from "./ticket-pricing";
 import { InventoryExitDialog } from "./inventory-exit-dialog";
 
 /** El mapa de mesas se relee solo: dos dispositivos tienen que ver lo mismo. */
@@ -382,9 +382,8 @@ const CreditDialog = ({ ticket, onCredit, onBack }: ICreditDialogProps) => {
 
                 <div className="ges-rows">
                     {ticket.lines.map((line) => (
-                        <div className="ges-r" key={line.id}>
-                            <span>{formatQuantity(line.quantity)} × {line.name}</span>
-                            <b>{formatCash(getTicketLineTotal(line))}</b>
+                        <div className="ges-tl" key={line.id}>
+                            <TicketLinePricing line={line} showQuantity />
                         </div>
                     ))}
                 </div>
@@ -1075,14 +1074,13 @@ type IMoveTarget = { ticketId: number } | { newName: string };
 
 interface IMoveDialogProps {
     line: ITicketLine;
-    fromTotal: number;
     accounts: ITableAccount[];
     onMove: (target: IMoveTarget, quantity: number) => Promise<void>;
     onClose: () => void;
 }
 
 /** Pasa un plato, o parte de sus unidades, a otra cuenta de la misma mesa. */
-const MoveDialog = ({ line, fromTotal, accounts, onMove, onClose }: IMoveDialogProps) => {
+const MoveDialog = ({ line, accounts, onMove, onClose }: IMoveDialogProps) => {
     const [quantity, setQuantity] = useState(1);
     const [targetId, setTargetId] = useState<number | "new">(accounts[0]?.id ?? "new");
     const [newName, setNewName] = useState("");
@@ -1092,7 +1090,6 @@ const MoveDialog = ({ line, fromTotal, accounts, onMove, onClose }: IMoveDialogP
     // Cantidades con decimales (ej. por peso) se pasan completas
     const isWhole = Number.isInteger(line.quantity);
     const units = isWhole ? quantity : line.quantity;
-    const amount = roundMoney((getTicketLineTotal(line) / line.quantity) * units);
     const target = accounts.find((one) => one.id === targetId);
     const targetName = target ? getAccountName(target) : newName.trim() || "la cuenta nueva";
 
@@ -1166,8 +1163,7 @@ const MoveDialog = ({ line, fromTotal, accounts, onMove, onClose }: IMoveDialogP
                 ) : null}
 
                 <p className="ges-note">
-                    Esta cuenta queda en {formatCash(roundMoney(fromTotal - amount))} y {targetName}{" "}
-                    {target ? `sube a ${formatCash(roundMoney(target.total + amount))}` : `empieza con ${formatCash(amount)}`}.
+                    Al pasar el plato se actualizarán los totales y las promos de ambas cuentas.
                 </p>
 
                 {error ? <p className="ges-error" role="alert">{error}</p> : null}
@@ -1575,8 +1571,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                                         <p className="ges-grp is-pend">Por enviar a cocina</p>
                                         {pending.map((line) => (
                                             <div className="ges-tl" key={line.id}>
-                                                <b>{line.name}</b>
-                                                <span>{formatCash(getTicketLineTotal(line))}</span>
+                                                <TicketLinePricing line={line} />
                                                 <small>
                                                     <button
                                                         type="button"
@@ -1622,8 +1617,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                                         <p className="ges-grp">{isDelivered ? "Entregado · pendiente de pago" : "Ya está en cocina"}</p>
                                         {sent.map((line) => (
                                             <div className="ges-tl is-sent" key={line.id}>
-                                                <b>{line.name}</b>
-                                                <span>{formatCash(getTicketLineTotal(line))}</span>
+                                                <TicketLinePricing line={line} />
                                                 <small>
                                                     <em>{formatQuantity(line.quantity)}</em> × {formatCash(line.unitPrice)}
                                                     {line.modifiers.length > 0 ? ` · ${line.modifiers.map((one) => one.option).join(", ")}` : ""}
@@ -1643,10 +1637,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                     </div>
 
                     <div className="ges-ticket__foot">
-                        <div className="ges-total">
-                            <span>{hasSiblings ? `Cuenta de ${accountName}` : "Total"}</span>
-                            <b>{formatCash(ticket.total)}</b>
-                        </div>
+                        <TicketTotals ticket={ticket} />
 
                         {hasPartials ? (
                             <div className="ges-paid-strip">
@@ -1680,9 +1671,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                                 ? "Abre el turno primero"
                                 : hasPartials
                                   ? `Cobrar lo que falta (${formatCash(missing)})`
-                                  : hasSiblings
-                                  ? `Cobrar la cuenta de ${accountName}`
-                                  : "Cobrar y cerrar la mesa"}
+                                  : `Cobrar ${formatCash(ticket.total)}`}
                         </button>
 
                         {/* Sin nada en cocina la mesa se cierra sin motivo; con algo ya enviado se anula */}
@@ -1774,7 +1763,6 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
             {moving && tableNumber !== null ? (
                 <MoveDialog
                     line={moving}
-                    fromTotal={ticket.total}
                     accounts={otherAccounts}
                     onClose={() => setMoving(null)}
                     onMove={async (target, quantity) => {

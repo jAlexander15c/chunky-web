@@ -6,6 +6,8 @@ import { getItems } from "./getItems";
 import { getNextOpeningLabel, getOpeningStatusLabel, isWithinOperatingHours } from "./hours";
 import type { IWeekHours, StoreOverride } from "./hours";
 import { keepIfSame, useLiveRefresh } from "./live-refresh";
+import { isPastaOnlyNow } from "./pasta";
+import type { IPastaDayContext } from "./pasta";
 
 import type { ICategory, IItem } from "@/interfaces";
 
@@ -104,12 +106,13 @@ let categoriesCache: ICacheEntry<ICategory[]> | null = readSessionEntry<ICategor
 let categoriesRequest: Promise<ICategory[]> | null = null;
 
 /**
- * El API devuelve otro menu el dia de pasta, asi que la cache de productos se guarda aparte por modo:
- * un menu guardado antes del cambio no se muestra despues.
+ * El API devuelve otro menu el dia de pasta (y otro si tambien se vende el resto), asi que la cache de
+ * productos se guarda aparte por modo: un menu guardado antes del cambio no se muestra despues.
  */
-type CatalogScope = "normal" | "pasta";
+type CatalogScope = "normal" | "pasta" | "pastaWithMenu";
 
-export const getCatalogScope = (isPastaMode: boolean): CatalogScope => (isPastaMode ? "pasta" : "normal");
+export const getCatalogScope = (isPastaMode: boolean, isFullMenu = false): CatalogScope =>
+    !isPastaMode ? "normal" : isFullMenu ? "pastaWithMenu" : "pasta";
 
 const getItemsCacheKey = (categoryId: string, scope: CatalogScope) => `${scope}:${categoryId}`;
 
@@ -379,14 +382,13 @@ export const getCategoryById = (categoryId?: string) => {
     return categoriesCache.value.find((category) => category.id === categoryId);
 };
 
-/** El dia de pasta solo se muestra la categoria de bebidas (la pasta tiene su propia entrada). */
-interface IPastaModeContext {
-    pastaMode: boolean;
+/** Con solo pasta y bebidas se muestra la categoria de bebidas (la pasta tiene su propia entrada). */
+interface IPastaModeContext extends IPastaDayContext {
     beveragesCategoryId: string | null;
 }
 
 export const shouldDisplayCategory = (category: ICategory, pastaContext?: IPastaModeContext) => {
-    if (pastaContext?.pastaMode) return category.id === pastaContext.beveragesCategoryId;
+    if (pastaContext && isPastaOnlyNow(pastaContext)) return category.id === pastaContext.beveragesCategoryId;
     return true;
 };
 

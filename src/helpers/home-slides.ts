@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 
 import { getApiUrl, httpGet } from "./getHttp";
+import { isPastaOnlyNow } from "./pasta";
+import type { IPastaDayContext } from "./pasta";
 
 import type { ICategory } from "@/interfaces";
 
@@ -145,15 +147,15 @@ export const getSlideLink = (
 };
 
 /**
- * El día de pasta el menú no se vende (solo bebidas y pasta): se esconden las láminas que llevan al
- * menú o a una categoría. La de pasta solo se ve ese día, y si el armador está configurado.
+ * Con solo pasta y bebidas el menú no se vende: se esconden las láminas que llevan al menú o a una
+ * categoría. La de pasta solo se ve el día de pasta, y si el armador está configurado.
  */
 export const isSlideVisible = (
     slide: Pick<IHomeSlide, "destination">,
-    settings: { pastaMode: boolean; pasta?: unknown | null }
+    settings: IPastaDayContext & { pasta?: unknown | null }
 ) => {
     if (slide.destination === "pasta") return settings.pastaMode && settings.pasta !== null;
-    if (settings.pastaMode) return slide.destination !== "menu" && slide.destination !== "category";
+    if (isPastaOnlyNow(settings)) return slide.destination !== "menu" && slide.destination !== "category";
     return true;
 };
 

@@ -1,0 +1,9 @@
+.promo-seal { display: inline-block; align-self: flex-start; transform: rotate(-7deg); background: #f6cc64; color: #26305c; border: 1px dashed currentColor; border-radius: 6px; padding: 3px 8px; font-weight: 900; font-size: .85rem; }
+.promo-original { display: block; font-size: .75em; opacity: .6; }
+.promo-note { color: #725027; font-size: .8rem; display: block; overflow-wrap: anywhere; }
+.promo-banner { background: #fff0be; border-radius: 12px; padding: 12px 16px; overflow-wrap: anywhere; }
+.promo-banner small { display: block; }
+.carrito__price { white-space: normal; }
+
+.product__price small { display: block; font-size: .7rem; }
+.comanda__row.promo-note { display: flex; justify-content: space-between; gap: 12px; }
