@@ -68,11 +68,10 @@ export const MenuBoard = () => {
                 <span className="board__status">{getOrderingStatusLabel(settings, isOpen)}</span>
             </div>
 
-            {settings.pastaMode && (
+            {/* Con el resto del menu no hace falta aviso: el inicio ya dice que es dia de pasta */}
+            {isPastaOnlyNow(settings) && (
                 <p className="board__today">
-                    {isPastaOnlyNow(settings)
-                        ? `Hoy: día de pasta · solo pasta y bebidas${isPastaDeliveryOnly(settings) ? ", con entrega a domicilio" : ""}`
-                        : "Hoy: día de pasta · y todo el menú de siempre"}
+                    {`Hoy: día de pasta · solo pasta y bebidas${isPastaDeliveryOnly(settings) ? ", con entrega a domicilio" : ""}`}
                 </p>
             )}
 
