@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { HttpError, fetchKitchenOrders, isChimeSoundOn, playChime, setKitchenStep, unlockChimeSound } from "@/helpers";
 import type { IKitchenOrder, KitchenStep } from "@/helpers";
 
+import { useWakeLock } from "./useWakeLock";
+
 const POLL_MS = 5000;
 // Sin respuesta del API por este tiempo se muestra la alerta de conexion
 const OFFLINE_AFTER_MS = 15000;
@@ -39,6 +41,8 @@ export const useKitchenFeed = (token: string, isEnabled: boolean, onSessionExpir
     }, [onSessionExpired]);
 
     const newCount = orders.filter((order) => !order.acceptedAt).length;
+    // Con la pantalla apagada el iPad congela la pagina y no suena nada: en cualquier seccion, no solo en Cocina
+    useWakeLock(isEnabled);
 
     const load = useCallback(async (signal?: AbortSignal) => {
         try {
@@ -87,14 +91,22 @@ export const useKitchenFeed = (token: string, isEnabled: boolean, onSessionExpir
         return () => window.clearInterval(timer);
     }, [isEnabled]);
 
-    // iOS solo deja activar el audio dentro de un toque: cualquiera en gestion sirve
+    // iOS solo deja activar el audio dentro de un toque: cualquiera en gestion sirve.
+    // Al volver a la pagina (tras bloquear la tablet) se intenta reanudar; si iOS no deja, queda el aviso.
     useEffect(() => {
         if (!isEnabled) return;
         const unlock = () => {
             unlockChimeSound().then(setIsSoundOn);
         };
+        const resumeOnReturn = () => {
+            if (document.visibilityState === "visible") unlock();
+        };
         document.addEventListener("pointerdown", unlock, true);
-        return () => document.removeEventListener("pointerdown", unlock, true);
+        document.addEventListener("visibilitychange", resumeOnReturn);
+        return () => {
+            document.removeEventListener("pointerdown", unlock, true);
+            document.removeEventListener("visibilitychange", resumeOnReturn);
+        };
     }, [isEnabled]);
 
     // La campana sigue sonando mientras haya pedidos sin aceptar

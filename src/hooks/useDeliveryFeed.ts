@@ -5,6 +5,8 @@ import type { IDeliveryOrder } from "@/helpers";
 
 // Rapido: el repartidor y quien coordina ven lo mismo casi al instante
 const POLL_MS = 5000;
+// Como en la cocina: la campana se repite mientras haya pedidos por WhatsApp sin confirmar
+const CHIME_REPEAT_MS = 6000;
 
 export interface IDeliveryFeed {
     orders: IDeliveryOrder[];
@@ -66,6 +68,13 @@ export const useDeliveryFeed = (
         };
     }, [isEnabled, load]);
 
+    const pendingCount = orders.filter((order) => order.status === "PENDING_CONFIRMATION").length;
+    useEffect(() => {
+        if (!isEnabled || !shouldChime || pendingCount === 0) return;
+        const timer = window.setInterval(playChime, CHIME_REPEAT_MS);
+        return () => window.clearInterval(timer);
+    }, [isEnabled, shouldChime, pendingCount]);
+
     const replaceOrder = useCallback((order: IDeliveryOrder) => {
         // Entregado o cancelado ya no está en la pestaña
         const isGone = order.status === "CANCELLED" || order.status === "DELIVERED";
@@ -78,7 +87,7 @@ export const useDeliveryFeed = (
 
     return {
         orders,
-        pendingCount: orders.filter((order) => order.status === "PENDING_CONFIRMATION").length,
+        pendingCount,
         readyToGoCount: orders.filter((order) => order.delivery && order.readyAt && !order.outAt).length,
         isLoaded,
         replaceOrder,

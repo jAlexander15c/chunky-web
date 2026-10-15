@@ -289,6 +289,19 @@
 
 .ges-chip.is-off { background: var(--ges-crit-bg); color: var(--ges-crit); }
 .ges-chip i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+/* "Activar sonido" y "Activar avisos": el chip apagado se toca para arreglarlo */
+button.ges-chip { border: 0; font-family: inherit; cursor: pointer; min-height: 32px; }
+button.ges-chip:disabled { opacity: 0.6; cursor: default; }
+
+.ges-top__hint {
+    margin: 0;
+    padding: 0.6rem var(--gutter);
+    font-size: 0.8rem;
+    font-weight: 600;
+    background: var(--ges-crit-bg);
+    color: var(--ges-crit);
+    border-bottom: 1px solid var(--ges-line);
+}
 
 .ges-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 

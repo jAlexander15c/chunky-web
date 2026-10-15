@@ -21,29 +21,6 @@ const formatKitchenLine = (line: IKitchenOrder["lines"][number]) => {
     return `${line.quantity}× ${line.name}${details.length ? ` (${details.join(", ")})` : ""}`;
 };
 
-/** Mantiene la pantalla encendida mientras la cocina esta abierta (Safari 16.4+). */
-const useWakeLock = () => {
-    useEffect(() => {
-        let sentinel: WakeLockSentinel | null = null;
-
-        const requestWakeLock = async () => {
-            try {
-                if (!("wakeLock" in navigator) || document.visibilityState !== "visible") return;
-                sentinel = await navigator.wakeLock.request("screen");
-            } catch {
-                sentinel = null;
-            }
-        };
-
-        requestWakeLock();
-        document.addEventListener("visibilitychange", requestWakeLock);
-        return () => {
-            document.removeEventListener("visibilitychange", requestWakeLock);
-            sentinel?.release().catch(() => null);
-        };
-    }, []);
-};
-
 /* ============ Tablero ============ */
 
 const STEP_ACTION: Record<KitchenStep, string> = {
@@ -257,7 +234,6 @@ export const GestionCocina = ({ feed, token, onSessionExpired, onOpenDelivery }:
     const [recipeLine, setRecipeLine] = useState<KitchenLine | null>(null);
     const openRecipe = token ? setRecipeLine : undefined;
     const [stepError, setStepError] = useState<string | null>(null);
-    useWakeLock();
 
     // Reloj de los minutos de cada pedido
     useEffect(() => {

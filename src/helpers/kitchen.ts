@@ -1,4 +1,4 @@
-import { httpGet, httpPost } from "./getHttp";
+import { httpDelete, httpGet, httpPost } from "./getHttp";
 import type { IPastaOptions } from "./pasta";
 
 export interface IKitchenOrder {
@@ -61,6 +61,22 @@ export const fetchKitchenOrders = (token: string, signal?: AbortSignal) =>
 
 export const setKitchenStep = (token: string, orderId: string, step: KitchenStep) =>
     httpPost<{ order: IKitchenOrder }>(`/gestion/cocina/pedidos/${encodeURIComponent(orderId)}/${step}`, {}, { headers: getKitchenHeaders(token) });
+
+/* ============ Avisos de pedidos nuevos en la tablet de caja ============ */
+
+export const fetchOrderAlerts = (token: string, endpoint: string | null, signal?: AbortSignal) =>
+    httpGet<{ publicKey: string | null; isSubscribed: boolean }>(
+        `/gestion/order-alerts${endpoint ? `?endpoint=${encodeURIComponent(endpoint)}` : ""}`,
+        { signal, headers: getKitchenHeaders(token) }
+    );
+
+export const subscribeOrderAlerts = (token: string, subscription: PushSubscription) =>
+    httpPost<{ isSubscribed: boolean }>("/gestion/order-alerts", { subscription: subscription.toJSON() }, { headers: getKitchenHeaders(token) });
+
+export const unsubscribeOrderAlerts = (token: string, endpoint: string) =>
+    httpDelete<{ isSubscribed: boolean }>(`/gestion/order-alerts?endpoint=${encodeURIComponent(endpoint)}`, {
+        headers: getKitchenHeaders(token),
+    });
 
 /** Minutos enteros desde una fecha ISO. */
 export const getMinutesSince = (value: string | null, now = Date.now()) =>

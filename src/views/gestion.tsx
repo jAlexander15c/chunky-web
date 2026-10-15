@@ -17,6 +17,8 @@ import type { CollaboratorRole, IGestionSession, IShiftDetail, IStaffLogin } fro
 import { useCourierTracking } from "@/hooks/useCourierTracking";
 import { useDeliveryFeed } from "@/hooks/useDeliveryFeed";
 import { useKitchenFeed } from "@/hooks/useKitchenFeed";
+import { useOrderAlerts } from "@/hooks/useOrderAlerts";
+import type { OrderAlertsStatus } from "@/hooks/useOrderAlerts";
 import { shouldOfferFaceId, useChoosePin, useFaceIdLogin } from "@/hooks/useStaffAccess";
 
 import { FullSheet } from "@/components";
@@ -34,6 +36,17 @@ import "./gestion.css";
 import "./admin.css";
 
 const PIN_LENGTH = 6;
+
+/** Por que no se pueden activar los avisos aqui, al tocar "Activar avisos". */
+const ALERT_HINT: Record<OrderAlertsStatus, string> = {
+    homeScreen:
+        "Para recibir avisos con la pantalla apagada, abre Gestión desde su ícono: en Safari toca Compartir → Agregar a inicio, entra desde ese ícono y toca Activar avisos.",
+    denied: "Las notificaciones están bloqueadas. Actívalas en Ajustes → Notificaciones → Gestión y vuelve a entrar.",
+    unsupported: "Este navegador no recibe avisos. Usa Safari en el iPad o Chrome.",
+    loading: "",
+    off: "",
+    on: "",
+};
 
 const useGestionHead = () => {
     useEffect(() => {
@@ -339,7 +352,11 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
 
     // Solo se ofrece lo que esta persona puede hacer
     const available = useMemo(() => SECTIONS.filter((one) => one.roles.some((role) => roles.includes(role))), [roles]);
-    const [section, setSection] = useState<Section>(() => available[0]?.id ?? "inventario");
+    // Al tocar una notificacion se llega con ?s=cocina o ?s=delivery
+    const [section, setSection] = useState<Section>(() => {
+        const requested = new URLSearchParams(window.location.search).get("s");
+        return available.find((one) => one.id === requested)?.id ?? available[0]?.id ?? "inventario";
+    });
     // Pedido que se abre al llegar a Delivery desde Cocina (Confirmar / Ver en Delivery)
     const [deliveryOpenId, setDeliveryOpenId] = useState<string | null>(null);
 
@@ -347,6 +364,10 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
 
     // Los pedidos de la web se siguen en cualquier seccion: quien cobra tambien atiende la cocina
     const kitchen = useKitchenFeed(token, roles.includes("caja"), onLogout);
+    // Y los avisos llegan aunque la tablet este bloqueada
+    const alerts = useOrderAlerts(token, roles.includes("caja"), onLogout);
+    const [isAlertHintOpen, setIsAlertHintOpen] = useState(false);
+    const alertHint = alerts.error || (isAlertHintOpen ? ALERT_HINT[alerts.status] : "");
 
     // Delivery tambien: suena el pedido nuevo por WhatsApp y el repartidor sigue compartiendo
     // su ubicacion aunque cambie de seccion
@@ -473,10 +494,40 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
                                     <i aria-hidden="true" />
                                     {kitchen.offlineSince !== null ? "Sin conexión" : "En línea"}
                                 </span>
-                                <span className={`ges-chip${kitchen.isSoundOn ? "" : " is-off"}`}>
-                                    <i aria-hidden="true" />
-                                    {kitchen.isSoundOn ? "Sonido" : "Sonido apagado"}
-                                </span>
+                            </>
+                        ) : null}
+                        {roles.includes("caja") ? (
+                            <>
+                                {kitchen.isSoundOn ? (
+                                    <span className="ges-chip">
+                                        <i aria-hidden="true" />
+                                        Sonido
+                                    </span>
+                                ) : (
+                                    <button type="button" className="ges-chip is-off" onClick={kitchen.turnSoundOn}>
+                                        <i aria-hidden="true" />
+                                        Activar sonido
+                                    </button>
+                                )}
+                                {alerts.status === "on" ? (
+                                    <span className="ges-chip">
+                                        <i aria-hidden="true" />
+                                        Avisos
+                                    </span>
+                                ) : alerts.status !== "loading" ? (
+                                    <button
+                                        type="button"
+                                        className="ges-chip is-off"
+                                        disabled={alerts.isSaving}
+                                        onClick={() => {
+                                            if (alerts.status === "off") void alerts.activate();
+                                            else setIsAlertHintOpen((isOpen) => !isOpen);
+                                        }}
+                                    >
+                                        <i aria-hidden="true" />
+                                        {alerts.isSaving ? "Activando…" : "Activar avisos"}
+                                    </button>
+                                ) : null}
                             </>
                         ) : null}
                         {tracking.status !== "off" ? (
@@ -497,6 +548,7 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
                         <button type="button" className="ges-btn ges-btn--sm" onClick={onLogout}>Salir</button>
                     </div>
                 </header>
+                {alertHint ? <p className="ges-top__hint" role="status">{alertHint}</p> : null}
 
                 <main className="ges-body">
                     {current.id === "caja" ? (

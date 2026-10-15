@@ -1,5 +1,6 @@
 // Service worker de los avisos push, aunque la web este cerrada o el telefono bloqueado:
-// al cliente sobre su pedido (aceptado y listo) y a los admins sobre los insumos.
+// al cliente sobre su pedido (aceptado y listo), a los admins sobre los insumos y a las tablets
+// de caja sobre cada pedido nuevo.
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
