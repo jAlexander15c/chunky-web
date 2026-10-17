@@ -1,3 +1,4 @@
+import { AdminCombos } from "./admin-combos";
 import { AdminPromos } from "./admin-promos";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
@@ -727,6 +728,8 @@ const AdminDashboard = ({ token, personName, onLogout, onTokenChange }: IAdminDa
                         <AdminMenu token={token} onSessionExpired={onLogout} />
                     ) : section === "promos" ? (
                         <AdminPromos token={token} onSessionExpired={onLogout} />
+                    ) : section === "combos" ? (
+                        <AdminCombos token={token} onSessionExpired={onLogout} />
                     ) : section === "inicio" ? (
                         <AdminSite token={token} onSessionExpired={onLogout} />
                     ) : section === "caja" ? (

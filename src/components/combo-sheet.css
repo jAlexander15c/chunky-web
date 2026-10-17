@@ -1,0 +1,263 @@
+/* ============ Combos: franja del inicio, bloque del menú, hoja y carrito ============ */
+
+/* La foto del combo: cuadrada, con fondo de marca si no carga */
+.combo-photo {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--mantequilla);
+  display: grid;
+  place-items: center;
+}
+
+.combo-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.combo-photo .combo-photo__mascot {
+  width: 70%;
+  height: auto;
+  object-fit: contain;
+}
+
+.combo-photo--sheet {
+  width: 72px;
+  flex: none;
+  border-radius: 12px;
+  transform: rotate(-3deg);
+  box-shadow: 0 4px 10px rgb(var(--shadow-tint) / 0.25);
+}
+
+/* Franja "Combos de ahora" */
+.combo-strip {
+  padding-bottom: 0;
+}
+
+.combo-strip__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.combo-strip__head .section__title {
+  margin: 0;
+}
+
+.combo-strip__live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #3d7a4f;
+}
+
+.combo-strip__live::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #3d7a4f;
+}
+
+.combo-strip__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+}
+
+.combo-card {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: center;
+  padding: 0.65rem;
+  border: 1.5px dashed var(--mora);
+  border-radius: 16px;
+  background: var(--crema);
+  color: var(--ink);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 160ms var(--ease-out), box-shadow 160ms ease;
+}
+
+.combo-card:active {
+  transform: scale(0.98);
+}
+
+.combo-card:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .combo-card:hover {
+    box-shadow: 0 12px 24px -16px rgb(var(--shadow-tint) / 0.7);
+  }
+}
+
+.combo-card__body {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+  justify-items: start;
+}
+
+.combo-card__name {
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.combo-card__what {
+  font-size: 0.8125rem;
+  color: var(--text-soft);
+  overflow-wrap: anywhere;
+}
+
+.combo-card__price,
+.combo-sheet__price {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.5rem;
+}
+
+.combo-card__price b,
+.combo-sheet__price b {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: var(--mora);
+  font-variant-numeric: tabular-nums;
+}
+
+.combo-card__price del,
+.combo-sheet__price del {
+  font-size: 0.8125rem;
+  color: var(--text-soft);
+}
+
+.combo-card__until {
+  padding: 0.1rem 0.6rem;
+  border-radius: var(--radius-pill);
+  background: var(--lima);
+  font-size: 0.6875rem;
+  font-weight: 800;
+}
+
+/* Aviso cuando un combo se acabó mientras se miraba */
+.combo-notice {
+  margin: 0.75rem 0 0;
+  padding: 0.65rem 0.8rem;
+  border-radius: 14px;
+  background: var(--mantequilla);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+/* Bloque dentro del tablero del menú */
+.board__group {
+  list-style: none;
+  padding: 0.3rem 0.1rem 0.1rem;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--lima);
+  text-shadow: 0 1px 0 rgb(0 0 0 / 0.35);
+}
+
+.board__slot--combo-end {
+  border-bottom: 2px dotted rgb(255 253 245 / 0.35);
+  margin-bottom: 0.4rem;
+}
+
+/* Hoja del combo */
+.combo-sheet__description {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.875rem;
+}
+
+.combo-slot {
+  padding: 0.75rem;
+  border: 1px solid rgb(58 75 142 / 0.15);
+  border-radius: 14px;
+  background: var(--crema);
+}
+
+.combo-slot__empty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-soft);
+}
+
+.combo-slot__mods {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+  padding: 0.5rem 0.65rem;
+  border-left: 3px solid var(--orquidea);
+  border-radius: 0 10px 10px 0;
+  background: #fffef6;
+}
+
+.combo-missing {
+  margin: 0;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  background: #fbeee6;
+  color: #a2482b;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.combo-sheet__extra {
+  margin-top: 0.5rem;
+}
+
+/* Línea de combo en el carrito */
+.carrito__badge {
+  display: inline-block;
+  margin-right: 0.4rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 6px;
+  background: var(--orquidea);
+  color: var(--ink);
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  vertical-align: 0.1em;
+}
+
+.carrito__gone {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #a2482b;
+}
+
+.carrito__remove {
+  min-height: 36px;
+  padding: 0.25rem 0;
+  border: 0;
+  background: none;
+  color: var(--mora);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  text-decoration: underline;
+  cursor: pointer;
+}

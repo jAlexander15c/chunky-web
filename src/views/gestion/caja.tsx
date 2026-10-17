@@ -4,18 +4,24 @@ import { ModifierPicker, SheetSelect } from "@/components";
 import {
     HttpError,
     PAYMENT_LABEL,
+    addTicketCombo,
     addTicketLine,
     assignTicketCustomer,
     buildPastaItem,
     changeTicketLine,
+    fetchCajaCombos,
     fetchCustomerMatches,
     fetchTables,
     fetchTicket,
     formatCash,
+    formatComboUntil,
     formatQuantity,
+    getComboSlotsText,
+    getComboUnitPrice,
     getItemModifiers,
     getItemPrice,
     getTicketLabel,
+    getTicketLineTotal,
     giveTicketCredit,
     hasItemAvailableForSale,
     hasItemModifiers,
@@ -29,6 +35,7 @@ import {
     sendTicketToKitchen,
     setTicketLineNote,
     useCategories,
+    useComboItems,
     useItems,
     useModifiers,
     useSettings,
@@ -36,7 +43,10 @@ import {
 } from "@/helpers";
 import type {
     ICartModifier,
+    IComboChoice,
+    IComboSlot,
     ICustomerMatch,
+    IPublicCombo,
     IShiftDetail,
     ITableAccount,
     ITableSummary,
@@ -874,6 +884,195 @@ const OptionsDialog = ({ item, isEveryGroupRequired = false, onAdd, onClose }: I
     );
 };
 
+/* ============ Armar un combo ============ */
+
+interface IComboSlotPickerProps {
+    slot: IComboSlot;
+    items: Map<string, IItem>;
+    choice: IComboChoice | null;
+    onChange: (choice: IComboChoice) => void;
+}
+
+/** Un hueco del combo: los productos que entran y, debajo, las opciones del elegido. */
+const ComboSlotPicker = ({ slot, items, choice, onChange }: IComboSlotPickerProps) => {
+    const chosenIds = (choice?.modifiers ?? []).map((entry) => entry.modifierOptionId);
+    const modifiers = useModifiers({ live: true, variantId: choice?.item.variants?.[0]?.variant_id, optionIds: chosenIds });
+    const slotItems = slot.itemIds.map((id) => items.get(id)).filter((item): item is IItem => Boolean(item));
+    const itemModifiers = choice ? getItemModifiers(choice.item, modifiers, chosenIds) : [];
+
+    return (
+        <fieldset className="ges-combo-slot">
+            <legend>{slot.label}</legend>
+            <div className="ges-combo-chips">
+                {slotItems.map((item) => (
+                    <button
+                        key={item.id}
+                        type="button"
+                        className="ges-combo-chip"
+                        aria-pressed={choice?.item.id === item.id}
+                        disabled={!hasItemAvailableForSale(item)}
+                        onClick={() => {
+                            if (choice?.item.id !== item.id) onChange({ item, modifiers: [] });
+                        }}
+                    >
+                        {item.item_name}
+                    </button>
+                ))}
+            </div>
+            {choice && itemModifiers.length > 0 ? (
+                <ModifierPicker
+                    modifiers={itemModifiers}
+                    chosen={choice.modifiers}
+                    onChange={(chosen) => onChange({ item: choice.item, modifiers: chosen })}
+                    showSoldOutReason
+                />
+            ) : null}
+        </fieldset>
+    );
+};
+
+interface IComboDialogProps {
+    combo: IPublicCombo;
+    onAdd: (choices: IComboChoice[], note: string | null) => Promise<void>;
+    onClose: () => void;
+}
+
+const ComboDialog = ({ combo, onAdd, onClose }: IComboDialogProps) => {
+    const { items, isLoading } = useComboItems(true);
+    const [picked, setPicked] = useState<(IComboChoice | null)[]>(() => combo.slots.map(() => null));
+    const [note, setNote] = useState("");
+    const [isSending, setIsSending] = useState(false);
+
+    // Un hueco con un solo producto ya viene elegido, si se puede vender
+    const choices = combo.slots.map((slot, index) => {
+        if (picked[index]) return picked[index];
+        const onlyItem = slot.itemIds.length === 1 ? items.get(slot.itemIds[0]) : undefined;
+        return onlyItem && hasItemAvailableForSale(onlyItem) ? { item: onlyItem, modifiers: [] } : null;
+    });
+    const missing = combo.slots.filter((_, index) => !choices[index]);
+    const ready = choices.filter((choice): choice is IComboChoice => Boolean(choice));
+
+    return (
+        <div className="ges-modal" role="dialog" aria-modal="true" aria-label={`Combo ${combo.name}`}>
+            <div className="ges-modal__panel">
+                <h3 className="script">{combo.name}</h3>
+                <p className="ges-combo-sub">{formatCash(combo.price)} · {formatComboUntil(combo.timeTo).toLowerCase()}</p>
+                {isLoading ? <p className="ges-note">Cargando los productos…</p> : null}
+                {combo.slots.map((slot, index) => (
+                    <ComboSlotPicker
+                        key={index}
+                        slot={slot}
+                        items={items}
+                        choice={choices[index]}
+                        onChange={(choice) => setPicked((current) => current.map((entry, at) => (at === index ? choice : entry)))}
+                    />
+                ))}
+                <label className="ges-field">
+                    <span>Nota para cocina</span>
+                    <input
+                        id="caja-combo-nota"
+                        type="text"
+                        maxLength={LINE_NOTE_MAX}
+                        autoComplete="off"
+                        value={note}
+                        placeholder="Opcional"
+                        onChange={(event) => setNote(event.target.value)}
+                    />
+                </label>
+                {!isLoading && missing.length > 0 ? (
+                    <p className="ges-note">Falta elegir: {missing.map((slot) => slot.label).join(", ")}</p>
+                ) : null}
+                <div className="ges-modal__acts">
+                    <button type="button" className="ges-btn" onClick={onClose} disabled={isSending}>Cancelar</button>
+                    <button
+                        type="button"
+                        className="ges-btn ges-btn--solid"
+                        disabled={isSending || isLoading || missing.length > 0}
+                        onClick={async () => {
+                            setIsSending(true);
+                            await onAdd(ready, note.trim() || null);
+                        }}
+                    >
+                        Agregar · {formatCash(getComboUnitPrice(combo.price, ready))}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+type TicketRow = { line: ITicketLine } | { combo: NonNullable<ITicketLine["combo"]>; lines: ITicketLine[] };
+
+/** Las líneas de un mismo combo se muestran juntas, en el lugar de la primera. */
+const getTicketRows = (lines: ITicketLine[]) =>
+    lines.reduce<TicketRow[]>((rows, line) => {
+        if (!line.combo) return [...rows, { line }];
+        const group = rows.find((row) => "lines" in row && row.combo.groupKey === line.combo!.groupKey);
+        if (group && "lines" in group) {
+            group.lines.push(line);
+            return rows;
+        }
+        return [...rows, { combo: line.combo, lines: [line] }];
+    }, []);
+
+interface IComboTicketRowProps {
+    combo: NonNullable<ITicketLine["combo"]>;
+    lines: ITicketLine[];
+    isSent: boolean;
+    canMove: boolean;
+    onQuantity: (quantity: number) => void;
+    onMove: () => void;
+    onNote: (line: ITicketLine) => void;
+}
+
+/** Un combo en la cuenta: la cantidad, quitar y pasar a otra cuenta van por el grupo entero. */
+const ComboTicketRow = ({ combo, lines, isSent, canMove, onQuantity, onMove, onNote }: IComboTicketRowProps) => {
+    const quantity = lines[0].quantity;
+    const total = lines.reduce((sum, line) => sum + getTicketLineTotal(line), 0);
+
+    return (
+        <div className={`ges-tl ges-tl--combo${isSent ? " is-sent" : ""}`}>
+            <b>{formatQuantity(quantity)} × Combo {combo.comboName}</b>
+            <span className="ges-tl__price">{formatCash(total)}</span>
+            <ul className="ges-tl__parts">
+                {lines.map((line) => (
+                    <li key={line.id}>
+                        {line.name}
+                        {line.modifiers.length > 0 ? ` · ${line.modifiers.map((one) => one.option).join(", ")}` : ""}
+                        {line.note ? <em> · Nota: {line.note}</em> : null}
+                        {!isSent ? (
+                            <button type="button" className={`ges-tl__part-note${line.note ? " has-note" : ""}`} onClick={() => onNote(line)}>
+                                Nota
+                            </button>
+                        ) : null}
+                    </li>
+                ))}
+            </ul>
+            <small>
+                {!isSent ? (
+                    <>
+                        <button type="button" aria-label={`Quitar un combo ${combo.comboName}`} onClick={() => onQuantity(quantity - 1)}>
+                            −
+                        </button>
+                        <em>{formatQuantity(quantity)}</em>
+                        <button type="button" aria-label={`Agregar un combo ${combo.comboName}`} onClick={() => onQuantity(quantity + 1)}>
+                            +
+                        </button>
+                    </>
+                ) : (
+                    <em>{formatQuantity(quantity)}</em>
+                )}
+                × {formatCash(combo.comboPrice)}
+                {canMove ? (
+                    <button type="button" className="ges-tl__move" onClick={onMove}>
+                        Pasar a…
+                    </button>
+                ) : null}
+            </small>
+        </div>
+    );
+};
+
 /* ============ Nota de un plato ============ */
 
 interface ILineNoteDialogProps {
@@ -1193,6 +1392,9 @@ const MoveDialog = ({ line, accounts, onMove, onClose }: IMoveDialogProps) => {
 
 /** Pestaña de la pasta armable; no es una categoria de Loyverse. */
 const PASTA_TAB_ID = "pasta";
+const COMBOS_TAB_ID = "combos";
+/** Los combos entran y salen por horario: se releen cada minuto. */
+const COMBOS_REFRESH_MS = 60000;
 
 interface IGestionCajaProps {
     token: string;
@@ -1207,6 +1409,8 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
     // El catálogo se pide por categoría, así que siempre hay una elegida
     const [categoryId, setCategoryId] = useState<string | null>(null);
     const [options, setOptions] = useState<IItem | null>(null);
+    const [combos, setCombos] = useState<IPublicCombo[]>([]);
+    const [comboToAdd, setComboToAdd] = useState<IPublicCombo | null>(null);
     const [isPaying, setIsPaying] = useState(false);
     const [isVoiding, setIsVoiding] = useState(false);
     const [isReleasing, setIsReleasing] = useState(false);
@@ -1232,13 +1436,20 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
         () => (settings.pasta?.modifierIds ? { ...buildPastaItem(settings.pasta), modifier_ids: settings.pasta.modifierIds } : null),
         [settings.pasta]
     );
+    // Los combos van en su pestaña solo mientras alguno está a la venta en caja
     const categories = useMemo(
-        () => (pastaItem ? [{ id: PASTA_TAB_ID, name: "Pasta" }, ...menuCategories] : menuCategories),
-        [pastaItem, menuCategories]
+        () => [
+            ...(pastaItem ? [{ id: PASTA_TAB_ID, name: "Pasta" }] : []),
+            ...(combos.length > 0 ? [{ id: COMBOS_TAB_ID, name: "Combos" }] : []),
+            ...menuCategories,
+        ],
+        [pastaItem, combos.length, menuCategories]
     );
-    const currentCategory = categoryId ?? categories[0]?.id;
+    // Si la pestaña elegida desaparece (se acabó la hora del combo), vuelve a la primera
+    const currentCategory = categories.some((category) => category.id === categoryId) ? categoryId! : categories[0]?.id;
     const isPastaTab = currentCategory === PASTA_TAB_ID;
-    const { items: categoryItems } = useItems(isPastaTab ? undefined : currentCategory, "normal", { live: true });
+    const isCombosTab = currentCategory === COMBOS_TAB_ID;
+    const { items: categoryItems } = useItems(isPastaTab || isCombosTab ? undefined : currentCategory, "normal", { live: true });
     const items = useMemo(() => (isPastaTab && pastaItem ? [pastaItem] : categoryItems), [isPastaTab, pastaItem, categoryItems]);
     const modifiers = useModifiers({ live: true });
 
@@ -1249,6 +1460,24 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
         },
         [onSessionExpired]
     );
+
+    // Sin combos la caja sigue igual: un fallo aquí no se muestra como error
+    useEffect(() => {
+        const controller = new AbortController();
+        const loadCombos = async () => {
+            try {
+                setCombos(await fetchCajaCombos(token, controller.signal));
+            } catch (requestError) {
+                if (requestError instanceof HttpError && requestError.status === 401) onSessionExpired();
+            }
+        };
+        void loadCombos();
+        const timer = window.setInterval(() => void loadCombos(), COMBOS_REFRESH_MS);
+        return () => {
+            controller.abort();
+            window.clearInterval(timer);
+        };
+    }, [token, onSessionExpired]);
 
     const loadTables = useCallback(
         async (signal?: AbortSignal) => {
@@ -1500,7 +1729,24 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                     ) : null}
 
                     <div className="ges-grid">
-                        {visibleItems.map((item) => (
+                        {isCombosTab ? combos.map((combo) => (
+                            <button
+                                key={combo.id}
+                                type="button"
+                                className="ges-prod"
+                                disabled={!hasShift}
+                                onClick={() => setComboToAdd(combo)}
+                            >
+                                <span className="ges-prod__img ges-prod__img--none ges-prod__img--combo" aria-hidden="true">
+                                    {getItemInitials(combo.name)}
+                                </span>
+                                <span className="ges-prod__txt">
+                                    <b>{combo.name}</b>
+                                    <em>{getComboSlotsText(combo.slots)}</em>
+                                    <span>{formatCash(combo.price)} · {formatComboUntil(combo.timeTo).toLowerCase()}</span>
+                                </span>
+                            </button>
+                        )) : visibleItems.map((item) => (
                             <button
                                 key={item.id}
                                 type="button"
@@ -1594,7 +1840,23 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                                 {pending.length > 0 ? (
                                     <>
                                         <p className="ges-grp is-pend">Por enviar a cocina</p>
-                                        {pending.map((line) => (
+                                        {getTicketRows(pending).map((row) => {
+                                            if ("lines" in row) {
+                                                return (
+                                                    <ComboTicketRow
+                                                        key={row.combo.groupKey}
+                                                        combo={row.combo}
+                                                        lines={row.lines}
+                                                        isSent={false}
+                                                        canMove={tableNumber !== null}
+                                                        onQuantity={(quantity) => void run(() => changeTicketLine(token, ticket.id, row.lines[0].id, quantity), "No se pudo cambiar.")}
+                                                        onMove={() => setMoving({ ...row.lines[0], name: `Combo ${row.combo.comboName}` })}
+                                                        onNote={setNoting}
+                                                    />
+                                                );
+                                            }
+                                            const { line } = row;
+                                            return (
                                             <div className="ges-tl" key={line.id}>
                                                 <TicketLinePricing line={line} />
                                                 <small>
@@ -1633,14 +1895,31 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                                                 </small>
                                                 {line.note ? <p className="ges-tl__note">{line.note}</p> : null}
                                             </div>
-                                        ))}
+                                            );
+                                        })}
                                     </>
                                 ) : null}
 
                                 {sent.length > 0 ? (
                                     <>
                                         <p className="ges-grp">{isDelivered ? "Entregado · pendiente de pago" : "Ya está en cocina"}</p>
-                                        {sent.map((line) => (
+                                        {getTicketRows(sent).map((row) => {
+                                            if ("lines" in row) {
+                                                return (
+                                                    <ComboTicketRow
+                                                        key={row.combo.groupKey}
+                                                        combo={row.combo}
+                                                        lines={row.lines}
+                                                        isSent
+                                                        canMove={tableNumber !== null}
+                                                        onQuantity={() => undefined}
+                                                        onMove={() => setMoving({ ...row.lines[0], name: `Combo ${row.combo.comboName}` })}
+                                                        onNote={setNoting}
+                                                    />
+                                                );
+                                            }
+                                            const { line } = row;
+                                            return (
                                             <div className="ges-tl is-sent" key={line.id}>
                                                 <TicketLinePricing line={line} />
                                                 <small>
@@ -1654,7 +1933,8 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                                                 </small>
                                                 {line.note ? <p className="ges-tl__note">{line.note}</p> : null}
                                             </div>
-                                        ))}
+                                            );
+                                        })}
                                     </>
                                 ) : null}
                             </>
@@ -1742,6 +2022,28 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                             );
                         }
                         setOptions(null);
+                    }}
+                />
+            ) : null}
+
+            {comboToAdd ? (
+                <ComboDialog
+                    combo={comboToAdd}
+                    onClose={() => setComboToAdd(null)}
+                    onAdd={async (choices, note) => {
+                        await run(
+                            () => addTicketCombo(token, ticket.id, {
+                                comboId: comboToAdd.id,
+                                quantity: 1,
+                                choices: choices.map((choice) => ({
+                                    variantId: choice.item.variants[0].variant_id,
+                                    modifierOptionIds: choice.modifiers.map((one) => one.modifierOptionId),
+                                })),
+                                note,
+                            }),
+                            "No pudimos agregar el combo."
+                        );
+                        setComboToAdd(null);
                     }}
                 />
             ) : null}

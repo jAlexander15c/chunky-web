@@ -31,3 +31,4 @@ export * from "./stock";
 export * from "./presentation";
 
 export * from "./promos";
+export * from "./combos";

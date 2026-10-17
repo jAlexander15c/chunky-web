@@ -1,3 +1,5 @@
+import { formatComboChoices, getComboUnitPrice } from "./combos";
+import type { IComboChoice } from "./combos";
 import { formatCartModifiers, getModifiersPrice } from "./modifiers";
 import type { ICartModifier } from "./modifiers";
 import { formatPastaOptions } from "./pasta";
@@ -21,6 +23,8 @@ export interface ICartLine {
     options?: IPastaOptions;
     /** Modificadores de Loyverse elegidos (ej. leche especial). Su precio se suma al del producto. */
     modifiers?: ICartModifier[];
+    /** Un combo: precio fijo con un producto por hueco. `item` es el del primer hueco, para quien lea el item sin mirar el combo. */
+    combo?: { comboId: number; name: string; price: number; choices: IComboChoice[] };
 }
 
 /** "8:00 a. m.", "5:00 p. m.": las horas siempre se muestran en formato de 12 horas. */
@@ -45,14 +49,15 @@ export const getItemPrice = (item: IItem) => {
 export const getCartCount = (lines: ICartLine[]) => lines.reduce((sum, line) => sum + line.quantity, 0);
 
 /** Precio de una unidad con sus modificadores incluidos. */
-export const getCartLinePrice = (line: ICartLine) => getItemPrice(line.item) + getModifiersPrice(line.modifiers);
+export const getCartLinePrice = (line: ICartLine) =>
+    line.combo ? getComboUnitPrice(line.combo.price, line.combo.choices) : getItemPrice(line.item) + getModifiersPrice(line.modifiers);
 
 export const getCartTotal = (lines: ICartLine[]) =>
     lines.reduce((sum, line) => sum + getCartLinePrice(line) * line.quantity, 0);
 
 /** Lo elegido en una linea: opciones de la pasta y modificadores, en una sola frase. */
 export const formatCartLineDetails = (line: ICartLine, separator = " · ") =>
-    [
+    line.combo ? formatComboChoices(line.combo.choices, separator) : [
         ...(line.options ? [formatPastaOptions(line.options, separator)] : []),
         ...(line.modifiers ? [formatCartModifiers(line.modifiers, separator)] : []),
     ]
@@ -62,7 +67,7 @@ export const formatCartLineDetails = (line: ICartLine, separator = " · ") =>
 /** "- Pasta armable x2 (Fettuccine · Pomodoro Chunky · Pollo Grill)" para los mensajes de WhatsApp. */
 export const formatCartLine = (line: ICartLine) => {
     const details = formatCartLineDetails(line);
-    return `- ${line.item.item_name} x${line.quantity}${details ? ` (${details})` : ""}`;
+    return `- ${line.combo ? `Combo ${line.combo.name}` : line.item.item_name} x${line.quantity}${details ? ` (${details})` : ""}`;
 };
 
 export const buildOrderMessage = (lines: ICartLine[], delivery?: string) => {

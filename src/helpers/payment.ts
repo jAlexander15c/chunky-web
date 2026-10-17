@@ -79,6 +79,8 @@ export interface IPublicOrder {
         promoName?: string | null;
         options?: IPastaOptions;
         modifiers?: { name: string; option: string; price: number }[];
+        /** Las líneas de un mismo combo comparten groupKey; comboPrice es lo que cuesta el combo por unidad. */
+        combo?: { comboId: number; comboName: string; groupKey: string; comboPrice: number };
     }[];
     // La dirección escrita; el punto exacto (lat/lng) solo llega mientras va en camino, para el mapa
     delivery: { address: string; details: string | null; lat?: number | null; lng?: number | null } | null;
@@ -281,13 +283,31 @@ export const createIdempotencyKey = () =>
         ? crypto.randomUUID()
         : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 14)}-${Math.random().toString(36).slice(2, 14)}`;
 
-const getOrderBody = (lines: ICartLine[], form: ICheckoutForm, requiresDelivery: boolean) => ({
-        lines: lines.map((line) => ({
-            variantId: line.item.variants[0].variant_id,
-            quantity: line.quantity,
-            options: line.options,
-            modifierOptionIds: line.modifiers?.map((modifier) => modifier.modifierOptionId),
+/** Los productos sueltos del pedido: los combos viajan aparte, en `combos`. */
+export const getOrderLines = (lines: ICartLine[]) =>
+    lines.filter((line) => !line.combo).map((line) => ({
+        variantId: line.item.variants[0].variant_id,
+        quantity: line.quantity,
+        options: line.options,
+        modifierOptionIds: line.modifiers?.map((modifier) => modifier.modifierOptionId),
+    }));
+
+/** Cada combo con una elección por hueco, en el orden de sus huecos; undefined si no hay combos. */
+export const getOrderCombos = (lines: ICartLine[]) => {
+    const combos = lines.filter((line) => line.combo).map((line) => ({
+        comboId: line.combo!.comboId,
+        quantity: line.quantity,
+        choices: line.combo!.choices.map((choice) => ({
+            variantId: choice.item.variants[0].variant_id,
+            modifierOptionIds: choice.modifiers.length ? choice.modifiers.map((modifier) => modifier.modifierOptionId) : undefined,
         })),
+    }));
+    return combos.length ? combos : undefined;
+};
+
+const getOrderBody = (lines: ICartLine[], form: ICheckoutForm, requiresDelivery: boolean) => ({
+        lines: getOrderLines(lines),
+        combos: getOrderCombos(lines),
         delivery: requiresDelivery ? getDeliveryPayload(form) : undefined,
         customerName: form.customerName.trim(),
         customerPhone: getPhoneDigits(form.customerPhone),

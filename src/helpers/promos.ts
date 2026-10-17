@@ -31,7 +31,8 @@ export const getPromoCart = (lines: ICartLine[], promos: IPublicPromo[]) => {
     const groups = new Map<string, ICartLine[]>();
     lines.forEach((line) => {
         prices[line.lineKey] = { subtotal: round2(getCartLinePrice(line) * line.quantity), discount: 0, total: round2(getCartLinePrice(line) * line.quantity), promo: null, hasOddUnit: false };
-        groups.set(line.item.id, [...(groups.get(line.item.id) ?? []), line]);
+        // Un combo ya tiene su precio fijo: las promos no se le suman
+        if (!line.combo) groups.set(line.item.id, [...(groups.get(line.item.id) ?? []), line]);
     });
     groups.forEach((group) => {
         let best: { promo: IPublicPromo; discounts: Record<string, number>; discount: number } | null = null;

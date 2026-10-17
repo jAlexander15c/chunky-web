@@ -4,10 +4,14 @@ import { motion, useReducedMotion } from "motion/react";
 import { PiArrowRightBold, PiWhatsappLogoBold } from "react-icons/pi";
 
 import { Stamp } from "./stamp";
+import { useComboSheet } from "./use-combo-sheet";
 import { usePastaBuilder } from "./use-pasta-builder";
 
 import {
+    formatComboUntil,
     formatPrice,
+    getComboMinutes,
+    getComboSlotsText,
     getCatalogScope,
     getCategoryPresentation,
     getOrderingStatusLabel,
@@ -17,6 +21,7 @@ import {
     shouldDisplayCategory,
     useCategories,
     useCategoryStock,
+    useCombos,
     useSettings,
     useSpecialCategories,
     trackEvent,
@@ -41,7 +46,16 @@ export const MenuBoard = () => {
     const { categories, loading: isLoadingCategories, error } = useCategories();
     const { settings, isReady: isSettingsReady } = useSettings();
     const { open: openPastaBuilder } = usePastaBuilder();
+    const { combos } = useCombos();
+    const { openCombo, comboSheet } = useComboSheet();
     const isOpen = isAcceptingOrders(settings);
+    // "Combos · hasta las 6 pm": con varios, la hora en que cierra el primero
+    const comboClosings = [...new Set(combos.map((combo) => combo.timeTo))];
+    const comboHeading = comboClosings.length === 1
+        ? `Combos · ${formatComboUntil(comboClosings[0]).toLowerCase()}`
+        : combos.length > 0
+            ? `Combos · ${formatComboUntil([...comboClosings].sort((a, b) => getComboMinutes(a) - getComboMinutes(b))[0]).toLowerCase()}`
+            : "";
 
     // Hasta saber si hoy es dia de pasta no se pinta el tablero: mostraria un menu que cambia
     const loading = isLoadingCategories || !isSettingsReady;
@@ -86,14 +100,31 @@ export const MenuBoard = () => {
                 </div>
             )}
 
-            {!loading && !error && visibleCategories.length === 0 && !pasta && (
+            {!loading && !error && visibleCategories.length === 0 && !pasta && combos.length === 0 && (
                 <div className="board__message">
                     <p>El tablero está vacío por ahora. Vuelve pronto.</p>
                 </div>
             )}
 
-            {!loading && !error && (visibleCategories.length > 0 || pasta) && (
+            {!loading && !error && (visibleCategories.length > 0 || pasta || combos.length > 0) && (
                 <ul className="board__rows">
+                    {combos.length > 0 && <li className="board__group">{comboHeading}</li>}
+                    {combos.map((combo, index) => (
+                        <li key={`combo-${combo.id}`} className={`board__slot${index === combos.length - 1 ? " board__slot--combo-end" : ""}`}>
+                            <button type="button" className="board__row" onClick={() => openCombo(combo)}>
+                                <span className="board__text">
+                                    <span className="board__name">
+                                        {combo.name}
+                                        <span className="board__tag">{formatPrice(combo.price)}</span>
+                                    </span>
+                                    <span className="board__desc">{getComboSlotsText(combo.slots)}</span>
+                                </span>
+                                <span className="board__go" aria-hidden>
+                                    <PiArrowRightBold />
+                                </span>
+                            </button>
+                        </li>
+                    ))}
                     {pasta && (
                         <li className="board__slot">
                             <button type="button" className="board__row board__row--pasta" onClick={openPastaBuilder}>
@@ -190,6 +221,8 @@ export const MenuBoard = () => {
                     })}
                 </ul>
             )}
+
+            {comboSheet}
         </div>
     );
 };

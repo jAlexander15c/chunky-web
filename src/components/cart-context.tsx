@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 
 import { CartContext } from "./use-cart";
 
-import { getCartCount, getPromoCart, usePromos, getLineKey, getLineMax, trackEvent } from "@/helpers";
-import type { ICartLine, ICartModifier, IPastaOptions } from "@/helpers";
+import { COMBO_LIMITS, getCartCount, getComboLineKey, getComboSaving, getPromoCart, useCombos, usePromos, getLineKey, getLineMax, trackEvent } from "@/helpers";
+import type { ICartLine, ICartModifier, IComboChoice, IPastaOptions, IPublicCombo } from "@/helpers";
 import type { IItem } from "@/interfaces";
 
 const CART_STORAGE_KEY = "chunky-cart";
@@ -27,8 +27,15 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     const [lines, setLines] = useState<ICartLine[]>(readStoredLines);
     const { promos } = usePromos();
     const pricing = useMemo(() => getPromoCart(lines, promos), [lines, promos]);
+    const { combos } = useCombos();
+    // Lo que ahorra el cliente con sus combos frente a comprar los productos por separado (solo informativo)
+    const comboSavings = useMemo(() => Math.round(lines.reduce((sum, line) => {
+        const combo = line.combo ? combos.find((entry) => entry.id === line.combo!.comboId) : undefined;
+        return sum + (combo ? getComboSaving(combo) * line.quantity : 0);
+    }, 0) * 100) / 100, [lines, combos]);
     const [isOpen, setIsOpen] = useState(false);
     const [removedNames, setRemovedNames] = useState<string[]>([]);
+    const [cartNotice, setCartNotice] = useState("");
 
     useEffect(() => {
         try {
@@ -61,10 +68,35 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         });
     }, []);
 
+    /** Suma una unidad de un combo con lo elegido en cada hueco. El tope de stock lo valida el API. */
+    const addCombo = useCallback((combo: IPublicCombo, choices: IComboChoice[]) => {
+        trackEvent("add_to_cart", `combo:${combo.id}`, combo.name);
+        const lineKey = getComboLineKey(combo.id, choices);
+        setLines((current) => {
+            if (current.some((line) => line.lineKey === lineKey)) {
+                return current.map((line) =>
+                    line.lineKey === lineKey ? { ...line, quantity: Math.min(COMBO_LIMITS.quantityMax, line.quantity + 1) } : line
+                );
+            }
+            return [...current, { lineKey, item: choices[0].item, quantity: 1, combo: { comboId: combo.id, name: combo.name, price: combo.price, choices } }];
+        });
+    }, []);
+
     const setQuantity = useCallback((lineKey: string, quantity: number) => {
         setLines((current) => quantity <= 0
             ? current.filter((line) => line.lineKey !== lineKey)
-            : current.map((line) => line.lineKey === lineKey ? { ...line, quantity: Math.min(getLineMax(current, line.item, lineKey), quantity) } : line));
+            : current.map((line) => {
+                if (line.lineKey !== lineKey) return line;
+                const max = line.combo ? COMBO_LIMITS.quantityMax : getLineMax(current, line.item, lineKey);
+                return { ...line, quantity: Math.min(max, quantity) };
+            }));
+    }, []);
+
+    /** Quita las líneas de combos que ya no están a la venta. */
+    const removeCombos = useCallback((comboIds: number[], message = "") => {
+        setLines((current) => current.filter((line) => !line.combo || !comboIds.includes(line.combo.comboId)));
+        // Con el carrito vacío no queda donde leer el aviso del pago: se muestra arriba del carrito
+        setCartNotice(message);
     }, []);
 
     const getQuantity = useCallback(
@@ -80,7 +112,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         setIsOpen(true);
     }, []);
 
-    const dismissRemoved = useCallback(() => setRemovedNames([]), []);
+    const dismissRemoved = useCallback(() => { setRemovedNames([]); setCartNotice(""); }, []);
 
     const clearCart = useCallback(() => setLines([]), []);
 
@@ -88,16 +120,20 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         lines,
         count: getCartCount(lines),
         ...pricing,
+        comboSavings,
         isOpen,
         setIsOpen,
         addItem,
+        addCombo,
+        removeCombos,
         setQuantity,
         getQuantity,
         removeUnavailable,
         removedNames,
+        cartNotice,
         dismissRemoved,
         clearCart,
-    }), [lines, pricing, isOpen, addItem, setQuantity, getQuantity, removeUnavailable, removedNames, dismissRemoved, clearCart]);
+    }), [lines, pricing, comboSavings, isOpen, addItem, addCombo, removeCombos, setQuantity, getQuantity, removeUnavailable, removedNames, cartNotice, dismissRemoved, clearCart]);
 
     return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 };

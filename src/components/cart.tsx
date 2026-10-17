@@ -1,4 +1,5 @@
 import "./promos.css";
+import "./combo-sheet.css";
 import { useEffect } from "react";
 import { Drawer, Portal, useBreakpointValue } from "@chakra-ui/react";
 import { Link } from "react-router";
@@ -6,13 +7,14 @@ import { PiXBold } from "react-icons/pi";
 
 import { AnimatedPrice } from "./animated-price";
 import { CartCheckout } from "./cart-checkout";
+import { ComboPhoto } from "./combo-photo";
 import { useCart } from "./use-cart";
 import { usePastaBuilder } from "./use-pasta-builder";
 import { Mascot } from "./mascot";
 import { QuantityStepper } from "./quantity-stepper";
 import { Stamp } from "./stamp";
 
-import { formatCartLineDetails, formatPrice, getAvailableQuantity, getPromoLabel, getItemCartQuantity, getLineMax, getStockNote, isPastaOnlyNow, useSettings } from "@/helpers";
+import { COMBO_LIMITS, formatCartLineDetails, formatPrice, getAvailableQuantity, getPromoLabel, getItemCartQuantity, getLineMax, getStockNote, isPastaOnlyNow, useCombos, useSettings } from "@/helpers";
 import type { ICartLine, IPublicSettings } from "@/helpers";
 
 /**
@@ -24,11 +26,13 @@ const getUnavailableLines = (lines: ICartLine[], settings: IPublicSettings) => {
     if (!settings.pastaMode) return lines.filter((line) => line.options);
     if (!isPastaOnlyNow(settings)) return [];
     if (!settings.beveragesCategoryId) return [];
-    return lines.filter((line) => !line.options && line.item.category_id !== settings.beveragesCategoryId);
+    // Los combos no se quitan por el modo del día: su horario lo manda el API
+    return lines.filter((line) => !line.combo && !line.options && line.item.category_id !== settings.beveragesCategoryId);
 };
 
 export const Cart = () => {
-    const { lines, total, discount, prices, isOpen, setIsOpen, setQuantity, removeUnavailable, removedNames, dismissRemoved } = useCart();
+    const { lines, total, discount, comboSavings, prices, isOpen, setIsOpen, setQuantity, removeUnavailable, removedNames, cartNotice, dismissRemoved } = useCart();
+    const { combos, isReady: areCombosReady } = useCombos();
     const { open: openPastaBuilder } = usePastaBuilder();
     const { settings, isReady } = useSettings();
     // Hoja inferior en movil, panel lateral desde tablet
@@ -93,6 +97,8 @@ export const Cart = () => {
                                 </div>
                             )}
 
+                            {cartNotice && <div className="checkout__notice" role="status"><strong>{cartNotice}</strong></div>}
+
                             {lines.length === 0 ? (
                                 <div className="carrito__empty">
                                     <Mascot className="carrito__empty-mascot" />
@@ -101,8 +107,15 @@ export const Cart = () => {
                                 </div>
                             ) : (
                                 <ul className="carrito__lines">
-                                    {[...lines].reverse().map((line, index) => (
+                                    {[...lines].reverse().map((line, index) => {
+                                        const liveCombo = line.combo ? combos.find((combo) => combo.id === line.combo!.comboId) : undefined;
+                                        // Sin la primera consulta no se sabe: no se marca como "ya no está" lo que aún no cargó
+                                        const isComboGone = Boolean(line.combo) && areCombosReady && !liveCombo;
+                                        return (
                                         <li key={line.lineKey} className="carrito__line">
+                                            {line.combo ? (
+                                                <ComboPhoto combo={liveCombo ?? { id: line.combo.comboId, imageVersion: null }} className="carrito__thumb" />
+                                            ) : (
                                             <Stamp
                                                 src={line.item.image_url}
                                                 alt=""
@@ -110,13 +123,28 @@ export const Cart = () => {
                                                 rotate={index % 2 === 0 ? -4 : 4}
                                                 className="carrito__thumb"
                                             />
+                                            )}
                                             <div className="carrito__info">
-                                                <span className="carrito__name">{line.item.item_name}</span>
+                                                <span className="carrito__name">{line.combo && <span className="carrito__badge">Combo</span>}{line.combo ? line.combo.name : line.item.item_name}</span>
                                                 {formatCartLineDetails(line) && (
                                                     <span className="carrito__options">{formatCartLineDetails(line)}</span>
                                                 )}
                                                 {prices[line.lineKey]?.promo && <small className="promo-note">{getPromoLabel(prices[line.lineKey].promo!)} · {prices[line.lineKey].promo!.name}</small>}
                                                 {prices[line.lineKey]?.hasOddUnit && <small className="promo-note">Agrega otra {line.item.item_name} y te sale gratis</small>}
+                                                {isComboGone ? (
+                                                    <>
+                                                        <span className="carrito__gone" role="status">Ya no está a la venta a esta hora</span>
+                                                        <button type="button" className="carrito__remove" onClick={() => setQuantity(line.lineKey, 0)}>Quitar</button>
+                                                    </>
+                                                ) : line.combo ? (
+                                                    <QuantityStepper
+                                                        size="sm"
+                                                        quantity={line.quantity}
+                                                        itemName={`Combo ${line.combo.name}`}
+                                                        onChange={(quantity) => setQuantity(line.lineKey, quantity)}
+                                                        max={COMBO_LIMITS.quantityMax}
+                                                    />
+                                                ) : (
                                                 <QuantityStepper
                                                     size="sm"
                                                     quantity={line.quantity}
@@ -125,10 +153,12 @@ export const Cart = () => {
                                                     max={getLineMax(lines, line.item, line.lineKey)}
                                                     note={getStockNote(getAvailableQuantity(line.item), getItemCartQuantity(lines, line.item))}
                                                 />
+                                                )}
                                             </div>
                                             <span className="carrito__price">{prices[line.lineKey]?.discount > 0 && <del className="promo-original">{formatPrice(prices[line.lineKey].subtotal)}</del>}{formatPrice(prices[line.lineKey]?.total ?? 0)}</span>
                                         </li>
-                                    ))}
+                                        );
+                                    })}
                                 </ul>
                             )}
 
@@ -141,7 +171,7 @@ export const Cart = () => {
                             {/* Total, datos y pago dentro del area con scroll: en movil no tapan los productos */}
                             {lines.length > 0 && (
                                 <footer className="carrito__foot carrito__foot--inline">
-                                    {discount > 0 && <div className="comanda__row promo-note"><span>Ahorras con promos</span><span>−{formatPrice(discount)}</span></div>}
+                                    {discount + comboSavings > 0 && <div className="comanda__row promo-note"><span>{comboSavings > 0 ? "Ahorras con combos y promos" : "Ahorras con promos"}</span><span>−{formatPrice(discount + comboSavings)}</span></div>}
                                     <div className="carrito__total">
                                         <span>Total</span>
                                         <AnimatedPrice value={total} className="carrito__total-value" />

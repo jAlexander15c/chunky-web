@@ -19,6 +19,7 @@ import {
     formatPhone,
     formatPrice,
     getCartCount,
+    fetchCombosCached,
     fetchPromosCached,
     getPromoCart,
     getCheckoutErrors,
@@ -91,7 +92,7 @@ const PAYMENT_OPTIONS: { value: OrderPaymentMethod; label: string; detail: strin
 
 /** Pie del carrito: datos del cliente y el pago, con Yappy, con tarjeta o al recibir (coordinado por WhatsApp). */
 export const CartCheckout = () => {
-    const { lines, total, subtotal, discount, setIsOpen } = useCart();
+    const { lines, total, subtotal, discount, setIsOpen, removeCombos } = useCart();
     const navigate = useNavigate();
     const reduceMotion = useReducedMotion();
     const { settings } = useSettings();
@@ -275,7 +276,28 @@ export const CartCheckout = () => {
         return Object.keys(formErrors).length === 0 && !reachError && !cashError;
     };
 
+    /** 409 COMBO_UNAVAILABLE: se terminó la hora de un combo. Se quita del carrito y se avisa el nuevo total. */
+    const removeUnavailableCombos = async (error: unknown) => {
+        if (!(error instanceof HttpError) || error.status !== 409 || error.code !== "COMBO_UNAVAILABLE") return false;
+        // El pedido no se creó: el reintento lleva otro contenido, así que lleva otra clave
+        idempotencyKeyRef.current = null;
+        try {
+            const active = await fetchCombosCached(true);
+            const goneIds = lines.flatMap((line) => line.combo && !active.some((combo) => combo.id === line.combo!.comboId) ? [line.combo.comboId] : []);
+            const remaining = lines.filter((line) => !line.combo || !goneIds.includes(line.combo.comboId));
+            const promos = await fetchPromosCached().catch(() => []);
+            const nextTotal = getPromoCart(remaining, promos).total + (paymentMethod === "card" && remaining.length > 0 ? cardServiceFee : 0);
+            const message = `${error.message} Lo sacamos del carrito; tu total ahora es ${formatPrice(nextTotal)}.`;
+            removeCombos(goneIds, message);
+            setPaymentError(message);
+        } catch {
+            setPaymentError(`${error.message} Revisa tu carrito y vuelve a pagar. No pudimos recargar los combos; intenta de nuevo.`);
+        }
+        return true;
+    };
+
     const refreshChangedPromo = async (error: unknown) => {
+        if (await removeUnavailableCombos(error)) return true;
         if (!(error instanceof HttpError) || error.status !== 409 || error.code !== "PROMO_CHANGED") return false;
         try {
             const next = await fetchPromosCached(true);

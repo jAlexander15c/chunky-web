@@ -1,7 +1,7 @@
 import { Link } from "react-router";
 import { PiArrowRightBold, PiArrowUpRightBold, PiStarFourFill } from "react-icons/pi";
 
-import { HomeCarousel, Mascot, MenuBoard, SpecialSpotlight, Stamp } from "@/components";
+import { ComboStrip, HomeCarousel, Mascot, MenuBoard, SpecialSpotlight, Stamp } from "@/components";
 import {
     PEDIDOS_YA_URL,
     getOpeningHoursRows,
@@ -80,6 +80,8 @@ export const Home = () => {
             <HomeCarousel />
 
             <Marquee />
+
+            <ComboStrip />
 
             <SpecialSpotlight />
 

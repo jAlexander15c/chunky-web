@@ -9,6 +9,7 @@ import type {
     ISupplyStatus,
 } from "./admin";
 import { httpGet, httpPost } from "./getHttp";
+import type { IPublicCombo } from "./combos";
 import type { IModifier } from "./modifiers";
 import type { IStaffLogin } from "./staff-access";
 
@@ -54,6 +55,8 @@ export interface ITicketLine {
     freeQuantity: number;
     promoName: string | null;
     promoLabel: string | null;
+    /** Las líneas de un mismo combo comparten groupKey: se cambian, mueven y quitan juntas. */
+    combo?: { comboId: number; comboName: string; groupKey: string; comboPrice: number } | null;
 }
 
 /** Precio original de la línea con sus modificadores. */
@@ -434,6 +437,22 @@ export const addTicketLine = (
     ticketId: number,
     line: { variantId: string; quantity: number; modifierOptionIds?: string[]; note?: string | null }
 ) => httpPost<{ ticket: ITicket }>(`/gestion/caja/cuentas/${ticketId}/lineas`, line, { headers: getGestionHeaders(token) });
+
+/** Combos a la venta en caja ahora mismo (el API ya filtra horario, canal y modo del menú). */
+export const fetchCajaCombos = async (token: string, signal?: AbortSignal) => {
+    const data = await httpGet<IPublicCombo[] | { combos: IPublicCombo[] }>("/gestion/caja/combos", {
+        signal,
+        headers: getGestionHeaders(token),
+    });
+    return Array.isArray(data) ? data : data.combos;
+};
+
+/** Una elección por hueco, en el orden de los huecos. El precio lo fija el API al agregarlo. */
+export const addTicketCombo = (
+    token: string,
+    ticketId: number,
+    combo: { comboId: number; quantity: number; choices: { variantId: string; modifierOptionIds?: string[] }[]; note?: string | null }
+) => httpPost<{ ticket: ITicket }>(`/gestion/caja/cuentas/${ticketId}/combos`, combo, { headers: getGestionHeaders(token) });
 
 /** Lo que la cocina debe saber de un plato ("sin cebolla"). Vacía la quita. Solo antes de enviarlo. */
 export const setTicketLineNote = (token: string, ticketId: number, lineId: number, note: string | null) =>

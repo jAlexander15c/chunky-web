@@ -17,6 +17,7 @@ import {
     getLastOrderId,
     getWhatsAppUrl,
     getWhatsappOrderChatUrl,
+    groupOrderLines,
     playChime,
     rememberOrderAccess,
     setLastOrderId,
@@ -149,21 +150,29 @@ const OrderTicket = ({ order }: { order: IPublicOrder }) => {
                 <span className="order-ticket__code">{order.id}</span>
             </div>
             <ul className="order-ticket__body">
-                {order.lines.map((line, index) => (
-                    <li key={`${line.name}-${index}`} className="order-ticket__row">
+                {groupOrderLines(order.lines).map((row, index) => row.kind === "combo" ? (
+                    <li key={row.groupKey} className="order-ticket__row">
                         <span>
-                            {line.name} × {line.quantity}
-                            {line.promoName && <small className="order-ticket__options">{line.promoName}</small>}
-                            {(line.options || line.modifiers?.length) && (
+                            Combo {row.name} × {row.quantity}
+                            <small className="order-ticket__options">{row.products.join(" · ")}</small>
+                        </span>
+                        <span className="order-ticket__amount">{formatPrice(row.total)}</span>
+                    </li>
+                ) : (
+                    <li key={`${row.line.name}-${index}`} className="order-ticket__row">
+                        <span>
+                            {row.line.name} × {row.line.quantity}
+                            {row.line.promoName && <small className="order-ticket__options">{row.line.promoName}</small>}
+                            {(row.line.options || row.line.modifiers?.length) && (
                                 <small className="order-ticket__options">
                                     {[
-                                        ...(line.options ? [formatPastaOptions(line.options)] : []),
-                                        ...(line.modifiers ?? []).map((modifier) => `${modifier.name} ${modifier.option}`),
+                                        ...(row.line.options ? [formatPastaOptions(row.line.options)] : []),
+                                        ...(row.line.modifiers ?? []).map((modifier) => `${modifier.name} ${modifier.option}`),
                                     ].join(" · ")}
                                 </small>
                             )}
                         </span>
-                        <span className="order-ticket__amount">{formatPrice(line.price * line.quantity - (line.discount ?? 0))}</span>
+                        <span className="order-ticket__amount">{formatPrice(row.line.price * row.line.quantity - (row.line.discount ?? 0))}</span>
                     </li>
                 ))}
                 {(order.discount ?? 0) > 0 && <li className="order-ticket__row"><span>Ahorraste con promos</span><span>−{formatPrice(order.discount ?? 0)}</span></li>}

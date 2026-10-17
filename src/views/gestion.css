@@ -884,6 +884,24 @@ button.ges-chip:disabled { opacity: 0.6; cursor: default; }
 .ges-tl__note { grid-column: 1 / -1; margin: 0; font-size: 0.76rem; font-style: italic; font-weight: 700; color: var(--ges-warn); }
 .ges-tl__note::before { content: "Nota: "; font-style: normal; font-weight: 800; }
 
+/* Un combo en la cuenta: borde orquídea y lo que lleva debajo */
+.ges-tl--combo { border: 1.5px dashed var(--orquidea); border-radius: 12px; padding: 0.5rem 0.6rem; margin: 0.35rem 0; }
+.ges-tl__parts { grid-column: 1 / -1; margin: 0; padding: 0; list-style: none; display: grid; gap: 0.2rem; font-size: 0.74rem; color: var(--ges-text-2); }
+.ges-tl__parts li { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; min-width: 0; }
+.ges-tl__parts em { font-weight: 700; color: var(--ges-warn); }
+.ges-tl__part-note { font: inherit; font-size: 0.68rem; font-weight: 800; margin-left: auto; height: 24px; padding: 0 0.6rem; border-radius: var(--radius-pill); border: 1.5px solid var(--sky); background: var(--ges-panel); color: var(--ink); cursor: pointer; }
+.ges-tl__part-note.has-note { border-color: #d99a1e; background: #fdebc0; }
+.ges-prod__img--combo { background: var(--orquidea); color: var(--ink); }
+
+/* Diálogo para armar un combo: un bloque por hueco */
+.ges-combo-sub { margin: 0; font-size: 0.8rem; font-weight: 700; color: var(--ges-text-2); }
+.ges-combo-slot { border: 1px solid var(--ges-line); border-radius: 14px; padding: 0.6rem 0.7rem; margin: 0; display: grid; gap: 0.5rem; min-width: 0; }
+.ges-combo-slot legend { font-size: 0.8rem; font-weight: 800; padding: 0 0.3rem; }
+.ges-combo-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.ges-combo-chip { font: inherit; font-size: 0.8rem; font-weight: 700; min-height: 40px; padding: 0.35rem 0.85rem; border-radius: var(--radius-pill); border: 2px solid var(--sky); background: transparent; color: var(--ink); cursor: pointer; }
+.ges-combo-chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--crema); }
+.ges-combo-chip:disabled { text-decoration: line-through; opacity: 0.45; cursor: default; }
+
 /* ============ Cuentas de una mesa ============ */
 
 .ges-accounts { display: flex; gap: 0.4rem; overflow-x: auto; padding: 0.2rem var(--gutter) 0.4rem; }
