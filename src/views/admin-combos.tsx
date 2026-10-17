@@ -181,10 +181,10 @@ const ComboForm = ({ token, combo, categories, items, close, onDone, onSessionEx
     // Subvista: nombre del hueco y sus productos, por categoría
     if (editingSlot !== null && slots[editingSlot]) {
         const slot = slots[editingSlot];
-        const groups = [
-            ...categories.map((category) => ({ id: category.id, name: category.name, items: items.filter((item) => item.categoryId === category.id) })),
-            { id: "none", name: "Sin categoría", items: items.filter((item) => !item.categoryId || !categories.some((category) => category.id === item.categoryId)) },
-        ].filter((group) => group.items.length > 0);
+        // Lo que no tiene categoría (pasta, cargo por servicio, delivery) no se vende como parte de un combo
+        const groups = categories
+            .map((category) => ({ id: category.id, name: category.name, items: items.filter((item) => item.categoryId === category.id) }))
+            .filter((group) => group.items.length > 0);
 
         return (
             <div className="adm-combo-form">
