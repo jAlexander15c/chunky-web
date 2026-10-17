@@ -5,12 +5,14 @@ import {
     getComboError,
     getComboLineKey,
     getComboNextStart,
+    getComboRange,
+    getComboTotal,
     getComboSlotsText,
     getVisibleCombos,
     groupOrderLines,
 } from "./combos";
 import type { IComboChoice, IComboInput, IPublicCombo } from "./combos";
-import { getCartLinePrice } from "./order";
+import { getCartLinePrice, getComboPricing } from "./order";
 import type { ICartLine } from "./order";
 import { getOrderCombos, getOrderLines } from "./payment";
 import { getPromoCart } from "./promos";
@@ -25,7 +27,7 @@ const comboLine: ICartLine = {
     lineKey: getComboLineKey(1, choices),
     item: choices[0].item,
     quantity: 2,
-    combo: { comboId: 1, name: "Merienda", price: 5.5, choices },
+    combo: { comboId: 1, name: "Merienda", price: 5.5, regularPrice: 5.5, choices },
 };
 
 describe("horario de los combos", () => {
@@ -59,6 +61,33 @@ describe("horario de los combos", () => {
     });
     test("lo que lleva", () => {
         expect(getComboSlotsText([{ label: "Galleta", itemIds: ["a", "b"] }, { label: "Bebida", itemIds: ["c", "d"] }])).toBe("1 galleta a elegir + 1 bebida a elegir");
+    });
+});
+
+describe("precio del combo", () => {
+    test("suma de precios menos el %, al centavo hacia arriba (igual que el API)", () => {
+        expect(getComboTotal([2.5, 3], 0)).toBe(5.5);
+        expect(getComboTotal([2.5, 3], 15)).toBe(4.68);
+        expect(getComboTotal([2.5, 3], 10)).toBe(4.95);
+        expect(getComboTotal([2.75, 2.75, 1.99], 10)).toBe(6.75);
+        expect(getComboTotal([1.1, 2.2, 3.3], 10)).toBe(5.94);
+    });
+    test("rango por separado: la opción más barata y la más cara de cada hueco", () => {
+        const slots = [{ label: "Galleta", itemIds: ["a", "b"] }, { label: "Bebida", itemIds: ["c"] }];
+        const items = [{ id: "a", price: 2.25 }, { id: "b", price: 3 }, { id: "c", price: 3 }];
+        expect(getComboRange(slots, items, 10)).toEqual({ regularMin: 5.25, regularMax: 6, min: 4.73, max: 5.4 });
+    });
+    test("con todo elegido el total sale de lo elegido y los extras se suman completos", () => {
+        const combo = { slots: [{ label: "Galleta", itemIds: ["cookie"] }, { label: "Bebida", itemIds: ["cafe"] }], discountPercent: 10, price: 4, regularPrice: 5 };
+        const pricing = getComboPricing(combo, choices, new Map());
+        expect(pricing).toEqual({ total: 5.18, regular: 5.75, extras: 0.5, isFrom: false, unit: 5.68 });
+    });
+    test("con un hueco sin elegir queda \"desde\" con la opción más barata", () => {
+        const combo = { slots: [{ label: "Galleta", itemIds: ["cookie", "otra"] }, { label: "Bebida", itemIds: ["cafe"] }], discountPercent: 0, price: 4, regularPrice: 4 };
+        const items = new Map([["cookie", getItem("cookie", 2.75)], ["otra", getItem("otra", 2)], ["cafe", getItem("cafe", 3)]]);
+        const pricing = getComboPricing(combo, [null, choices[1]], items);
+        expect(pricing.isFrom).toBe(true);
+        expect(pricing.total).toBe(5);
     });
 });
 
@@ -97,13 +126,17 @@ describe("combos en /pedido", () => {
 
 describe("validación del combo", () => {
     const valid: IComboInput = {
-        name: "Merienda", description: null, price: 5.5, slots: [{ label: "Galleta", itemIds: ["a"] }], channel: "both",
+        name: "Merienda", description: null, discountPercent: 10, slots: [{ label: "Galleta", itemIds: ["a"] }], channel: "both",
         days: [1], timeFrom: "15:00", timeTo: "18:00", startsOn: null, endsOn: null, isEnabled: true,
     };
     test("acepta uno correcto y rechaza lo inválido", () => {
         expect(getComboError(valid)).toBeNull();
-        expect(getComboError({ ...valid, price: 0.5 })).not.toBeNull();
-        expect(getComboError({ ...valid, price: 5.555 })).not.toBeNull();
+        expect(getComboError({ ...valid, discountPercent: 0 })).toBeNull();
+        expect(getComboError({ ...valid, discountPercent: 90 })).toBeNull();
+        expect(getComboError({ ...valid, discountPercent: 91 })).not.toBeNull();
+        expect(getComboError({ ...valid, discountPercent: -1 })).not.toBeNull();
+        expect(getComboError({ ...valid, discountPercent: 12.5 })).not.toBeNull();
+        expect(getComboError({ ...valid, discountPercent: Number.NaN })).not.toBeNull();
         expect(getComboError({ ...valid, timeTo: "15:00" })).not.toBeNull();
         expect(getComboError({ ...valid, slots: [{ label: "Galleta", itemIds: [] }] })).not.toBeNull();
     });

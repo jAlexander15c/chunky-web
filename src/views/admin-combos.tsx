@@ -20,7 +20,7 @@ import {
     getComboInput,
     getComboNextStart,
     getComboSlotsText,
-    getSeparatePrice,
+    getComboRange,
     updateCombo,
     uploadComboImage,
 } from "@/helpers";
@@ -32,6 +32,9 @@ interface INotice {
     text: string;
     tone: "ok" | "warn";
 }
+
+/** Botones rápidos del descuento (0 = sin). */
+const DISCOUNT_PRESETS = [0, 10, 15, 20];
 
 const CHANNEL_LABEL: Record<ComboChannel, string> = { both: "Web y Caja", web: "Solo web", caja: "Solo caja" };
 const CHANNELS: ComboChannel[] = ["web", "caja", "both"];
@@ -54,7 +57,7 @@ interface IComboFormProps {
 const ComboForm = ({ token, combo, categories, items, close, onDone, onSessionExpired }: IComboFormProps) => {
     const [name, setName] = useState(combo?.name ?? "");
     const [description, setDescription] = useState(combo?.description ?? "");
-    const [priceText, setPriceText] = useState(combo ? String(combo.price) : "");
+    const [discountText, setDiscountText] = useState(combo ? String(combo.discountPercent) : "0");
     const [slots, setSlots] = useState<IComboSlot[]>(combo?.slots.map((slot) => ({ label: slot.label, itemIds: [...slot.itemIds] })) ?? [{ label: "", itemIds: [] }]);
     const [days, setDays] = useState<number[]>(combo?.days ?? [1, 2, 3, 4, 5]);
     const [timeFrom, setTimeFrom] = useState(combo?.timeFrom ?? "15:00");
@@ -77,10 +80,12 @@ const ComboForm = ({ token, combo, categories, items, close, onDone, onSessionEx
     const currentPhotoUrl = combo?.imageVersion && !isPhotoRemoved ? getComboImageUrl(combo) : null;
     const previewPhotoUrl = newPhotoUrl || currentPhotoUrl;
 
-    const price = Number(priceText.replace(",", "."));
-    const separatePrice = getSeparatePrice(slots, items.map((item) => ({ id: item.id, price: item.price })));
+    // Vacío cuenta como 0; con letras o decimales queda NaN y getComboError lo avisa
+    const discountPercent = discountText.trim() === "" ? 0 : Number(discountText.replace(",", "."));
+    const isDiscountValid = Number.isInteger(discountPercent) && discountPercent >= 0 && discountPercent <= COMBO_LIMITS.discountMax;
+    const range = getComboRange(slots, items.map((item) => ({ id: item.id, price: item.price })), isDiscountValid ? discountPercent : 0);
     const hasEverySlot = slots.every((slot) => slot.itemIds.length > 0);
-    const saving = Math.round((separatePrice - price) * 100) / 100;
+    const formatRange = (min: number, max: number) => min === max ? formatPrice(min) : `de ${formatPrice(min)} a ${formatPrice(max)}`;
 
     const updateSlot = (index: number, changes: Partial<IComboSlot>) =>
         setSlots((current) => current.map((slot, position) => (position === index ? { ...slot, ...changes } : slot)));
@@ -130,7 +135,7 @@ const ComboForm = ({ token, combo, categories, items, close, onDone, onSessionEx
         const input: IComboInput = {
             name: name.trim(),
             description: description.trim() || null,
-            price,
+            discountPercent,
             slots: slots.map((slot) => ({ label: slot.label.trim(), itemIds: slot.itemIds })),
             channel,
             days,
@@ -225,15 +230,27 @@ const ComboForm = ({ token, combo, categories, items, close, onDone, onSessionEx
                 Descripción (opcional)
                 <input value={description} maxLength={140} disabled={isSending} placeholder="La pausa de la tarde" onChange={(event) => setDescription(event.target.value)} />
             </label>
-            <label className="adm-combo-form__field">
-                Precio del combo
-                <input value={priceText} inputMode="decimal" disabled={isSending} placeholder="5.50" onChange={(event) => setPriceText(event.target.value)} />
-            </label>
-            {hasEverySlot && separatePrice > 0 && price > 0 && (
+            <div className="adm-combo-form__field" role="group" aria-label="Descuento">
+                Descuento (opcional)
+                <div className="adm-combo-form__pct">
+                    <input value={discountText} inputMode="numeric" disabled={isSending} placeholder="0" aria-label="Descuento en porcentaje" onChange={(event) => setDiscountText(event.target.value)} />
+                    <span aria-hidden>%</span>
+                </div>
+                <div className="adm-combo-form__chips">
+                    {DISCOUNT_PRESETS.map((preset) => (
+                        <button key={preset} type="button" className={`adm-combo-form__chip${isDiscountValid && discountPercent === preset ? " is-on" : ""}`} aria-pressed={isDiscountValid && discountPercent === preset} disabled={isSending} onClick={() => setDiscountText(String(preset))}>
+                            {preset === 0 ? "Sin" : `${preset} %`}
+                        </button>
+                    ))}
+                </div>
+                <small>Se aplica a lo que elija el cliente. Los extras (leche de avena, etc.) se cobran completos.</small>
+            </div>
+            {hasEverySlot && range.regularMax > 0 && isDiscountValid && (
                 <p className="adm-combo-form__hint" role="status">
-                    {saving > 0
-                        ? `Por separado cuesta desde ${formatPrice(separatePrice)}: el cliente ahorra ${formatPrice(saving)}.`
-                        : "El combo cuesta igual o más que por separado."}
+                    Por separado: {formatRange(range.regularMin, range.regularMax)}.
+                    {discountPercent > 0
+                        ? ` Con ${discountPercent} %: ${formatRange(range.min, range.max)}.`
+                        : " Sin descuento, el combo cuesta lo mismo que por separado."}
                 </p>
             )}
 
@@ -494,7 +511,7 @@ export const AdminCombos = ({ token, onSessionExpired }: { token: string; onSess
                             </label>
                         </div>
                         <ul className="adm-combo__meta">
-                            <li><b>{formatPrice(combo.price)}</b>{combo.regularPrice !== null && combo.regularPrice > combo.price ? ` · antes ${formatPrice(combo.regularPrice)}` : ""}</li>
+                            <li>{combo.price === null ? "Sin precio" : <><b>{combo.priceVaries ? "Desde " : ""}{formatPrice(combo.price)}</b>{combo.discountPercent > 0 ? ` · ${combo.discountPercent} % menos` : " · sin descuento"}</>}</li>
                             <li>{formatComboSchedule(combo.days, combo.timeFrom, combo.timeTo)}{combo.endsOn ? ` · hasta el ${formatComboDate(combo.endsOn)}` : ""}</li>
                             <li>{CHANNEL_LABEL[combo.channel]}</li>
                             <li>Hoy: <b>{combo.todayUses === 1 ? "1 vendido" : `${combo.todayUses} vendidos`}</b></li>

@@ -34,8 +34,9 @@ export const ComboStrip = () => {
                                     <span className="combo-card__name">{combo.name}</span>
                                     <span className="combo-card__what">{getComboSlotsText(combo.slots)}</span>
                                     <span className="combo-card__price">
+                                        {combo.priceVaries && <small>Desde</small>}
                                         <b>{formatPrice(combo.price)}</b>
-                                        {combo.regularPrice !== null && combo.regularPrice > combo.price && <del>antes {formatPrice(combo.regularPrice)}</del>}
+                                        {combo.discountPercent > 0 && <span className="combo-card__off">−{combo.discountPercent} %</span>}
                                     </span>
                                     <span className="combo-card__until">{formatComboUntil(combo.timeTo)}</span>
                                 </span>

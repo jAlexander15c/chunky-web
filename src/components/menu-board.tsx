@@ -115,7 +115,7 @@ export const MenuBoard = () => {
                                 <span className="board__text">
                                     <span className="board__name">
                                         {combo.name}
-                                        <span className="board__tag">{formatPrice(combo.price)}</span>
+                                        <span className="board__tag">{combo.priceVaries ? "Desde " : ""}{formatPrice(combo.price)}</span>
                                     </span>
                                     <span className="board__desc">{getComboSlotsText(combo.slots)}</span>
                                 </span>

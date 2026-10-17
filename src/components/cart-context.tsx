@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 import { CartContext } from "./use-cart";
 
-import { COMBO_LIMITS, getCartCount, getComboLineKey, getComboSaving, getPromoCart, useCombos, usePromos, getLineKey, getLineMax, trackEvent } from "@/helpers";
+import { COMBO_LIMITS, getCartCount, getComboLineKey, getComboPricing, getPromoCart, usePromos, getLineKey, getLineMax, trackEvent } from "@/helpers";
 import type { ICartLine, ICartModifier, IComboChoice, IPastaOptions, IPublicCombo } from "@/helpers";
 import type { IItem } from "@/interfaces";
 
@@ -27,12 +27,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     const [lines, setLines] = useState<ICartLine[]>(readStoredLines);
     const { promos } = usePromos();
     const pricing = useMemo(() => getPromoCart(lines, promos), [lines, promos]);
-    const { combos } = useCombos();
-    // Lo que ahorra el cliente con sus combos frente a comprar los productos por separado (solo informativo)
+    // Lo que ahorra el cliente con el descuento de sus combos frente a comprar los productos por separado (solo informativo)
     const comboSavings = useMemo(() => Math.round(lines.reduce((sum, line) => {
-        const combo = line.combo ? combos.find((entry) => entry.id === line.combo!.comboId) : undefined;
-        return sum + (combo ? getComboSaving(combo) * line.quantity : 0);
-    }, 0) * 100) / 100, [lines, combos]);
+        const regular = line.combo?.regularPrice;
+        return sum + (line.combo && regular !== undefined && regular > line.combo.price ? (regular - line.combo.price) * line.quantity : 0);
+    }, 0) * 100) / 100, [lines]);
     const [isOpen, setIsOpen] = useState(false);
     const [removedNames, setRemovedNames] = useState<string[]>([]);
     const [cartNotice, setCartNotice] = useState("");
@@ -72,13 +71,15 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     const addCombo = useCallback((combo: IPublicCombo, choices: IComboChoice[]) => {
         trackEvent("add_to_cart", `combo:${combo.id}`, combo.name);
         const lineKey = getComboLineKey(combo.id, choices);
+        // Con todo elegido el precio sale de los productos mismos; el API vuelve a calcularlo y lo valida
+        const { total, regular } = getComboPricing(combo, choices, new Map());
         setLines((current) => {
             if (current.some((line) => line.lineKey === lineKey)) {
                 return current.map((line) =>
                     line.lineKey === lineKey ? { ...line, quantity: Math.min(COMBO_LIMITS.quantityMax, line.quantity + 1) } : line
                 );
             }
-            return [...current, { lineKey, item: choices[0].item, quantity: 1, combo: { comboId: combo.id, name: combo.name, price: combo.price, choices } }];
+            return [...current, { lineKey, item: choices[0].item, quantity: 1, combo: { comboId: combo.id, name: combo.name, price: total, regularPrice: regular, choices } }];
         });
     }, []);
 

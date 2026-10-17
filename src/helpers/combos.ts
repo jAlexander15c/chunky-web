@@ -19,7 +19,8 @@ export interface IComboSlot {
 export interface IComboInput {
     name: string;
     description: string | null;
-    price: number;
+    /** Descuento entero de 0 a 90 sobre la suma de los precios normales de lo que elija el cliente. */
+    discountPercent: number;
     slots: IComboSlot[];
     channel: ComboChannel;
     /** 0 = domingo ... 6 = sábado. */
@@ -42,7 +43,12 @@ export interface ICombo extends IComboInput {
 
 export interface IComboAdmin extends ICombo {
     isActiveNow: boolean;
+    /** "Desde" con descuento (la opción más barata de cada hueco). */
+    price: number | null;
+    /** "Desde" sin descuento. */
     regularPrice: number | null;
+    /** Algún hueco tiene opciones de distinto precio. */
+    priceVaries: boolean;
     todayUses: number;
 }
 
@@ -51,8 +57,13 @@ export interface IPublicCombo {
     id: number;
     name: string;
     description: string | null;
+    /** "Desde" con descuento: la opción más barata de cada hueco. */
     price: number;
+    /** "Desde" sin descuento. */
     regularPrice: number | null;
+    discountPercent: number;
+    /** Algún hueco tiene opciones de distinto precio (el precio es "desde"). */
+    priceVaries: boolean;
     slots: IComboSlot[];
     timeTo: string;
     endsOn: string | null;
@@ -65,7 +76,7 @@ export interface IComboChoice {
     modifiers: ICartModifier[];
 }
 
-export const COMBO_LIMITS = { nameMax: 60, labelMax: 30, slotsMax: 6, quantityMax: 20, priceMin: 1 } as const;
+export const COMBO_LIMITS = { nameMax: 60, labelMax: 30, slotsMax: 6, quantityMax: 20, discountMax: 90 } as const;
 
 /* ============ Horario (siempre hora de Panamá, UTC-5 sin horario de verano) ============ */
 
@@ -204,13 +215,21 @@ export const getComboNextStart = (combo: ComboWindow & Pick<IComboInput, "isEnab
 export const getComboSlotsText = (slots: IComboSlot[]) =>
     slots.map((slot) => `1 ${slot.label.trim().toLowerCase()}${slot.itemIds.length > 1 ? " a elegir" : ""}`).join(" + ");
 
-/** Precio de una unidad del combo: el del combo más lo que cuesten los modificadores elegidos. */
-export const getComboUnitPrice = (price: number, choices: Pick<IComboChoice, "modifiers">[]) =>
-    Math.round((price + choices.reduce((sum, choice) => sum + choice.modifiers.reduce((inner, modifier) => inner + modifier.price, 0), 0)) * 100) / 100;
+/** Precio de una unidad del combo según lo elegido: suma de precios normales menos el %, al centavo hacia arriba. Igual que en el API. */
+export const getComboTotal = (componentPrices: number[], discountPercent: number): number => {
+    // En centavos enteros: 5.50 * 0.9 en flotante da 4.9500000001 y al subir saldría 4.96
+    const cents = componentPrices.reduce((sum, price) => sum + Math.round(Math.max(price, 0) * 100), 0);
+    // Al centavo hacia arriba; con 0 % queda la suma tal cual
+    return Math.ceil(cents * (100 - discountPercent) / 100) / 100;
+};
 
-/** Lo que ahorra el cliente por unidad (0 si el combo no ahorra o no se sabe lo de por separado). */
-export const getComboSaving = (combo: Pick<IPublicCombo, "price" | "regularPrice">) =>
-    combo.regularPrice !== null && combo.regularPrice > combo.price ? Math.round((combo.regularPrice - combo.price) * 100) / 100 : 0;
+/** Lo que suman los modificadores elegidos en todos los huecos (completos, sin descuento). */
+export const getComboExtras = (choices: Pick<IComboChoice, "modifiers">[]) =>
+    Math.round(choices.reduce((sum, choice) => sum + choice.modifiers.reduce((inner, modifier) => inner + modifier.price, 0), 0) * 100) / 100;
+
+/** Precio de una unidad en el carrito: el total de lo elegido (ya con el descuento) más lo que cuesten los modificadores. */
+export const getComboUnitPrice = (selectionTotal: number, choices: Pick<IComboChoice, "modifiers">[]) =>
+    Math.round((selectionTotal + getComboExtras(choices)) * 100) / 100;
 
 /** "Leche: Avena". */
 const formatModifierLabel = (modifier: ICartModifier) => {
@@ -265,12 +284,25 @@ export const groupOrderLines = (lines: IPublicOrder["lines"]): OrderTicketRow[] 
     return rows;
 };
 
-/** Lo que cuesta el combo por separado, con los precios del catálogo (para el aviso de ahorro). */
-export const getSeparatePrice = (slots: IComboSlot[], items: { id: string; price: number | null }[]) =>
-    Math.round(slots.reduce((sum, slot) => {
+/**
+ * Lo que cuesta el combo por separado, con los precios del catálogo: de la opción más barata de cada
+ * hueco a la más cara. `min`/`max` ya llevan el descuento; `regularMin`/`regularMax` no.
+ */
+export const getComboRange = (slots: IComboSlot[], items: { id: string; price: number | null }[], discountPercent = 0) => {
+    const cheapest: number[] = [];
+    const priciest: number[] = [];
+    slots.forEach((slot) => {
         const prices = items.filter((item) => slot.itemIds.includes(item.id) && item.price !== null).map((item) => item.price as number);
-        return sum + (prices.length ? Math.min(...prices) : 0);
-    }, 0) * 100) / 100;
+        cheapest.push(prices.length ? Math.min(...prices) : 0);
+        priciest.push(prices.length ? Math.max(...prices) : 0);
+    });
+    return {
+        regularMin: getComboTotal(cheapest, 0),
+        regularMax: getComboTotal(priciest, 0),
+        min: getComboTotal(cheapest, discountPercent),
+        max: getComboTotal(priciest, discountPercent),
+    };
+};
 
 /* ============ Combos a la venta (web) ============ */
 
@@ -385,7 +417,7 @@ export const deleteComboImage = (token: string, id: number) =>
 export const getComboInput = (combo: IComboInput): IComboInput => ({
     name: combo.name,
     description: combo.description,
-    price: combo.price,
+    discountPercent: combo.discountPercent,
     slots: combo.slots.map((slot) => ({ label: slot.label, itemIds: [...slot.itemIds] })),
     channel: combo.channel,
     days: [...combo.days],
@@ -400,7 +432,7 @@ export const getComboInput = (combo: IComboInput): IComboInput => ({
 export const getComboError = (input: IComboInput): string | null => {
     const name = input.name.trim();
     if (!name || name.length > COMBO_LIMITS.nameMax) return `Escribe el nombre (hasta ${COMBO_LIMITS.nameMax} letras).`;
-    if (!(input.price >= COMBO_LIMITS.priceMin) || Math.round(input.price * 100) / 100 !== input.price) return "El precio debe ser de $1.00 o más, con hasta 2 decimales.";
+    if (!Number.isInteger(input.discountPercent) || input.discountPercent < 0 || input.discountPercent > COMBO_LIMITS.discountMax) return `El descuento va de 0 a ${COMBO_LIMITS.discountMax} %, sin decimales.`;
     if (input.slots.length < 1 || input.slots.length > COMBO_LIMITS.slotsMax) return `El combo lleva de 1 a ${COMBO_LIMITS.slotsMax} huecos.`;
     for (const slot of input.slots) {
         const label = slot.label.trim();

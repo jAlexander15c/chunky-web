@@ -149,6 +149,38 @@
   color: var(--text-soft);
 }
 
+.combo-card__price small,
+.combo-sheet__price small {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-soft);
+}
+
+/* Insignia del descuento: "-10 %" */
+.combo-card__off,
+.combo-sheet__seal {
+  padding: 0.05rem 0.5rem;
+  border-radius: var(--radius-pill);
+  background: var(--lima);
+  color: var(--mora);
+  font-size: 0.6875rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.combo-sheet__thumb {
+  position: relative;
+  flex: none;
+}
+
+.combo-sheet__seal {
+  position: absolute;
+  top: -0.35rem;
+  right: -0.5rem;
+  transform: rotate(6deg);
+  box-shadow: 0 2px 6px rgb(var(--shadow-tint) / 0.25);
+}
+
 .combo-card__until {
   padding: 0.1rem 0.6rem;
   border-radius: var(--radius-pill);

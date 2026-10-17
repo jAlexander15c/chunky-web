@@ -17,7 +17,7 @@ import {
     formatComboUntil,
     formatQuantity,
     getComboSlotsText,
-    getComboUnitPrice,
+    getComboPricing,
     getItemModifiers,
     getItemPrice,
     getTicketLabel,
@@ -931,6 +931,10 @@ const ComboSlotPicker = ({ slot, items, choice, onChange }: IComboSlotPickerProp
     );
 };
 
+/** "Desde $4.73 · −10 %" (sin "Desde" si el precio no cambia según lo que se elija). */
+const formatComboFrom = (combo: IPublicCombo) =>
+    `${combo.priceVaries ? "Desde " : ""}${formatCash(combo.price)}${combo.discountPercent > 0 ? ` · −${combo.discountPercent} %` : ""}`;
+
 interface IComboDialogProps {
     combo: IPublicCombo;
     onAdd: (choices: IComboChoice[], note: string | null) => Promise<void>;
@@ -951,12 +955,13 @@ const ComboDialog = ({ combo, onAdd, onClose }: IComboDialogProps) => {
     });
     const missing = combo.slots.filter((_, index) => !choices[index]);
     const ready = choices.filter((choice): choice is IComboChoice => Boolean(choice));
+    const pricing = getComboPricing(combo, choices, items);
 
     return (
         <div className="ges-modal" role="dialog" aria-modal="true" aria-label={`Combo ${combo.name}`}>
             <div className="ges-modal__panel">
                 <h3 className="script">{combo.name}</h3>
-                <p className="ges-combo-sub">{formatCash(combo.price)} · {formatComboUntil(combo.timeTo).toLowerCase()}</p>
+                <p className="ges-combo-sub">{formatComboFrom(combo)} · {formatComboUntil(combo.timeTo).toLowerCase()}</p>
                 {isLoading ? <p className="ges-note">Cargando los productos…</p> : null}
                 {combo.slots.map((slot, index) => (
                     <ComboSlotPicker
@@ -993,7 +998,7 @@ const ComboDialog = ({ combo, onAdd, onClose }: IComboDialogProps) => {
                             await onAdd(ready, note.trim() || null);
                         }}
                     >
-                        Agregar · {formatCash(getComboUnitPrice(combo.price, ready))}
+                        Agregar · {formatCash(pricing.unit)}
                     </button>
                 </div>
             </div>
@@ -1743,7 +1748,7 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
                                 <span className="ges-prod__txt">
                                     <b>{combo.name}</b>
                                     <em>{getComboSlotsText(combo.slots)}</em>
-                                    <span>{formatCash(combo.price)} · {formatComboUntil(combo.timeTo).toLowerCase()}</span>
+                                    <span>{formatComboFrom(combo)} · {formatComboUntil(combo.timeTo).toLowerCase()}</span>
                                 </span>
                             </button>
                         )) : visibleItems.map((item) => (

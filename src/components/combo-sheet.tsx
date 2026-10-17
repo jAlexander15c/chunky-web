@@ -13,8 +13,7 @@ import {
     formatComboUntil,
     formatPrice,
     getAvailableQuantity,
-    getComboSaving,
-    getComboUnitPrice,
+    getComboPricing,
     getItemModifiers,
     hasItemAvailableForSale,
     useComboItems,
@@ -108,8 +107,8 @@ const ComboForm = ({ combo, onClose }: { combo: IPublicCombo; onClose: () => voi
     const missing = combo.slots.filter((slot, index) => !choices[index] && hasStock(slot));
     const soldOut = isLoading ? [] : combo.slots.filter((slot) => !hasStock(slot));
     const isComplete = !isLoading && choices.every(Boolean);
-    const unitPrice = getComboUnitPrice(combo.price, choices.filter((choice): choice is IComboChoice => Boolean(choice)));
-    const saving = getComboSaving(combo);
+    const pricing = getComboPricing(combo, choices, items);
+    const hasDiscount = combo.discountPercent > 0 && pricing.regular > pricing.total;
 
     const addToCart = () => {
         if (!isComplete) return;
@@ -121,12 +120,16 @@ const ComboForm = ({ combo, onClose }: { combo: IPublicCombo; onClose: () => voi
     return (
         <>
             <div className="opts__intro">
-                <ComboPhoto combo={combo} className="combo-photo--sheet" />
+                <div className="combo-sheet__thumb">
+                    <ComboPhoto combo={combo} className="combo-photo--sheet" />
+                    {combo.discountPercent > 0 && <span className="combo-sheet__seal">−{combo.discountPercent} %</span>}
+                </div>
                 <div>
                     <p className="opts__lede">Combo · {formatComboUntil(combo.timeTo).toLowerCase()}</p>
                     <span className="combo-sheet__price">
-                        <b>{formatPrice(combo.price)}</b>
-                        {saving > 0 && <del>antes {formatPrice(combo.regularPrice as number)}</del>}
+                        {pricing.isFrom && <small>Desde</small>}
+                        <b>{formatPrice(pricing.total)}</b>
+                        {hasDiscount && <del>{pricing.isFrom ? "desde " : ""}{formatPrice(pricing.regular)}</del>}
                     </span>
                 </div>
             </div>
@@ -148,19 +151,19 @@ const ComboForm = ({ combo, onClose }: { combo: IPublicCombo; onClose: () => voi
 
             <div className="opts__buy">
                 <button type="button" className="button button--primary opts__add" onClick={addToCart} disabled={!isComplete}>
-                    Agregar · <AnimatedPrice value={unitPrice} live={false} />
+                    Agregar · <AnimatedPrice value={pricing.unit} live={false} />
                 </button>
             </div>
-            {unitPrice > combo.price && (
+            {pricing.extras > 0 && (
                 <p className="opts__hint combo-sheet__extra" role="status">
-                    {formatPrice(combo.price)} del combo + {formatPrice(Math.round((unitPrice - combo.price) * 100) / 100)} de extras.
+                    {formatPrice(pricing.total)} del combo + {formatPrice(pricing.extras)} de extras.
                 </p>
             )}
         </>
     );
 };
 
-/** Hoja para armar un combo: un producto por hueco, con sus opciones, y un precio fijo. */
+/** Hoja para armar un combo: un producto por hueco, con sus opciones; el precio sigue lo que se elige. */
 export const ComboSheet = ({ combo, onClose }: { combo: IPublicCombo | null; onClose: () => void }) => {
     const isSheet = useBreakpointValue({ base: true, md: false }) ?? true;
 

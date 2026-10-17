@@ -22,6 +22,8 @@
 .adm-combo-form input:not([type=checkbox]):not([type=file]) { display: block; width: 100%; min-width: 0; box-sizing: border-box; padding: 12px; border: 1px solid #c9c5b5; border-radius: 8px; background: white; font: inherit; font-weight: 600; }
 .adm-combo-form__row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .adm-combo-form__hint { margin: 0; padding: 8px 12px; border-radius: 10px; background: var(--sky); font-size: .85rem; }
+.adm-combo-form__pct { display: flex; align-items: center; gap: 8px; max-width: 140px; }
+.adm-combo-form__pct span { font-weight: 800; }
 .adm-combo-form__slots { display: grid; gap: 8px; }
 .adm-combo-form__slots .fsheet-select { display: flex; align-items: center; justify-content: space-between; gap: .8rem; width: 100%; min-height: 52px; padding: .55rem .9rem; border: 1.5px solid #e4dec6; border-radius: 14px; background: #fff; color: var(--ink); font: inherit; font-weight: 800; text-align: left; cursor: pointer; }
 .adm-combo-form__chips { display: flex; flex-wrap: wrap; gap: 8px; }

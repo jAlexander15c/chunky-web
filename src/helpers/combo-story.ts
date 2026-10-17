@@ -220,7 +220,6 @@ export const drawComboStory = async (combo: IComboAdmin | IPublicCombo, slotsTex
     const sealSpace = pillY - 24 - sealTop;
     const sealSize = Math.max(200, Math.min(320, sealSpace));
     const sealCenterY = sealTop + sealSpace / 2;
-    const hasSaving = combo.regularPrice !== null && combo.regularPrice > combo.price;
     context.save();
     context.translate(centerX, sealCenterY);
     context.rotate((6 * Math.PI) / 180);
@@ -236,27 +235,20 @@ export const drawComboStory = async (combo: IComboAdmin | IPublicCombo, slotsTex
     context.fillStyle = COLORS.mora;
     context.textAlign = "center";
     // El precio, tan grande como quepa dentro del sello
-    const priceText = formatPrice(combo.price);
+    const priceText = formatPrice(combo.price ?? 0);
     let priceFont = Math.round(sealSize * 0.3);
     context.font = `900 ${priceFont}px ${SANS}`;
     while (context.measureText(priceText).width > sealSize * 0.78 && priceFont > 20) {
         priceFont -= 2;
         context.font = `900 ${priceFont}px ${SANS}`;
     }
-    context.fillText(priceText, 0, hasSaving ? sealSize * 0.06 : sealSize * 0.12);
-    if (hasSaving) {
-        const before = `antes ${formatPrice(combo.regularPrice as number)}`;
-        context.fillStyle = COLORS.soft;
-        context.font = `600 ${Math.round(sealSize * 0.105)}px ${SANS}`;
-        context.fillText(before, 0, sealSize * 0.22);
-        const beforeWidth = context.measureText(before).width;
-        context.strokeStyle = COLORS.soft;
-        context.lineWidth = 3;
-        context.beginPath();
-        context.moveTo(-beforeWidth / 2, sealSize * 0.22 - sealSize * 0.035);
-        context.lineTo(beforeWidth / 2, sealSize * 0.22 - sealSize * 0.035);
-        context.stroke();
-    }
+    // "Desde" arriba del precio si cambia según lo que se elija; "10 % menos" debajo si hay descuento
+    const hasDiscount = combo.discountPercent > 0;
+    context.fillText(priceText, 0, sealSize * (hasDiscount ? 0.08 : 0.12) + (combo.priceVaries ? sealSize * 0.03 : 0));
+    context.fillStyle = COLORS.soft;
+    context.font = `600 ${Math.round(sealSize * 0.105)}px ${SANS}`;
+    if (combo.priceVaries) context.fillText("Desde", 0, -sealSize * (hasDiscount ? 0.14 : 0.1));
+    if (hasDiscount) context.fillText(`${combo.discountPercent} % menos`, 0, sealSize * (combo.priceVaries ? 0.26 : 0.24));
     context.restore();
 
     // Mascota abajo a la derecha
