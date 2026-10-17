@@ -33,7 +33,15 @@ export interface IQuoteDraft {
     topperImage: string | null;
     /** Aceptó el aviso de privacidad antes de mandar sus datos (Ley 81). */
     privacyConsent: boolean;
+    /** Cuántos iguales quiere: el total se multiplica. */
+    quantity: number;
 }
+
+/** Tope de unidades iguales en una cotización. El API valida lo mismo. */
+export const MAX_QUOTE_QUANTITY = 20;
+
+/** El total de varias iguales, al centavo: el precio de una por la cantidad. */
+export const getQuoteQuantityTotal = (unitTotal: number, quantity: number) => Math.round(unitTotal * quantity * 100) / 100;
 
 /** Días que necesita la pastelería para preparar un cake. El API valida lo mismo. */
 export const QUOTE_LEAD_DAYS = 4;
@@ -168,6 +176,8 @@ interface IRecipeSelection {
     topper: boolean;
     topperPrice: number;
     estimatedCost: number;
+    /** Los precios de arriba son de una unidad. Las de antes no lo traen: son 1. */
+    quantity?: number;
 }
 
 export const isDessertSelection = (selection: IQuote["selection"]): selection is IDessertSelection =>
@@ -226,6 +236,7 @@ export const submitQuote = (draft: IQuoteDraft, product: ICatalogProduct, expect
         productId: draft.productId,
         sizeId: draft.sizeId,
         optionIds: draft.optionIds,
+        quantity: draft.quantity,
         topper: product.allowsTopper && draft.topper,
         expectedTotal,
         ...getCustomerBody(draft),
@@ -266,6 +277,7 @@ export interface IManualQuoteDraft {
     desiredDate: string;
     note: string;
     status: "nueva" | "confirmada";
+    quantity: number;
 }
 
 /** Lo que falta para guardar un registro manual. Vacío es listo. */
@@ -275,7 +287,7 @@ export const getManualQuoteMissing = (draft: IManualQuoteDraft, product: ICatalo
     else missing.push(...getCatalogGroupsMissing(product, draft.sizeId, draft.optionIds));
     if (draft.customerName.trim().length < 2) missing.push("Escribe el nombre del cliente");
     const phone = getPhoneDigits(draft.customerPhone);
-    if (phone && !/^6d{7}$/.test(phone)) missing.push("El celular tiene 8 dígitos y empieza en 6 (o déjalo vacío)");
+    if (phone && !/^6\d{7}$/.test(phone)) missing.push("El celular tiene 8 dígitos y empieza en 6 (o déjalo vacío)");
     if (!draft.desiredDate) missing.push("Elige la fecha de entrega");
     return missing;
 };
@@ -289,6 +301,7 @@ export const createManualQuote = (token: string, draft: IManualQuoteDraft) =>
             productId: draft.productId,
             sizeId: draft.sizeId,
             optionIds: draft.optionIds,
+            quantity: draft.quantity,
             topper: false,
             customerName: draft.customerName.trim(),
             customerPhone: getPhoneDigits(draft.customerPhone) || null,
@@ -441,8 +454,14 @@ export const formatQuoteDate = (value: string) => {
     return new Date(year, month - 1, day).toLocaleDateString("es-PA", { weekday: "short", day: "numeric", month: "short" });
 };
 
+/** Cuántas iguales lleva: solo las recetas pueden ser varias. */
+export const getQuoteQuantity = (selection: IQuote["selection"]) => (isRecipeSelection(selection) ? selection.quantity ?? 1 : 1);
+
 export const getQuoteSizeLabel = (selection: IQuote["selection"]) => {
-    if (isRecipeSelection(selection)) return `${selection.product.name} ${selection.size.label}`;
+    if (isRecipeSelection(selection)) {
+        const quantity = getQuoteQuantity(selection);
+        return `${quantity > 1 ? `${quantity} × ` : ""}${selection.product.name} ${selection.size.label}`;
+    }
     return isDessertSelection(selection)
         ? `${selection.dessert.name} ${selection.size}"`
         : `Cake ${selection.size}" · ${selection.height === 2 ? "doble altura" : "1 altura"}`;

@@ -720,6 +720,44 @@
     line-height: 1;
 }
 
+/* Varias iguales: el contador va antes del total, y el total dice de dónde sale */
+.quote-qty {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: 1.1rem;
+    padding-top: 1rem;
+    border-top: 1px dashed rgb(215 224 249 / 0.5);
+    font-weight: 700;
+}
+
+/* El contador es claro: el número no hereda la crema del resumen */
+.quote-qty .stepper__value {
+    color: var(--ink);
+}
+
+.quote-qty small {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--on-mora-soft);
+}
+
+.quote-total__amount {
+    display: grid;
+    justify-items: end;
+    gap: 0.3rem;
+}
+
+.quote-total__amount small {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--on-mora-soft);
+    font-variant-numeric: tabular-nums;
+}
+
 .quote-summary__fine {
     margin: 0.6rem 0 1.1rem;
     font-size: 0.78rem;

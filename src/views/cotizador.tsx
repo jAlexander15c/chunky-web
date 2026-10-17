@@ -2,9 +2,10 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { PiArrowRightBold, PiCheckBold, PiImageBold, PiWhatsappLogoBold } from "react-icons/pi";
 
-import { AnimatedPrice, QuoteGallery, useCart, useCatalog } from "@/components";
+import { AnimatedPrice, QuantityStepper, QuoteGallery, useCart, useCatalog } from "@/components";
 import {
     HttpError,
+    MAX_QUOTE_QUANTITY,
     QUOTE_LEAD_DAYS,
     canAddCatalogOption,
     compressImage,
@@ -21,6 +22,7 @@ import {
     isDoubleVariant,
     getEarliestQuoteDate,
     getQuoteMissing,
+    getQuoteQuantityTotal,
     getWhatsAppUrl,
     resolveCatalogPick,
     resolveMeasureChange,
@@ -33,7 +35,7 @@ import type { ICatalogGroup, ICatalogOption, ICatalogPick, ICatalogProduct, IQuo
 
 import "./cotizador.css";
 
-type ICustomerDraft = Omit<IQuoteDraft, keyof ICatalogPick | "topper" | "cakeImage" | "topperImage">;
+type ICustomerDraft = Omit<IQuoteDraft, keyof ICatalogPick | "topper" | "cakeImage" | "topperImage" | "quantity">;
 
 const INITIAL_CUSTOMER: ICustomerDraft = {
     customerName: "",
@@ -362,6 +364,7 @@ export const Cotizador = () => {
     const [pick, setPick] = useState<ICatalogPick>(INITIAL_PICK);
     const [customer, setCustomer] = useState<ICustomerDraft>(INITIAL_CUSTOMER);
     const [topper, setTopper] = useState(false);
+    const [quantity, setQuantity] = useState(1);
     const [cakeImage, setCakeImage] = useState<string | null>(null);
     const [topperImage, setTopperImage] = useState<string | null>(null);
     const [isSending, setIsSending] = useState(false);
@@ -375,7 +378,8 @@ export const Cotizador = () => {
     const variants = product ? getCatalogVariants(product) : [];
     const hasTopper = Boolean(product?.allowsTopper && topper);
     const breakdown = product ? getCatalogBreakdown(product, sizeId, optionIds, hasTopper) : null;
-    const total = breakdown?.total ?? 0;
+    const unitTotal = breakdown?.total ?? 0;
+    const total = getQuoteQuantityTotal(unitTotal, quantity);
     const draft: IQuoteDraft = {
         ...customer,
         productId: product?.id ?? null,
@@ -384,6 +388,7 @@ export const Cotizador = () => {
         topper: hasTopper,
         cakeImage,
         topperImage,
+        quantity,
     };
     const missing = getQuoteMissing(draft, product);
 
@@ -442,6 +447,7 @@ export const Cotizador = () => {
         setPick((current) => ({ ...INITIAL_PICK, productId: current.productId }));
         setCustomer(INITIAL_CUSTOMER);
         setTopper(false);
+        setQuantity(1);
         setCakeImage(null);
         setTopperImage(null);
         window.scrollTo(0, 0);
@@ -733,9 +739,29 @@ export const Cotizador = () => {
                                             </li>
                                         ) : null}
                                     </ul>
+                                    <div className="quote-qty">
+                                        <span>
+                                            ¿Cuántos quieres?
+                                            <small>{formatPrice(unitTotal)} cada uno</small>
+                                        </span>
+                                        <QuantityStepper
+                                            quantity={quantity}
+                                            itemName={product.name}
+                                            min={1}
+                                            max={MAX_QUOTE_QUANTITY}
+                                            onChange={setQuantity}
+                                        />
+                                    </div>
                                     <div className="quote-total">
                                         <span>Total estimado</span>
-                                        <AnimatedPrice value={total} className="quote-total__value" />
+                                        <span className="quote-total__amount">
+                                            <AnimatedPrice value={total} className="quote-total__value" />
+                                            {quantity > 1 ? (
+                                                <small>
+                                                    {quantity} × {formatPrice(unitTotal)}
+                                                </small>
+                                            ) : null}
+                                        </span>
                                     </div>
                                     <p className="quote-summary__fine">
                                         Precio estimado. Te lo confirmamos por correo antes de preparar nada.

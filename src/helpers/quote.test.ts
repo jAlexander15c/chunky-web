@@ -1,8 +1,17 @@
 import { describe, expect, test } from "vitest";
 
 import type { ICatalogProduct } from "./pastry";
-import { getEarliestQuoteDate, getQuoteIcs, getQuoteMissing, getQuoteSizeLabel, getQuoteSpecLines } from "./quote";
-import type { IQuote, IQuoteDraft } from "./quote";
+import {
+    getEarliestQuoteDate,
+    getManualQuoteMissing,
+    getQuoteIcs,
+    getQuoteMissing,
+    getQuoteQuantity,
+    getQuoteQuantityTotal,
+    getQuoteSizeLabel,
+    getQuoteSpecLines,
+} from "./quote";
+import type { IManualQuoteDraft, IQuote, IQuoteDraft } from "./quote";
 
 const FLAN: ICatalogProduct = {
     id: 2,
@@ -39,6 +48,7 @@ const DRAFT: IQuoteDraft = {
     cakeImage: null,
     topperImage: null,
     privacyConsent: true,
+    quantity: 1,
 };
 
 describe("lo que falta para cotizar", () => {
@@ -101,5 +111,45 @@ describe("cotizaciones de recetas", () => {
 
     test("el calendario lista las opciones", () => {
         expect(getQuoteIcs(quote)).toContain("Masa: Zanahoria");
+    });
+
+    test("sin cantidad es una, como las de antes", () => {
+        expect(getQuoteQuantity(quote.selection)).toBe(1);
+        expect(getQuoteQuantity({ ...quote.selection, quantity: 1 } as IQuote["selection"])).toBe(1);
+    });
+
+    test("con varias, la etiqueta y el calendario dicen cuántas", () => {
+        const triple = { ...quote, selection: { ...quote.selection, quantity: 3 } } as IQuote;
+        expect(getQuoteQuantity(triple.selection)).toBe(3);
+        expect(getQuoteSizeLabel(triple.selection)).toBe('3 × Cake 6" doble altura');
+        expect(getQuoteIcs(triple)).toContain("3 × Cake");
+    });
+});
+
+describe("varias unidades", () => {
+    test("el total se multiplica al centavo", () => {
+        expect(getQuoteQuantityTotal(18.33, 3)).toBe(54.99);
+        expect(getQuoteQuantityTotal(0.1, 3)).toBe(0.3);
+        expect(getQuoteQuantityTotal(28, 1)).toBe(28);
+    });
+});
+
+describe("registro manual", () => {
+    const MANUAL: IManualQuoteDraft = {
+        productId: 2,
+        sizeId: 5,
+        optionIds: [],
+        customerName: "Ana",
+        customerPhone: "",
+        desiredDate: "2026-10-20",
+        note: "",
+        status: "confirmada",
+        quantity: 1,
+    };
+
+    test("el celular es opcional, pero si se escribe tiene que ser de Panamá", () => {
+        expect(getManualQuoteMissing(MANUAL, FLAN)).toEqual([]);
+        expect(getManualQuoteMissing({ ...MANUAL, customerPhone: "6123-4567" }, FLAN)).toEqual([]);
+        expect(getManualQuoteMissing({ ...MANUAL, customerPhone: "2123-4567" }, FLAN)).toHaveLength(1);
     });
 });

@@ -12,6 +12,7 @@ import {
     formatPhone,
     formatPrice,
     formatQuoteDate,
+    getQuoteQuantity,
     getQuoteSizeLabel,
     getQuoteSpecLines,
 } from "@/helpers";
@@ -212,6 +213,13 @@ const QuoteDetail = ({
                                 {line.price ? <span>+{formatPrice(line.price)}</span> : <span className="is-free">incluido</span>}
                             </li>
                         ))}
+                        {/* Los precios de arriba son de una unidad */}
+                        {getQuoteQuantity(selection) > 1 ? (
+                            <li>
+                                <span>Cantidad</span>
+                                <span>× {getQuoteQuantity(selection)}</span>
+                            </li>
+                        ) : null}
                         <li className="qp-spec__sum">
                             <span>Total estimado</span>
                             <span>{formatPrice(quote.total)}</span>

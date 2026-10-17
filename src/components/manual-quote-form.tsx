@@ -3,6 +3,7 @@ import type { FormEvent, ReactNode } from "react";
 
 import {
     HttpError,
+    MAX_QUOTE_QUANTITY,
     canAddCatalogOption,
     createManualQuote,
     formatPrice,
@@ -16,6 +17,7 @@ import {
     getCatalogVariants,
     getManualQuoteMissing,
     getPanamaTodayText,
+    getQuoteQuantityTotal,
     resolveCatalogPick,
     resolveMeasureChange,
     resolveVariantChange,
@@ -23,6 +25,7 @@ import {
 } from "@/helpers";
 import type { ICatalogPick, IManualQuoteDraft, IQuote } from "@/helpers";
 
+import { QuantityStepper } from "./quantity-stepper";
 import { useCatalog } from "./use-catalog";
 
 import "./manual-quote-form.css";
@@ -34,7 +37,7 @@ interface IManualQuoteFormProps {
     onSessionExpired: () => void;
 }
 
-type IManualDetails = Omit<IManualQuoteDraft, keyof ICatalogPick>;
+type IManualDetails = Omit<IManualQuoteDraft, keyof ICatalogPick | "quantity">;
 
 const getEmptyDetails = (): IManualDetails => ({
     customerName: "",
@@ -69,6 +72,9 @@ export const ManualQuoteForm = ({ token, onSaved, onCancel, onSessionExpired }: 
     const { catalog, isLoading, error: catalogError, reload } = useCatalog();
     const [pick, setPick] = useState<ICatalogPick>({ productId: null, sizeId: null, optionIds: [] });
     const [details, setDetails] = useState<IManualDetails>(getEmptyDetails);
+    // Apagado es una sola; al prenderlo arranca en 2 y el contador no baja de ahí
+    const [isMultiple, setIsMultiple] = useState(false);
+    const [count, setCount] = useState(2);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState("");
 
@@ -76,8 +82,10 @@ export const ManualQuoteForm = ({ token, onSaved, onCancel, onSessionExpired }: 
 
     const { product, sizeId, optionIds } = resolveCatalogPick(catalog, pick);
     const chosenSize = product?.sizes.find((size) => size.id === sizeId);
-    const draft: IManualQuoteDraft = { ...details, productId: product?.id ?? null, sizeId, optionIds };
+    const quantity = isMultiple ? count : 1;
+    const draft: IManualQuoteDraft = { ...details, productId: product?.id ?? null, sizeId, optionIds, quantity };
     const breakdown = product ? getCatalogBreakdown(product, sizeId, optionIds, false) : null;
+    const total = getQuoteQuantityTotal(breakdown?.total ?? 0, quantity);
     const missing = getManualQuoteMissing(draft, product);
     const tabs = catalog?.tabs ?? [];
     const tabProducts = catalog?.products.filter((one) => one.tab === product?.tab) ?? [];
@@ -292,6 +300,39 @@ export const ManualQuoteForm = ({ token, onSaved, onCancel, onSessionExpired }: 
                         </div>
                     </fieldset>
 
+                    <div className="mq-qty">
+                        <div className="mq-qty__row">
+                            <span id="mq-multi-label">
+                                Varias unidades
+                                <small>{isMultiple ? "El total se multiplica" : "Apagado: se cotiza 1"}</small>
+                            </span>
+                            <button
+                                type="button"
+                                role="switch"
+                                aria-checked={isMultiple}
+                                aria-labelledby="mq-multi-label"
+                                className="mq-switch"
+                                onClick={() => setIsMultiple((current) => !current)}
+                            >
+                                <span className="mq-switch__track">
+                                    <span className="mq-switch__knob" />
+                                </span>
+                            </button>
+                        </div>
+                        {isMultiple ? (
+                            <div className="mq-qty__row">
+                                <span>Cantidad</span>
+                                <QuantityStepper
+                                    quantity={count}
+                                    itemName={product?.name ?? "postre"}
+                                    min={2}
+                                    max={MAX_QUOTE_QUANTITY}
+                                    onChange={setCount}
+                                />
+                            </div>
+                        ) : null}
+                    </div>
+
                     <div className="mq-receipt">
                         <ul className="qp-spec">
                             {product && breakdown ? (
@@ -308,11 +349,17 @@ export const ManualQuoteForm = ({ token, onSaved, onCancel, onSessionExpired }: 
                                             {line.price ? <span>+{formatPrice(line.price)}</span> : <span className="is-free">incluido</span>}
                                         </li>
                                     ))}
+                                    {quantity > 1 ? (
+                                        <li>
+                                            <span>Cantidad</span>
+                                            <span>× {quantity}</span>
+                                        </li>
+                                    ) : null}
                                 </>
                             ) : null}
                             <li className="qp-spec__sum">
                                 <span>Total</span>
-                                <span>{formatPrice(breakdown?.total ?? 0)}</span>
+                                <span>{formatPrice(total)}</span>
                             </li>
                         </ul>
 

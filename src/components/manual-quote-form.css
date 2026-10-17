@@ -235,3 +235,84 @@
     justify-content: flex-end;
     gap: 0.6rem;
 }
+
+/* ============ Varias unidades ============ */
+.mq-qty {
+    display: grid;
+    gap: 0.6rem;
+    padding: 0.75rem 0.9rem;
+    border-radius: 16px;
+    background: var(--qp-panel-2);
+}
+
+.mq-qty__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    font-weight: 700;
+    font-size: 0.92rem;
+}
+
+.mq-qty__row small {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text-soft);
+}
+
+/* El mismo interruptor del tablero (.ahs-switch), que en /gestion no se carga */
+.mq-switch {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+.mq-switch:focus-visible {
+    outline: 3px solid var(--orquidea);
+    outline-offset: 2px;
+    border-radius: var(--radius-pill);
+}
+
+.mq-switch__track {
+    position: relative;
+    display: block;
+    width: 44px;
+    height: 26px;
+    border-radius: var(--radius-pill);
+    background: #c9c6b8;
+    transition: background-color 160ms ease;
+}
+
+.mq-switch[aria-checked="true"] .mq-switch__track {
+    background: var(--mora);
+}
+
+.mq-switch__knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--crema);
+    transition: transform 160ms var(--ease-out);
+}
+
+.mq-switch[aria-checked="true"] .mq-switch__knob {
+    transform: translateX(18px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mq-switch__track,
+    .mq-switch__knob {
+        transition: none;
+    }
+}
