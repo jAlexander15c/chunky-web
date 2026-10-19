@@ -110,19 +110,25 @@ interface IKitchenTicketProps {
     onStep: (order: IKitchenOrder, step: KitchenStep) => void;
     onOpenDelivery?: (orderId?: string) => void;
     onOpenRecipe?: (line: KitchenLine) => void;
-    /** Rechaza un pedido que se cobra al recibir o uno nuevo pagado con Yappy. Sin esto no se muestra el botón. */
-    onReject?: (order: IKitchenOrder) => Promise<void>;
+    /** Rechaza un pedido que se cobra al recibir o uno pagado con Yappy que no está listo. Sin esto no se muestra el botón. */
+    onReject?: (order: IKitchenOrder, restock: boolean) => Promise<void>;
 }
 
 const KitchenTicket = ({ order, now, onStep, onOpenDelivery, onOpenRecipe, onReject }: IKitchenTicketProps) => {
     const [isConfirmingReject, setIsConfirmingReject] = useState(false);
     const [isRejecting, setIsRejecting] = useState(false);
     const isNew = !order.acceptedAt;
-    // Yappy solo mientras es nuevo: así no se cocinó nada y el inventario vuelve completo. Tarjeta no se rechaza aquí
-    const isYappyReject = order.paymentMethod === "yappy" && !isUnpaidOrder(order) && isNew;
+    const isReady = Boolean(order.readyAt);
+    // Yappy mientras no esté listo. Tarjeta no se rechaza aquí
+    const isYappyReject = order.paymentMethod === "yappy" && !isUnpaidOrder(order) && !isReady;
+    // En preparación puede que ya se haya usado algo: cocina dice si vuelve al inventario
+    const shouldAskUsed = isYappyReject && !isNew;
     const canReject = Boolean(onReject) && order.channel !== "mesa" &&
         ((order.paymentMethod === "whatsapp" && isUnpaidOrder(order)) || isYappyReject);
-    const isReady = Boolean(order.readyAt);
+    const reject = (restock: boolean) => {
+        setIsRejecting(true);
+        void onReject?.(order, restock).finally(() => setIsRejecting(false));
+    };
     const step: KitchenStep = isNew ? "accept" : isReady ? "deliver" : "ready";
     // Lo que va a domicilio o se cobra al entregar no se cierra aquí: lo cierra Delivery
     const isHandledByDelivery = isReady && order.channel !== "mesa" && (Boolean(order.delivery) || isUnpaidOrder(order));
@@ -210,19 +216,25 @@ const KitchenTicket = ({ order, now, onStep, onOpenDelivery, onOpenRecipe, onRej
                         <span>
                             ¿Rechazar el pedido de {order.customerName}?
                             {isYappyReject ? ` Se reembolsa en Loyverse y le devuelves ${formatPrice(order.total)} por Yappy.` : ""}
+                            {shouldAskUsed ? " ¿Ya se usó algo del pedido?" : ""}
                         </span>
-                        <button
-                            type="button"
-                            className="kitchen-ticket__reject-yes"
-                            disabled={isRejecting}
-                            onClick={() => {
-                                setIsRejecting(true);
-                                void onReject?.(order).finally(() => setIsRejecting(false));
-                            }}
-                        >
-                            {isRejecting ? "Rechazando…" : "Sí, rechazar"}
+                        {shouldAskUsed ? (
+                            <>
+                                <button type="button" className="kitchen-ticket__reject-yes" disabled={isRejecting} onClick={() => reject(false)}>
+                                    {isRejecting ? "Rechazando…" : "Sí, se usó"}
+                                </button>
+                                <button type="button" className="kitchen-ticket__reject-yes" disabled={isRejecting} onClick={() => reject(true)}>
+                                    {isRejecting ? "Rechazando…" : "No, vuelve todo"}
+                                </button>
+                            </>
+                        ) : (
+                            <button type="button" className="kitchen-ticket__reject-yes" disabled={isRejecting} onClick={() => reject(true)}>
+                                {isRejecting ? "Rechazando…" : "Sí, rechazar"}
+                            </button>
+                        )}
+                        <button type="button" onClick={() => setIsConfirmingReject(false)} disabled={isRejecting}>
+                            {shouldAskUsed ? "No rechazar" : "No"}
                         </button>
-                        <button type="button" onClick={() => setIsConfirmingReject(false)} disabled={isRejecting}>No</button>
                     </div>
                 ) : (
                     <button type="button" className="kitchen-ticket__reject-link" onClick={() => setIsConfirmingReject(true)}>
@@ -243,7 +255,7 @@ const KitchenColumn = ({ title, orders, empty, isNew, now, onStep, onOpenDeliver
     onStep: (order: IKitchenOrder, step: KitchenStep) => void;
     onOpenDelivery?: (orderId?: string) => void;
     onOpenRecipe?: (line: KitchenLine) => void;
-    onReject?: (order: IKitchenOrder) => Promise<void>;
+    onReject?: (order: IKitchenOrder, restock: boolean) => Promise<void>;
 }) => (
     <section className={`kitchen-col ${isNew ? "kitchen-col--new" : ""}`} aria-label={title}>
         <h2 className="kitchen-col__head">{title} <span className="kitchen-count">{orders.length}</span></h2>
@@ -297,11 +309,11 @@ export const GestionCocina = ({ feed, token, onSessionExpired, onOpenDelivery }:
 
     // Sin token no se puede llamar al API: no se ofrece rechazar
     const rejectOrder = token
-        ? async (order: IKitchenOrder) => {
+        ? async (order: IKitchenOrder, restock: boolean) => {
             setStepError(null);
             setRefundNotice(null);
             try {
-                await cancelDeliveryOrder(token, order.id);
+                await cancelDeliveryOrder(token, order.id, restock);
                 // Lo pagado con Yappy se devuelve a mano: queda el aviso hasta que lo cierren
                 if (order.paymentMethod === "yappy") {
                     // Al número que pagó (el de Yappy), no al WhatsApp de contacto

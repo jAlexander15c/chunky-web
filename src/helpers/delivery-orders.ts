@@ -60,8 +60,9 @@ export const confirmDeliveryOrder = (token: string, orderId: string, change: IDe
 export const changeOrderDelivery = (token: string, orderId: string, change: IDeliveryChange) =>
     httpPost<{ order: IDeliveryOrder }>(orderPath(orderId, "entrega"), change, { headers: getHeaders(token) });
 
-export const cancelDeliveryOrder = (token: string, orderId: string) =>
-    httpPost<{ order: IDeliveryOrder }>(orderPath(orderId, "cancelar"), {}, { headers: getHeaders(token) });
+/** `restock` false: un Yappy en preparación del que ya se usó algo; lo descontado no vuelve al inventario. */
+export const cancelDeliveryOrder = (token: string, orderId: string, restock = true) =>
+    httpPost<{ order: IDeliveryOrder }>(orderPath(orderId, "cancelar"), { restock }, { headers: getHeaders(token) });
 
 export const shareTrackingLink = (token: string, orderId: string) =>
     httpPost<{ trackingPath: string }>(orderPath(orderId, "enlace"), {}, { headers: getHeaders(token) });
