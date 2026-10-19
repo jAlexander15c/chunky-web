@@ -390,6 +390,31 @@ const FailedOrder = ({ order }: { order: IPublicOrder }) => {
         ? getWhatsappOrderChatUrl(order)
         : getWhatsAppUrl(buildPaymentHelpMessage(lines, { customerName: order.customerName, note: "" }, order.id, order.paymentMethod));
 
+    // Pagado y rechazado en cocina: sí hubo cobro, y se devuelve
+    if (order.rejectedAt) {
+        return (
+            <>
+                <span className="order-page__stamp" aria-hidden>Te lo<br />devolvemos</span>
+                <h1 className="order-page__title script">No pudimos preparar tu pedido</h1>
+                <p className="order-page__lede">
+                    Lo sentimos{order.customerName ? `, ${order.customerName}` : ""}: no podemos atender este pedido.{" "}
+                    <strong>Te devolvemos {formatPrice(order.total)} por Yappy</strong> al número con que pagaste.
+                </p>
+                <div className="order-page__actions">
+                    <a
+                        className="checkout__help"
+                        href={getWhatsAppUrl(`Hola, mi pedido ${order.id} fue rechazado. Quiero confirmar la devolución de mi Yappy.`)}
+                        target="_blank"
+                        rel="noopener"
+                        onClick={() => trackEvent("whatsapp_click", "pedido")}
+                    >
+                        <PiWhatsappLogoBold aria-hidden /> Escríbenos por WhatsApp
+                    </a>
+                </div>
+            </>
+        );
+    }
+
     return (
         <>
             <span className="order-page__stamp" aria-hidden>Sin<br />cobro</span>

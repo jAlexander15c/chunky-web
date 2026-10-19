@@ -28,6 +28,15 @@
   min-height: 40px;
 }
 
+/* Rechazo de un pedido de Yappy: el dinero se devuelve a mano */
+.kitchen-banner--refund {
+  background: var(--kitchen-ok);
+}
+
+.kitchen-banner--refund button {
+  color: var(--kitchen-ok);
+}
+
 .kitchen-board {
   flex: 1;
   display: grid;
@@ -334,6 +343,53 @@
 .kitchen-ticket__action--confirm {
   background: #1f7a4d;
   border-color: #1f7a4d;
+  color: #fff;
+}
+
+/* Rechazar lo que se cobra al recibir: discreto, debajo de la acción principal */
+.kitchen-ticket__reject-link {
+  align-self: center;
+  margin: -4px 10px 10px;
+  padding: 6px 10px;
+  border: 0;
+  background: none;
+  color: var(--kitchen-alert);
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 0.9rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.kitchen-ticket__reject {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: -4px 10px 10px;
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+
+.kitchen-ticket__reject span {
+  flex-basis: 100%;
+}
+
+.kitchen-ticket__reject button {
+  flex: 1;
+  min-height: 44px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: inset 0 0 0 2px currentColor;
+  font-family: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.kitchen-ticket__reject .kitchen-ticket__reject-yes {
+  background: var(--kitchen-alert);
+  box-shadow: none;
   color: #fff;
 }
 

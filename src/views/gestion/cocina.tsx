@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { fetchRecipeView } from "@/helpers/inventory";
 import type { IRecipeView } from "@/helpers/inventory";
 
-import { HttpError, KITCHEN_LATE_MINUTES, formatPastaOptions, formatPhone, formatPrice, getMinutesSince, isUnpaidOrder } from "@/helpers";
+import { HttpError, KITCHEN_LATE_MINUTES, cancelDeliveryOrder, formatPastaOptions, formatPhone, formatPrice, getMinutesSince, isUnpaidOrder } from "@/helpers";
 import type { IKitchenOrder, KitchenStep } from "@/helpers";
 import type { IKitchenFeed } from "@/hooks/useKitchenFeed";
 
@@ -110,10 +110,18 @@ interface IKitchenTicketProps {
     onStep: (order: IKitchenOrder, step: KitchenStep) => void;
     onOpenDelivery?: (orderId?: string) => void;
     onOpenRecipe?: (line: KitchenLine) => void;
+    /** Rechaza un pedido que se cobra al recibir o uno nuevo pagado con Yappy. Sin esto no se muestra el botón. */
+    onReject?: (order: IKitchenOrder) => Promise<void>;
 }
 
-const KitchenTicket = ({ order, now, onStep, onOpenDelivery, onOpenRecipe }: IKitchenTicketProps) => {
+const KitchenTicket = ({ order, now, onStep, onOpenDelivery, onOpenRecipe, onReject }: IKitchenTicketProps) => {
+    const [isConfirmingReject, setIsConfirmingReject] = useState(false);
+    const [isRejecting, setIsRejecting] = useState(false);
     const isNew = !order.acceptedAt;
+    // Yappy solo mientras es nuevo: así no se cocinó nada y el inventario vuelve completo. Tarjeta no se rechaza aquí
+    const isYappyReject = order.paymentMethod === "yappy" && !isUnpaidOrder(order) && isNew;
+    const canReject = Boolean(onReject) && order.channel !== "mesa" &&
+        ((order.paymentMethod === "whatsapp" && isUnpaidOrder(order)) || isYappyReject);
     const isReady = Boolean(order.readyAt);
     const step: KitchenStep = isNew ? "accept" : isReady ? "deliver" : "ready";
     // Lo que va a domicilio o se cobra al entregar no se cierra aquí: lo cierra Delivery
@@ -196,11 +204,37 @@ const KitchenTicket = ({ order, now, onStep, onOpenDelivery, onOpenRecipe }: IKi
                     {STEP_ACTION[step]}
                 </button>
             )}
+            {canReject ? (
+                isConfirmingReject ? (
+                    <div className="kitchen-ticket__reject">
+                        <span>
+                            ¿Rechazar el pedido de {order.customerName}?
+                            {isYappyReject ? ` Se reembolsa en Loyverse y le devuelves ${formatPrice(order.total)} por Yappy.` : ""}
+                        </span>
+                        <button
+                            type="button"
+                            className="kitchen-ticket__reject-yes"
+                            disabled={isRejecting}
+                            onClick={() => {
+                                setIsRejecting(true);
+                                void onReject?.(order).finally(() => setIsRejecting(false));
+                            }}
+                        >
+                            {isRejecting ? "Rechazando…" : "Sí, rechazar"}
+                        </button>
+                        <button type="button" onClick={() => setIsConfirmingReject(false)} disabled={isRejecting}>No</button>
+                    </div>
+                ) : (
+                    <button type="button" className="kitchen-ticket__reject-link" onClick={() => setIsConfirmingReject(true)}>
+                        Rechazar pedido
+                    </button>
+                )
+            ) : null}
         </article>
     );
 };
 
-const KitchenColumn = ({ title, orders, empty, isNew, now, onStep, onOpenDelivery, onOpenRecipe }: {
+const KitchenColumn = ({ title, orders, empty, isNew, now, onStep, onOpenDelivery, onOpenRecipe, onReject }: {
     title: string;
     orders: IKitchenOrder[];
     empty: string;
@@ -209,13 +243,14 @@ const KitchenColumn = ({ title, orders, empty, isNew, now, onStep, onOpenDeliver
     onStep: (order: IKitchenOrder, step: KitchenStep) => void;
     onOpenDelivery?: (orderId?: string) => void;
     onOpenRecipe?: (line: KitchenLine) => void;
+    onReject?: (order: IKitchenOrder) => Promise<void>;
 }) => (
     <section className={`kitchen-col ${isNew ? "kitchen-col--new" : ""}`} aria-label={title}>
         <h2 className="kitchen-col__head">{title} <span className="kitchen-count">{orders.length}</span></h2>
         <div className="kitchen-col__list">
             {orders.length === 0
                 ? <p className="kitchen-empty">{empty}</p>
-                : orders.map((order) => <KitchenTicket key={order.id} order={order} now={now} onStep={onStep} onOpenDelivery={onOpenDelivery} onOpenRecipe={onOpenRecipe} />)}
+                : orders.map((order) => <KitchenTicket key={order.id} order={order} now={now} onStep={onStep} onOpenDelivery={onOpenDelivery} onOpenRecipe={onOpenRecipe} onReject={onReject} />)}
         </div>
     </section>
 );
@@ -234,6 +269,7 @@ export const GestionCocina = ({ feed, token, onSessionExpired, onOpenDelivery }:
     const [recipeLine, setRecipeLine] = useState<KitchenLine | null>(null);
     const openRecipe = token ? setRecipeLine : undefined;
     const [stepError, setStepError] = useState<string | null>(null);
+    const [refundNotice, setRefundNotice] = useState<string | null>(null);
 
     // Reloj de los minutos de cada pedido
     useEffect(() => {
@@ -259,6 +295,29 @@ export const GestionCocina = ({ feed, token, onSessionExpired, onOpenDelivery }:
         }
     };
 
+    // Sin token no se puede llamar al API: no se ofrece rechazar
+    const rejectOrder = token
+        ? async (order: IKitchenOrder) => {
+            setStepError(null);
+            setRefundNotice(null);
+            try {
+                await cancelDeliveryOrder(token, order.id);
+                // Lo pagado con Yappy se devuelve a mano: queda el aviso hasta que lo cierren
+                if (order.paymentMethod === "yappy") {
+                    // Al número que pagó (el de Yappy), no al WhatsApp de contacto
+                    const phone = order.customerPhone;
+                    setRefundNotice(`Devuélvele ${formatPrice(order.total)} por Yappy a ${order.customerName}${phone ? ` al ${formatPhone(phone)}` : ""}, el número con que pagó.`);
+                }
+            } catch (error) {
+                if (error instanceof HttpError && error.status === 401) return onSessionExpired();
+                setStepError(error instanceof HttpError && error.status < 500
+                    ? error.message
+                    : `No pudimos rechazar el pedido de ${order.customerName}. Intenta de nuevo.`);
+            }
+            await refresh();
+        }
+        : undefined;
+
     return (
         <div className="kitchen">
             {(offlineSince !== null || !isSoundOn) && (
@@ -273,14 +332,20 @@ export const GestionCocina = ({ feed, token, onSessionExpired, onOpenDelivery }:
             )}
 
             {stepError && <div className="kitchen-banner" role="alert"><span>{stepError}</span></div>}
+            {refundNotice && (
+                <div className="kitchen-banner kitchen-banner--refund" role="status">
+                    <span>{refundNotice}</span>
+                    <button type="button" onClick={() => setRefundNotice(null)}>Listo, ya lo devolví</button>
+                </div>
+            )}
 
             <div className={`kitchen-board${awaitingOrders.length > 0 ? " kitchen-board--four" : ""}`}>
                 {awaitingOrders.length > 0 ? (
-                    <KitchenColumn title="Por confirmar" orders={awaitingOrders} empty="" isNew now={now} onStep={runStep} onOpenDelivery={onOpenDelivery} onOpenRecipe={openRecipe} />
+                    <KitchenColumn title="Por confirmar" orders={awaitingOrders} empty="" isNew now={now} onStep={runStep} onOpenDelivery={onOpenDelivery} onOpenRecipe={openRecipe} onReject={rejectOrder} />
                 ) : null}
-                <KitchenColumn title="Nuevos" orders={newOrders} empty="Sin pedidos nuevos" isNew now={now} onStep={runStep} onOpenRecipe={openRecipe} />
-                <KitchenColumn title="Preparando" orders={preparingOrders} empty="Nada en preparación" now={now} onStep={runStep} onOpenRecipe={openRecipe} />
-                <KitchenColumn title="Listos para retirar o enviar" orders={readyOrders} empty="Nada por entregar" now={now} onStep={runStep} onOpenDelivery={onOpenDelivery} onOpenRecipe={openRecipe} />
+                <KitchenColumn title="Nuevos" orders={newOrders} empty="Sin pedidos nuevos" isNew now={now} onStep={runStep} onOpenRecipe={openRecipe} onReject={rejectOrder} />
+                <KitchenColumn title="Preparando" orders={preparingOrders} empty="Nada en preparación" now={now} onStep={runStep} onOpenRecipe={openRecipe} onReject={rejectOrder} />
+                <KitchenColumn title="Listos para retirar o enviar" orders={readyOrders} empty="Nada por entregar" now={now} onStep={runStep} onOpenDelivery={onOpenDelivery} onOpenRecipe={openRecipe} onReject={rejectOrder} />
             </div>
             {recipeLine && token ? <KitchenRecipeModal token={token} line={recipeLine} onClose={() => setRecipeLine(null)} /> : null}
         </div>

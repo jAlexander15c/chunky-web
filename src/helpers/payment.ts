@@ -93,6 +93,8 @@ export interface IPublicOrder {
     readyAt: string | null;
     createdAt: string;
     paidAt: string | null;
+    /** Pagado con Yappy y rechazado en cocina: se le devuelve el dinero. */
+    rejectedAt?: string | null;
 }
 
 /** Pedido guardado para coordinar por WhatsApp: no hay pago en la página. */
