@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { HttpError, fetchKitchenOrders, isChimeSoundOn, playChime, setKitchenStep, unlockChimeSound } from "@/helpers";
+import { HttpError, fetchKitchenOrders, isChimeSoundOn, playChime, resumeChimeSound, setKitchenStep, unlockChimeSound } from "@/helpers";
 import type { IKitchenOrder, KitchenStep } from "@/helpers";
 
 import { useWakeLock } from "./useWakeLock";
@@ -91,7 +91,8 @@ export const useKitchenFeed = (token: string, isEnabled: boolean, onSessionExpir
         return () => window.clearInterval(timer);
     }, [isEnabled]);
 
-    // iOS solo deja activar el audio dentro de un toque: cualquiera en gestion sirve.
+    // El navegador solo deja activar el audio dentro de un toque: cualquiera en gestion sirve.
+    // pointerdown no cuenta como toque en pantallas tactiles; touchend y click si.
     // Al volver a la pagina (tras bloquear la tablet) se intenta reanudar; si iOS no deja, queda el aviso.
     useEffect(() => {
         if (!isEnabled) return;
@@ -99,12 +100,13 @@ export const useKitchenFeed = (token: string, isEnabled: boolean, onSessionExpir
             unlockChimeSound().then(setIsSoundOn);
         };
         const resumeOnReturn = () => {
-            if (document.visibilityState === "visible") unlock();
+            if (document.visibilityState === "visible") resumeChimeSound().then(setIsSoundOn);
         };
-        document.addEventListener("pointerdown", unlock, true);
+        const gestures = ["touchend", "click", "keydown"] as const;
+        gestures.forEach((gesture) => document.addEventListener(gesture, unlock, true));
         document.addEventListener("visibilitychange", resumeOnReturn);
         return () => {
-            document.removeEventListener("pointerdown", unlock, true);
+            gestures.forEach((gesture) => document.removeEventListener(gesture, unlock, true));
             document.removeEventListener("visibilitychange", resumeOnReturn);
         };
     }, [isEnabled]);

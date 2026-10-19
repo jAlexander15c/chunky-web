@@ -1,6 +1,8 @@
 /* Campanita de avisos (cocina y pagina del pedido), generada con WebAudio: no necesita archivos. */
 
 let audioContext: AudioContext | null = null;
+// Al volver de segundo plano iOS puede dejar el audio "running" pero mudo: se rehace en el siguiente toque
+let isStale = false;
 
 /**
  * En iPad el audio web respeta el interruptor de silencio: como "playback" suena igual que un video,
@@ -11,11 +13,37 @@ const setPlaybackAudioSession = () => {
     if (audioSession && audioSession.type !== "playback") audioSession.type = "playback";
 };
 
-/** Crea o reanuda el audio. En iOS solo funciona dentro de un toque del usuario. */
+/** iOS solo da el audio por desbloqueado si algo empieza a sonar dentro del toque: una muestra muda basta. */
+const playSilence = (context: AudioContext) => {
+    const source = context.createBufferSource();
+    source.buffer = context.createBuffer(1, 1, 22050);
+    source.connect(context.destination);
+    source.start(0);
+};
+
+/** Crea o reanuda el audio. Solo funciona dentro de un toque (touchend, click o tecla), no en pointerdown. */
 export const unlockChimeSound = async () => {
     try {
         setPlaybackAudioSession();
+        if (audioContext && isStale) {
+            audioContext.close().catch(() => null);
+            audioContext = null;
+        }
+        isStale = false;
         audioContext ??= new AudioContext();
+        playSilence(audioContext);
+        if (audioContext.state !== "running") await audioContext.resume();
+        return audioContext.state === "running";
+    } catch {
+        return false;
+    }
+};
+
+/** Al volver a la pagina: reanuda sin crear nada (fuera de un toque iOS no deja) y rehace el audio en el siguiente toque. */
+export const resumeChimeSound = async () => {
+    try {
+        if (!audioContext) return false;
+        isStale = true;
         if (audioContext.state !== "running") await audioContext.resume();
         return audioContext.state === "running";
     } catch {
