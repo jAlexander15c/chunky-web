@@ -46,9 +46,18 @@ export const getQuoteQuantityTotal = (unitTotal: number, quantity: number) => Ma
 /** Días que necesita la pastelería para preparar un cake. El API valida lo mismo. */
 export const QUOTE_LEAD_DAYS = 4;
 
-/** El primer día que se puede pedir, como AAAA-MM-DD: hoy en Panamá más los días de preparación. */
-export const getEarliestQuoteDate = () =>
-    new Date(Date.now() - 5 * 60 * 60 * 1000 + QUOTE_LEAD_DAYS * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+/** Hoy en Panamá más esos días, como AAAA-MM-DD. */
+const getQuoteDateInDays = (days: number) =>
+    new Date(Date.now() - 5 * 60 * 60 * 1000 + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+/** El primer día que se puede elegir: hoy. Antes de los días de preparación llega igual y la pastelera decide. */
+export const getTodayQuoteDate = () => getQuoteDateInDays(0);
+
+/** El primer día con los días de preparación completos: hoy en Panamá más QUOTE_LEAD_DAYS. */
+export const getEarliestQuoteDate = () => getQuoteDateInDays(QUOTE_LEAD_DAYS);
+
+/** Pedida con menos días de los que se piden: se manda igual, con aviso. */
+export const isShortNoticeQuoteDate = (date: string) => Boolean(date) && date >= getTodayQuoteDate() && date < getEarliestQuoteDate();
 
 /** Un correo con forma de correo: el API lo valida igual y ahí le llegan el acuse y la confirmación. */
 export const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value.trim()) && value.trim().length <= 254;
@@ -69,8 +78,7 @@ export const getQuoteMissing = (draft: IQuoteDraft, product: ICatalogProduct | u
     if (!/^6\d{7}$/.test(getPhoneDigits(draft.customerPhone))) missing.push("Escribe tu WhatsApp (8 dígitos, empieza en 6)");
     if (!isValidEmail(draft.customerEmail)) missing.push("Escribe tu correo");
     if (!draft.desiredDate) missing.push("Elige la fecha deseada");
-    else if (draft.desiredDate < getEarliestQuoteDate())
-        missing.push(`La fecha tiene que ser con ${QUOTE_LEAD_DAYS} días de anticipación o más`);
+    else if (draft.desiredDate < getTodayQuoteDate()) missing.push("Esa fecha ya pasó: elige hoy o un día después");
     if (!draft.privacyConsent) missing.push("Acepta el aviso de privacidad");
     return missing;
 };

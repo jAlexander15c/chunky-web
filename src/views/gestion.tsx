@@ -364,8 +364,9 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
 
     // Los pedidos de la web se siguen en cualquier seccion: quien cobra tambien atiende la cocina
     const kitchen = useKitchenFeed(token, roles.includes("caja"), onLogout);
-    // Y los avisos llegan aunque la tablet este bloqueada
-    const alerts = useOrderAlerts(token, roles.includes("caja"), onLogout);
+    // Y los avisos llegan aunque la tablet este bloqueada. A la pastelera le llegan las cotizaciones nuevas
+    const canReceiveAlerts = roles.includes("caja") || roles.includes("pastelera");
+    const alerts = useOrderAlerts(token, canReceiveAlerts, onLogout);
     const [isAlertHintOpen, setIsAlertHintOpen] = useState(false);
     const alertHint = alerts.error || (isAlertHintOpen ? ALERT_HINT[alerts.status] : "");
 
@@ -509,6 +510,10 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
                                         Activar sonido
                                     </button>
                                 )}
+                            </>
+                        ) : null}
+                        {canReceiveAlerts ? (
+                            <>
                                 {alerts.status === "on" ? (
                                     <span className="ges-chip">
                                         <i aria-hidden="true" />

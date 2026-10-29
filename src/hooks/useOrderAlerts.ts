@@ -24,7 +24,7 @@ export interface IOrderAlerts {
     activate: () => Promise<void>;
 }
 
-/** Avisos push de cada pedido nuevo en esta tablet: llegan aunque la pantalla este apagada o en otra app. */
+/** Avisos push en este dispositivo (pedidos nuevos a caja, cotizaciones a la pastelera): llegan aunque la pantalla este apagada o en otra app. */
 export const useOrderAlerts = (token: string, isEnabled: boolean, onSessionExpired: () => void): IOrderAlerts => {
     const [status, setStatus] = useState<OrderAlertsStatus>("loading");
     const [publicKey, setPublicKey] = useState<string | null>(null);

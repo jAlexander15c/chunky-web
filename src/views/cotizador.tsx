@@ -20,7 +20,8 @@ import {
     getCatalogSizeText,
     getCatalogVariants,
     isDoubleVariant,
-    getEarliestQuoteDate,
+    getTodayQuoteDate,
+    isShortNoticeQuoteDate,
     getQuoteMissing,
     getQuoteQuantityTotal,
     getWhatsAppUrl,
@@ -202,13 +203,15 @@ const CustomerStep = ({ step, draft, update }: ICustomerStepProps) => (
                 <input
                     id="quote-date"
                     type="date"
-                    min={getEarliestQuoteDate()}
+                    min={getTodayQuoteDate()}
                     aria-describedby="quote-date-hint"
                     value={draft.desiredDate}
                     onChange={(event) => update("desiredDate", event.target.value)}
                 />
                 <small id="quote-date-hint" className="quote-field__hint">
-                    Con {QUOTE_LEAD_DAYS} días de anticipación como mínimo.
+                    {isShortNoticeQuoteDate(draft.desiredDate)
+                        ? "Es con poca anticipación: mándala igual y la pastelera te confirma si llega a tiempo."
+                        : `Lo ideal es con ${QUOTE_LEAD_DAYS} días de anticipación.`}
                 </small>
             </div>
             <div className="quote-field quote-field--wide">
