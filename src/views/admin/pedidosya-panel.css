@@ -1,0 +1,99 @@
+/* ============ PedidosYa: conexión ============ */
+
+.pya-card { display: grid; gap: 1rem; max-width: 46rem; }
+
+.pya-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.8rem 1rem; flex-wrap: wrap; }
+.pya-head__text { min-width: 0; flex: 1 1 14rem; }
+.pya-head .adm-note { margin: 0.2rem 0 0; }
+.pya .adm-switch { min-height: var(--ops-tap); }
+
+.pya-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: fit-content;
+    max-width: 100%;
+    padding: 0.35rem 0.8rem;
+    border-radius: 999px;
+    background: var(--sky);
+    font-size: 0.76rem;
+    font-weight: 800;
+    overflow-wrap: anywhere;
+}
+
+.pya-pill i, .pya-test i { flex: none; width: 0.55rem; height: 0.55rem; border-radius: 50%; background: currentColor; }
+.pya-pill.is-good { background: var(--adm-good-bg); color: var(--adm-good); }
+.pya-pill.is-crit { background: var(--adm-crit-bg); color: var(--adm-crit); }
+
+.pya-missing { margin: -0.4rem 0 0; font-size: 0.8rem; color: var(--adm-text-2); }
+
+.pya-env { border: 0; margin: 0; padding: 0; min-width: 0; }
+.pya-env legend {
+    padding: 0;
+    margin-bottom: 0.3rem;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--adm-text-3);
+}
+.pya-env .adm-seg__btn { min-height: var(--ops-tap); }
+
+.pya-input { min-height: var(--ops-tap); font-size: 1rem; }
+
+.pya-url--fold summary { cursor: pointer; font-size: 0.8rem; font-weight: 700; color: var(--adm-text-2); min-height: var(--ops-tap); display: flex; align-items: center; }
+.pya-url--fold .pya-input { margin-bottom: 0.2rem; }
+
+.pya-secrets { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+
+.pya-secret {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid var(--ops-line);
+    border-radius: 14px;
+    background: var(--ops-field);
+}
+
+.pya-secret__text { display: grid; gap: 0.1rem; min-width: 0; }
+.pya-secret__text b { font-size: 0.88rem; }
+.pya-secret__text span { font-size: 0.78rem; color: var(--adm-text-2); overflow-wrap: anywhere; }
+.pya-secret__text span.is-bad { color: var(--adm-crit); font-weight: 700; }
+.pya-secret .adm-btn { min-height: var(--ops-tap); flex: none; }
+
+.pya-fields { display: grid; grid-template-columns: 1fr 1fr 10rem; gap: 0.7rem; align-items: end; }
+
+.pya-test {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    padding: 0.7rem 0.9rem;
+    border-radius: 14px;
+    background: var(--sky);
+    font-size: 0.82rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+.pya-test i { margin-top: 0.35rem; }
+.pya-test.is-good { background: var(--adm-good-bg); color: var(--adm-good); }
+.pya-test.is-crit { background: var(--adm-crit-bg); color: var(--adm-crit); }
+
+.pya .adm-error { margin-top: 0; }
+
+.pya-actions { display: flex; gap: 0.6rem; justify-content: flex-end; flex-wrap: wrap; }
+.pya-actions .adm-btn { min-height: var(--ops-tap); }
+
+.pya-dialog h3 { margin: 0 0 0.2rem; font-size: 1.5rem; }
+.pya-dialog .adm-error { margin: 0.8rem 0 0; }
+.pya-dialog__actions { margin-top: 1rem; }
+.pya-dialog__actions .adm-btn { min-height: var(--ops-tap); }
+
+@media (max-width: 720px) {
+    .pya-fields { grid-template-columns: 1fr; }
+    .pya-actions .adm-btn { flex: 1; }
+    .pya-secret { flex-wrap: wrap; }
+    .pya-secret .adm-btn { width: 100%; }
+    .pya-dialog__actions .adm-btn { flex: 1; }
+}

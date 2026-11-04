@@ -41,6 +41,7 @@ import { CardPaymentsPanel } from "./admin/card-payments-panel";
 import { ClientUpdateNoticePanel } from "./admin/client-update-notice-panel";
 import { DeliveryModePanel } from "./admin/delivery-panel";
 import { PastaModePanel } from "./admin/pasta-mode-panel";
+import { PedidosYaPanel } from "./admin/pedidosya-panel";
 
 import "@/styles/ops.css";
 import "./admin.css";
@@ -223,6 +224,7 @@ const AdminDashboard = ({ token, personName, onLogout, onTokenChange }: IAdminDa
                 <ClientUpdateNoticePanel token={token} onSessionExpired={onLogout} />
             </>
         ),
+        pedidosya: () => <PedidosYaPanel token={token} onSessionExpired={onLogout} />,
         acceso: () => (
             <AccessPanel
                 kind="adm"

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 /** Las secciones del tablero. El id es el que va en la dirección: /admin?s=inventario. */
-export type AdminSection = "resumen" | "ventas" | "web" | "clientes" | "inventario" | "menu" | "promos" | "combos" | "inicio" | "caja" | "local" | "colaboradores" | "acceso";
+export type AdminSection = "resumen" | "ventas" | "web" | "clientes" | "inventario" | "menu" | "promos" | "combos" | "inicio" | "caja" | "local" | "pedidosya" | "colaboradores" | "acceso";
 
 export interface IAdminSectionInfo {
     id: AdminSection;
@@ -148,6 +148,20 @@ export const ADMIN_GROUPS: IAdminSectionGroup[] = [
                     <>
                         <path d="M3 9l1.5-5h15L21 9M3 9h18M3 9v11h18V9" />
                         <path d="M9 20v-6h6v6" />
+                    </>
+                ),
+            },
+            {
+                // Conexión con PedidosYa: claves cifradas, ambiente y prueba (ventas llegan en otra fase)
+                id: "pedidosya",
+                label: "PedidosYa",
+                subtitle: "Lo que entra por la app, aparte de la caja y de la web. Solo admins.",
+                source: "Postgres",
+                icon: (
+                    <>
+                        <circle cx="6" cy="17" r="3" />
+                        <circle cx="18" cy="17" r="3" />
+                        <path d="M6 17h5l3-7h4M14 10l-2-4H9M18 17l-2-7" />
                     </>
                 ),
             },
