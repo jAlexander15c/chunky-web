@@ -70,6 +70,8 @@
 /* Mi acceso */
 .sa-panel { display: grid; gap: 1rem; max-width: 640px; }
 .sa-panel--ges { padding: var(--gutter); }
+/* En el tablero usa todo el ancho: bloques de a dos cuando caben */
+.sa-panel--adm { max-width: none; grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); align-items: start; }
 
 .sa-block {
     background: #fffef6;

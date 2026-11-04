@@ -1,6 +1,6 @@
 /* ============ PedidosYa: conexión ============ */
 
-.pya-card { display: grid; gap: 1rem; max-width: 46rem; }
+.pya-card { display: grid; gap: 1rem; }
 
 .pya-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.8rem 1rem; flex-wrap: wrap; }
 .pya-head__text { min-width: 0; flex: 1 1 14rem; }
@@ -44,7 +44,8 @@
 .pya-url--fold summary { cursor: pointer; font-size: 0.8rem; font-weight: 700; color: var(--adm-text-2); min-height: var(--ops-tap); display: flex; align-items: center; }
 .pya-url--fold .pya-input { margin-bottom: 0.2rem; }
 
-.pya-secrets { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+/* Las tres claves lado a lado cuando hay ancho; una debajo de otra en el celular */
+.pya-secrets { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); }
 
 .pya-secret {
     display: flex;

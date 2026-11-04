@@ -216,13 +216,16 @@ const AdminDashboard = ({ token, personName, onLogout, onTokenChange }: IAdminDa
         inicio: () => <AdminSite token={token} onSessionExpired={onLogout} />,
         caja: () => <AdminCaja token={token} onSessionExpired={onLogout} />,
         local: () => (
-            <>
+            // Horario a la izquierda y los interruptores a la derecha en pantallas anchas
+            <div className="adm-local">
                 <AdminHours token={token} onSessionExpired={onLogout} />
-                <DeliveryModePanel token={token} onSessionExpired={onLogout} />
-                <CardPaymentsPanel token={token} onSessionExpired={onLogout} />
-                <PastaModePanel token={token} onSessionExpired={onLogout} />
-                <ClientUpdateNoticePanel token={token} onSessionExpired={onLogout} />
-            </>
+                <div className="adm-local__switches">
+                    <DeliveryModePanel token={token} onSessionExpired={onLogout} />
+                    <CardPaymentsPanel token={token} onSessionExpired={onLogout} />
+                    <PastaModePanel token={token} onSessionExpired={onLogout} />
+                    <ClientUpdateNoticePanel token={token} onSessionExpired={onLogout} />
+                </div>
+            </div>
         ),
         pedidosya: () => <PedidosYaPanel token={token} onSessionExpired={onLogout} />,
         acceso: () => (
