@@ -245,7 +245,7 @@ export const RecipeDialog = ({
                             en sus unidades de consumo.
                         </p>
                         <div className="adm-scroll">
-                            <table className="adm-table adm-table--compact">
+                            <table className="adm-table adm-table--compact ops-stack">
                                 <thead>
                                     <tr>
                                         <th>Ingrediente</th>
@@ -257,8 +257,8 @@ export const RecipeDialog = ({
                                 <tbody>
                                     {recipe.ingredients.map((i, index) => (
                                         <tr key={i.inventoryItemId}>
-                                            <td>{i.name ?? supplies.find((s) => s.id === i.inventoryItemId)?.name}</td>
-                                            <td>
+                                            <td data-label="Ingrediente">{i.name ?? supplies.find((s) => s.id === i.inventoryItemId)?.name}</td>
+                                            <td data-label="Cantidad">
                                                 <input
                                                     aria-label={"Cantidad de " + i.name}
                                                     className="adm-form__input"
@@ -279,7 +279,7 @@ export const RecipeDialog = ({
                                                     }
                                                 />
                                             </td>
-                                            <td>
+                                            <td data-label="Unidad">
                                                 <select
                                                     aria-label={"Unidad de " + i.name}
                                                     className="adm-form__input"
@@ -302,7 +302,7 @@ export const RecipeDialog = ({
                                                     ))}
                                                 </select>
                                             </td>
-                                            <td>
+                                            <td className="ops-stack__actions">
                                                 <button
                                                     className="adm-btn adm-btn--sm"
                                                     onClick={() =>
@@ -520,7 +520,7 @@ export const RecipeDialog = ({
                                         {preview ? (
                                             <>
                                                 <div className="adm-scroll">
-                                                    <table className="adm-table">
+                                                    <table className="adm-table ops-stack">
                                                         <thead>
                                                             <tr>
                                                                 <th>Ingrediente</th>
@@ -534,14 +534,14 @@ export const RecipeDialog = ({
                                                                     key={i.inventoryItemId}
                                                                     className={i.sufficient ? "" : "is-crit"}
                                                                 >
-                                                                    <td>
+                                                                    <td data-label="Ingrediente">
                                                                         {i.name}
                                                                         {!i.sufficient ? " · Insuficiente" : ""}
                                                                     </td>
-                                                                    <td>
+                                                                    <td data-label="Necesario">
                                                                         {i.needed} {i.unit}
                                                                     </td>
-                                                                    <td>
+                                                                    <td data-label="Disponible">
                                                                         {i.available} {i.unit}
                                                                     </td>
                                                                 </tr>

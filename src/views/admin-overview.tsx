@@ -13,9 +13,10 @@ import {
 } from "@/helpers";
 import type { ICreditTicket, IDashboard, IFinanceReport, IProductStatus, ISupplyStatus, IWebReport } from "@/helpers";
 
-import { StatTile } from "./admin-finance";
+import { StatTile } from "./admin/stat-tile";
 import { HourChart } from "./admin-hour-chart";
 import type { AdminSection } from "./admin-sections";
+import { OpsEmpty } from "@/components";
 
 /** Viene de public/: la misma mascota pequeña de los correos. */
 const MASCOTA_SRC = "/correo/mascota.png";
@@ -331,9 +332,9 @@ export const AdminOverview = ({ token, onSessionExpired, refreshKey, dashboard, 
                         {!day ? (
                             <div className="adm-skeleton adm-skeleton--list" aria-hidden="true" />
                         ) : day.today.topProductsNote === "sin-conexion" ? (
-                            <p className="adm-empty">Loyverse no respondió en esta carga: vuelve a intentar en un minuto.</p>
+                            <OpsEmpty title="Loyverse no respondió en esta carga: vuelve a intentar en un minuto." />
                         ) : topToday.length === 0 ? (
-                            <p className="adm-empty">Todavía no se vende nada hoy.</p>
+                            <OpsEmpty title="Todavía no se vende nada hoy." />
                         ) : (
                             <div className="adm-bars">
                                 {topToday.map((product) => (

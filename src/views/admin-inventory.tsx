@@ -1,18 +1,15 @@
-import {ProductLotDialog} from "./inventory-arrival-dialog";
-import {ProductRecipeDialog} from "./inventory-product-dialog";
-import {fetchInventoryReceiptFailures,availabilityLabel} from "@/helpers/inventory";
-import type {InventoryReceiptFailure,ProductAvailability} from "@/helpers/inventory";
-import {PurchaseDialog} from "./inventory-purchase-dialog";
-import {InventoryBatchDialog} from "./inventory-batch-dialog";
-import {SupplyToProductDialog} from "./supply-to-product-dialog";
-import {WASTE_REASON_LABEL} from "@/helpers/product-waste";
-import type {IWasteMovement} from "@/helpers/product-waste";
-import {compatibleUnits,expirationLabel,isIntermediate} from "@/helpers/inventory";
-import type {InventoryType} from "@/helpers/inventory";
+import { ProductLotDialog } from "./inventory-arrival-dialog";
+import { ProductRecipeDialog } from "./inventory-product-dialog";
+import { fetchInventoryReceiptFailures, availabilityLabel } from "@/helpers/inventory";
+import type { InventoryReceiptFailure, ProductAvailability } from "@/helpers/inventory";
+import { PurchaseDialog } from "./inventory-purchase-dialog";
+import { InventoryBatchDialog } from "./inventory-batch-dialog";
+import { SupplyToProductDialog } from "./supply-to-product-dialog";
+import { WASTE_REASON_LABEL } from "@/helpers/product-waste";
+import type { IWasteMovement } from "@/helpers/product-waste";
+import { expirationLabel, isIntermediate } from "@/helpers/inventory";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { FormEvent } from "react";
-
-import { AmountDialog } from "@/components";
+import { AmountDialog, OpsEmpty, OpsSkeleton } from "@/components";
 import {
     HttpError,
     SUPPLY_CATEGORY_LABEL,
@@ -26,10 +23,7 @@ import {
     formatInPresentation,
     formatQuantity,
     changeSupplyUnit,
-    getPlural,
     getPresentation,
-    isCountUnit,
-    roundQuantity,
     getPageSlice,
     getSafePage,
     registerCount,
@@ -37,450 +31,37 @@ import {
     registerWaste,
     updateSupply,
 } from "@/helpers";
-import type {
-    IMovement,
-    IProductStatus,
-    ISupplyInput,
-    ISupplyStatus,
-    MovementType,
-    ProductState,
-    SupplyCategory,
-    SupplyState,
-} from "@/helpers";
-
+import type { IMovement, IProductStatus, ISupplyStatus, MovementType, ProductState, SupplyCategory, SupplyState } from "@/helpers";
 import { AdminBuyNow } from "./admin-buy-now";
 import { AdminPagination } from "./admin-pagination";
 import { AdminWaste } from "./admin-waste";
-
-/** La cocina carga producción mientras alguien mira: se refresca solo. */
-const REFRESH_MS = 60000;
-const TABLE_PAGE_SIZE = 8;
-const MOVEMENTS_PAGE_SIZE = 10;
-const SEARCH_DEBOUNCE_MS = 300;
-
-const SUPPLY_STATE_LABEL: Record<SupplyState, string> = {
-    comprar: "Comprar",
-    pedir: "Pedir pronto",
-    contar: "Contar",
-    bien: "Bien",
-};
-
-const SUPPLY_STATE_TONE: Record<SupplyState, string> = {
-    comprar: "crit",
-    pedir: "warn",
-    contar: "warn",
-    bien: "ok",
-};
-
-/** Lo urgente primero: así se leen en "Primero lo urgente". */
-const SUPPLY_STATE_ORDER: SupplyState[] = ["comprar", "pedir", "contar", "bien"];
-
-/** La barra de "Alcanza" se llena del todo con esta cantidad de días: más que eso ya no preocupa. */
-const COVERAGE_FULL_DAYS = 14;
-
-type CoverageTone = "crit" | "warn" | "ok";
-
-/**
- * De qué color va la barra de "Alcanza" según los días que quedan al ritmo de consumo actual.
- * TODO(usuario): decidir los cortes. Dependen de cuánto tarda cada proveedor en entregar.
- */
-const getCoverageTone = (daysLeft: number): CoverageTone => {
-    if (daysLeft < 3) return "crit";
-    if (daysLeft < 7) return "warn";
-    return "ok";
-};
-
-/** Cuántos días alcanza el insumo, en número y en barra. Sin dos conteos no hay consumo y no se inventa un número. */
-const CoverageBar = ({ daysLeft }: { daysLeft: number | null }) => {
-    if (daysLeft === null) return <span className="adm-nodata">falta un 2.º conteo</span>;
-
-    return (
-        <span className={`adm-cover is-${getCoverageTone(daysLeft)}`}>
-            <span className="adm-cover__track" aria-hidden="true">
-                <i style={{ width: `${Math.min(100, Math.max(4, (daysLeft / COVERAGE_FULL_DAYS) * 100))}%` }} />
-            </span>
-            <b>{daysLeft} d</b>
-        </span>
-    );
-};
-
-const PRODUCT_STATE_LABEL: Record<ProductState, string> = {
-    agotado: "Agotado",
-    poco: "Queda poco",
-    disponible: "A la venta",
-    "sin-control": "Sin control",
-};
-
-const PRODUCT_STATE_TONE: Record<ProductState, string> = {
-    agotado: "crit",
-    poco: "warn",
-    disponible: "ok",
-    "sin-control": "idle",
-};
-
-const PRODUCT_STATES: ProductState[] = ["agotado", "poco", "disponible", "sin-control"];
-
-const MOVEMENT_LABEL: Record<MovementType, string> = {
-    compra: "Compra",
-    conteo: "Conteo",
-    produccion: "Producción",
-    venta: "Venta",
-    merma: "Merma",
-    ajuste: "Ajuste",
-    consumo:"Consumo de receta",vencimiento:"Vencimiento",faltante:"Faltante",
-};
-
-const MOVEMENT_TYPES: MovementType[] = ["compra", "conteo", "produccion", "venta", "merma", "ajuste","consumo","vencimiento","faltante"];
-
-const getMovementOrigin = (movement: IMovement) => {
-    const from = movement.source === "web" ? "web" : movement.source === "loyverse" ? "mostrador" : "local";
-    return movement.reference ? `${movement.reference} · ${from}` : from;
-};
-
-type SupplySort = "urgente" | "nombre" | "dias" | "conteo";
-
-const SUPPLY_SORTS: { id: SupplySort; label: string }[] = [
-    { id: "urgente", label: "Primero lo urgente" },
-    { id: "nombre", label: "Nombre A–Z" },
-    { id: "dias", label: "Alcanza menos días" },
-    { id: "conteo", label: "Conteo más viejo" },
-];
-
-/** Sin dato se va al final: un insumo sin conteos no es el que menos dura. */
-const compareNullable = (a: number | null, b: number | null) => (a ?? Infinity) - (b ?? Infinity);
-
-const getSortedSupplies = (supplies: ISupplyStatus[], sort: SupplySort) =>
-    [...supplies].sort((a, b) => {
-        if (sort === "nombre") return a.name.localeCompare(b.name, "es");
-        if (sort === "dias") return compareNullable(a.daysLeft, b.daysLeft) || a.name.localeCompare(b.name, "es");
-        // El conteo más viejo primero; nunca contado es lo más viejo que hay
-        if (sort === "conteo") return (b.countAge ?? Infinity) - (a.countAge ?? Infinity) || a.name.localeCompare(b.name, "es");
-        return (
-            SUPPLY_STATE_ORDER.indexOf(a.state) - SUPPLY_STATE_ORDER.indexOf(b.state) ||
-            compareNullable(a.daysLeft, b.daysLeft) ||
-            a.name.localeCompare(b.name, "es")
-        );
-    });
-
-/** Sin tildes ni mayúsculas: "azucar" encuentra "Azúcar". */
-const getSearchKey = (value: string) =>
-    value
-        .normalize("NFD")
-        .replace(/[̀-ͯ]/g, "")
-        .toLowerCase()
-        .trim();
-
-const useDebouncedValue = (value: string, delay: number) => {
-    const [debounced, setDebounced] = useState(value);
-
-    useEffect(() => {
-        const timer = window.setTimeout(() => setDebounced(value), delay);
-        return () => window.clearTimeout(timer);
-    }, [value, delay]);
-
-    return debounced;
-};
-
-/* ============ Alta y edición de insumo ============ */
-
-const SUPPLY_UNITS = [
-    { value: "kg", label: "kilos (kg)" },
-    { value: "g", label: "gramos (g)" },
-    { value: "L", label: "litros (L)" },
-    { value: "ml", label: "mililitros (ml)" },
-    { value: "u", label: "unidades (u)" },
-    {value:"slice",label:"rebanadas"},
-    {value:"portion",label:"porciones"},
-];
-
-const SUPPLY_CATEGORIES: SupplyCategory[] = ["alimento", "limpieza", "mantenimiento"];
-
-/** Un insumo en "u" cuya presentación trae ml o g: al guardar pasa a medirse en ml o g. */
-interface ISupplyConversion {
-    unit: string;
-    perUnit: string;
-    presentation: string;
-}
-
-interface ISupplyFormProps {
-    /** Con un insumo es edición: el formulario arranca con sus datos. */
-    supply?: ISupplyStatus;
-    onSave: (supply: ISupplyInput, conversion?: ISupplyConversion) => Promise<void>;
-    onClose: () => void;
-    /** Solo al editar: el insumo se vende tal cual y pasa a lotes del producto del menú. */
-    onConvertToProduct?: () => void;
-}
-
-const SupplyFormDialog = ({ supply, onSave, onClose, onConvertToProduct }: ISupplyFormProps) => {
-    const isEditing = Boolean(supply);
-    const [name, setName] = useState(supply?.name ?? "");
-    const [unit, setUnit] = useState(supply?.unit ?? "kg");
-    const [category, setCategory] = useState<SupplyCategory>(supply?.category ?? "alimento");
-    const [minStock, setMinStock] = useState(supply ? formatQuantity(supply.minStock) : "");
-    const [supplier, setSupplier] = useState(supply?.supplier ?? "");
-    const [purchaseUnit, setPurchaseUnit] = useState(supply?.purchaseUnit ?? "");
-    const [purchaseSize, setPurchaseSize] = useState(supply?.purchaseSize ? formatQuantity(supply.purchaseSize) : "");
-    const [inventoryType,setInventoryType]=useState<InventoryType>(supply?.inventoryType ?? "RAW_MATERIAL");
-    const [contentUnit,setContentUnit]=useState(supply?.contentUnit ?? supply?.unit ?? "kg");
-    const [isPerishable,setIsPerishable]=useState(supply?.isPerishable ?? false);
-    const [shelfLifeDays,setShelfLifeDays]=useState(supply?.shelfLifeDays ? String(supply.shelfLifeDays) : "");
-    const [error, setError] = useState("");
-    const [isSending, setIsSending] = useState(false);
-
-    const toNumber = (value: string) => Number(value.replace(",", "."));
-    // "u" con contenido en ml o g: las recetas lo piden en ml o g, así que al guardar pasa a medirse así
-    // Un elaborado se crea en Gestión con su receta; aquí no cambia de tipo ni de unidad
-    const isElaborado = inventoryType === "INTERMEDIATE";
-    const isConverting = isCountUnit(unit) && !isCountUnit(contentUnit) && inventoryType !== "PREPARED_PRODUCT" && !isElaborado;
-    const contentUnits = isCountUnit(unit) && inventoryType !== "PREPARED_PRODUCT" && !isElaborado ? [unit, "ml", "g"] : compatibleUnits(unit);
-    const size = toNumber(purchaseSize);
-
-    const submit = async (event: FormEvent) => {
-        event.preventDefault();
-
-        const parsedMin = minStock.trim() ? toNumber(minStock) : 0;
-        const parsedSize = purchaseSize.trim() ? toNumber(purchaseSize) : undefined;
-
-        if (name.trim().length < 2) {
-            setError("El nombre necesita al menos dos letras.");
-            return;
-        }
-        if (!Number.isFinite(parsedMin) || parsedMin < 0) {
-            setError("El mínimo tiene que ser un número.");
-            return;
-        }
-        // El API rechaza un tamaño de compra en cero: o hay un número válido, o no se manda
-        if (parsedSize !== undefined && (!Number.isFinite(parsedSize) || parsedSize <= 0)) {
-            setError("El contenido por unidad de compra tiene que ser mayor que cero.");
-            return;
-        }
-
-        if (isConverting && (!purchaseUnit.trim() || parsedSize === undefined)) {
-            setError(`Para medirlo en ${contentUnit}, escribe la presentación (ej. cartón) y cuánto trae.`);
-            return;
-        }
-
-        setIsSending(true);
-        setError("");
-
-        try {
-            await onSave(
-                {
-                    name: name.trim(),
-                    unit,
-                    category,
-                    minStock: parsedMin,
-                    supplier: supplier.trim() || undefined,
-                    // Mientras se convierte queda la presentación anterior: la nueva la guarda el cambio de unidad
-                    purchaseUnit: isConverting ? supply?.purchaseUnit ?? undefined : purchaseUnit.trim() || undefined,
-                    purchaseSize: isConverting ? supply?.purchaseSize ?? undefined : parsedSize,
-                    inventoryType,
-                    contentUnit: isConverting ? unit : contentUnit,
-                    isPerishable,
-                    shelfLifeDays: isPerishable && shelfLifeDays ? Number(shelfLifeDays) : null,
-                },
-                isConverting && parsedSize !== undefined
-                    ? { unit: contentUnit, perUnit: String(parsedSize), presentation: purchaseUnit.trim() }
-                    : undefined
-            );
-            onClose();
-        } catch (requestError) {
-            setError(
-                requestError instanceof HttpError
-                    ? requestError.message
-                    : isEditing
-                      ? "No se pudo guardar el insumo."
-                      : "No se pudo crear el insumo."
-            );
-            setIsSending(false);
-        }
-    };
-
-    return (
-        <div className="adm-modal" role="dialog" aria-modal="true" aria-label={isEditing ? `Editar ${supply?.name}` : "Nuevo insumo"}>
-            <form className="adm-modal__panel adm-modal__panel--wide" onSubmit={submit}>
-                <h3 className="script">{isEditing ? "Editar insumo" : "Nuevo insumo"}</h3>
-                <p className="adm-modal__hint">
-                    {isEditing
-                        ? "Aquí se cambian los datos, no el stock: eso va por compra, conteo o merma."
-                        : "El stock arranca en cero: se carga con el primer conteo o con una compra."}
-                </p>
-
-                <div className="adm-form">
-                    <label className="adm-form__row adm-form__row--full">
-                        <span>Nombre</span>
-                        <input
-                            className="adm-form__input"
-                            type="text"
-                            autoFocus
-                            value={name}
-                            onChange={(event) => setName(event.target.value)}
-                            placeholder="Harina panadera"
-                        />
-                    </label>
-
-                    <label className="adm-form__row">
-                        <span>Unidad de consumo</span>
-                        <select className="adm-form__input" value={unit} disabled={isEditing} onChange={(event) => {setUnit(event.target.value);setContentUnit(event.target.value);}}>
-                            {SUPPLY_UNITS.map((option) => (
-                                <option key={option.value} value={option.value}>{option.label}</option>
-                            ))}
-                        </select>
-                    </label>
-
-                    {isElaborado ? <p className="adm-form__row"><span>Tipo</span><span>Elaborado · su receta se edita en Gestión → Inventario → Recetas</span></p> : <label className="adm-form__row"><span>Tipo</span><select className="adm-form__input" value={inventoryType} onChange={e=>setInventoryType(e.target.value as InventoryType)}><option value="RAW_MATERIAL">Materia prima</option><option value="PACKAGED_ITEM">Producto empacado</option><option value="PREPARED_PRODUCT">Producto preparado</option></select></label>}
-                    <label className="adm-form__row"><span>¿Es perecedero?</span><select className="adm-form__input" value={String(isPerishable)} onChange={e=>setIsPerishable(e.target.value==="true")}><option value="false">No</option><option value="true">Sí</option></select></label>
-                    <label className="adm-form__row"><span>Vida útil predeterminada (días)</span><input className="adm-form__input" type="number" min={1} max={3650} disabled={!isPerishable} value={shelfLifeDays} onChange={e=>setShelfLifeDays(e.target.value)}/></label>
-                    <label className="adm-form__row">
-                        <span>Categoría</span>
-                        <select
-                            className="adm-form__input"
-                            value={category}
-                            onChange={(event) => setCategory(event.target.value as SupplyCategory)}
-                        >
-                            {SUPPLY_CATEGORIES.map((option) => (
-                                <option key={option} value={option}>{SUPPLY_CATEGORY_LABEL[option]}</option>
-                            ))}
-                        </select>
-                    </label>
-
-                    <label className="adm-form__row">
-                        <span>Mínimo antes de avisar</span>
-                        <input
-                            className="adm-form__input"
-                            type="text"
-                            inputMode="decimal"
-                            value={minStock}
-                            onChange={(event) => setMinStock(event.target.value)}
-                            placeholder="15"
-                        />
-                    </label>
-
-                    <label className="adm-form__row adm-form__row--full">
-                        <span>Proveedor <em>opcional</em></span>
-                        <input
-                            className="adm-form__input"
-                            type="text"
-                            value={supplier}
-                            onChange={(event) => setSupplier(event.target.value)}
-                            placeholder="Molinos Modernos"
-                        />
-                    </label>
-
-                    <label className="adm-form__row">
-                        <span>Presentación de compra <em>opcional</em></span>
-                        <input
-                            className="adm-form__input"
-                            type="text"
-                            value={purchaseUnit}
-                            onChange={(event) => setPurchaseUnit(event.target.value)}
-                            placeholder="saco"
-                        />
-                    </label>
-
-                    <label className="adm-form__row">
-                        <span>Contenido por presentación</span>
-                        <input
-                            className="adm-form__input"
-                            type="text"
-                            inputMode="decimal"
-                            value={purchaseSize}
-                            onChange={(event) => setPurchaseSize(event.target.value)}
-                            placeholder="25"
-                        />
-                    </label>
-                    <label className="adm-form__row"><span>Unidad del contenido</span><select className="adm-form__input" value={contentUnit} onChange={e=>setContentUnit(e.target.value)}>{contentUnits.map(u=><option key={u}>{u}</option>)}</select></label>
-                </div>
-
-                <p className="adm-form__note">
-                    {isConverting && purchaseUnit && Number.isFinite(size) && size > 0 ? (
-                        <>
-                            Al guardar, {name || "el insumo"} pasa a medirse en {contentUnit}: 1 {unit} = 1 {purchaseUnit} = {purchaseSize} {contentUnit}.
-                            {supply
-                                ? ` Hoy hay ${formatQuantity(supply.stock)} ${unit}: quedarán ${formatQuantity(roundQuantity(supply.stock * size))} ${contentUnit}, y el mínimo y las recetas se convierten igual.`
-                                : ` El mínimo se escribe en ${unit} y se convierte también.`}{" "}
-                            Se sigue contando como "3 {getPlural(purchaseUnit)} y 400 {contentUnit}".
-                        </>
-                    ) : purchaseUnit && purchaseSize ? (
-                        <>1 {purchaseUnit} contiene {purchaseSize} {contentUnit}. Las compras se convertirán a {unit} antes de agregarse al inventario.</>
-                    ) : (
-                        "Configura la presentación y su contenido para comprar en paquetes, cajas o sacos."
-                    )}
-                </p>
-
-                {onConvertToProduct && !isElaborado && supply?.inventoryType !== "PREPARED_PRODUCT" ? (
-                    <p className="adm-form__note">
-                        <button type="button" className="adm-link" onClick={onConvertToProduct} disabled={isSending}>
-                            Es un producto del menú →
-                        </button>{" "}
-                        Se vende tal cual: pásalo a lotes y deja de avisar para comprar.
-                    </p>
-                ) : null}
-
-                {error ? <p className="adm-gate__error">{error}</p> : null}
-
-                <div className="adm-modal__actions">
-                    <button type="button" className="adm-btn" onClick={onClose} disabled={isSending}>Cancelar</button>
-                    <button type="submit" className="adm-btn adm-btn--solid" disabled={isSending}>
-                        {isEditing ? (isSending ? "Guardando…" : "Guardar cambios") : isSending ? "Creando…" : "Crear insumo"}
-                    </button>
-                </div>
-            </form>
-        </div>
-    );
-};
+import {
+    REFRESH_MS,
+    TABLE_PAGE_SIZE,
+    MOVEMENTS_PAGE_SIZE,
+    SEARCH_DEBOUNCE_MS,
+    SUPPLY_CATEGORIES,
+    SUPPLY_STATE_LABEL,
+    SUPPLY_STATE_TONE,
+    SUPPLY_STATE_ORDER,
+    PRODUCT_STATE_LABEL,
+    PRODUCT_STATE_TONE,
+    PRODUCT_STATES,
+    MOVEMENT_LABEL,
+    MOVEMENT_TYPES,
+    getMovementOrigin,
+    SUPPLY_SORTS,
+    getSortedSupplies,
+    getSearchKey,
+    useDebouncedValue,
+} from "./admin/inventory-helpers";
+import type { SupplySort } from "./admin/inventory-helpers";
+import { CoverageBar, FilterChips, SearchInput } from "./admin/inventory-filters";
+import { SupplyFormDialog } from "./admin/inventory-supply-form";
 
 type PendingAction =
     | { kind: "purchase" | "count" | "waste" | "edit" | "batches" | "to-product"; supply: ISupplyStatus }
     | { kind: "production" | "arrival"; product: IProductStatus };
-
-/* ============ Piezas de filtro ============ */
-
-interface IFilterChipsProps<T extends string> {
-    label: string;
-    options: { id: T; label: string; count?: number }[];
-    value: T;
-    onChange: (value: T) => void;
-}
-
-const FilterChips = <T extends string>({ label, options, value, onChange }: IFilterChipsProps<T>) => (
-    <div className="adm-filter" role="group" aria-label={label}>
-        <span className="adm-filter__label">{label}</span>
-        {options.map((option) => (
-            <button
-                key={option.id}
-                type="button"
-                className="adm-chip"
-                aria-pressed={value === option.id}
-                onClick={() => onChange(option.id)}
-            >
-                {option.label}
-                {option.count !== undefined ? <span className="adm-chip__count">{option.count}</span> : null}
-            </button>
-        ))}
-    </div>
-);
-
-const SearchInput = ({ id, label, value, onChange, placeholder }: {
-    id: string;
-    label: string;
-    value: string;
-    onChange: (value: string) => void;
-    placeholder: string;
-}) => (
-    <>
-        <label htmlFor={id} className="adm-sr-only">{label}</label>
-        <input
-            id={id}
-            className="adm-search"
-            type="search"
-            value={value}
-            placeholder={placeholder}
-            autoComplete="off"
-            onChange={(event) => onChange(event.target.value)}
-        />
-    </>
-);
 
 /* ============ Inventario ============ */
 
@@ -664,7 +245,7 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey, from, to }
         setMovementPage(1);
     };
 
-    if (isLoading) return <p className="adm-gate__loading script adm-loading">Cargando el inventario…</p>;
+    if (isLoading) return <OpsSkeleton label="Cargando el inventario…" />;
 
     return (
         <>
@@ -737,10 +318,7 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey, from, to }
                     </div>
 
                     {supplies.length === 0 ? (
-                        <p className="adm-empty">
-                            Todavía no hay insumos cargados. Cuando agregues el primero y lo cuentes dos veces,
-                            aquí aparece cuánto se gasta por día y cuándo comprar.
-                        </p>
+                        <OpsEmpty title="Todavía no hay insumos cargados. Cuando agregues el primero y lo cuentes dos veces, aquí aparece cuánto se gasta por día y cuándo comprar." />
                     ) : filteredSupplies.length === 0 ? (
                         <p className="adm-empty">
                             Ningún insumo con esos filtros.{" "}
@@ -851,10 +429,7 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey, from, to }
 
                 <div className="adm-card">
                     {products.length === 0 ? (
-                        <p className="adm-empty">
-                            Ningún producto está bajo control de stock todavía. Al activarlos, cada venta los
-                            descuenta sola y al llegar a cero se apagan en Loyverse.
-                        </p>
+                        <OpsEmpty title="Ningún producto está bajo control de stock todavía. Al activarlos, cada venta los descuenta sola y al llegar a cero se apagan en Loyverse." />
                     ) : (
                         <>
                             <div className="adm-toolbar">
@@ -883,7 +458,7 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey, from, to }
                             </div>
 
                             {filteredProducts.length === 0 ? (
-                                <p className="adm-empty">Ningún producto con esos filtros.</p>
+                                <OpsEmpty title="Ningún producto con esos filtros." />
                             ) : (
                                 <>
                                     <div className="adm-scroll">

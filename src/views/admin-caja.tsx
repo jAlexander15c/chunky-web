@@ -25,6 +25,7 @@ import {
 import type { ICreditTicket, IFund, IShiftDetail, IShiftRow, ManualFundMovementType } from "@/helpers";
 
 import { AdminPagination } from "./admin-pagination";
+import { OpsEmpty, OpsSkeleton } from "@/components";
 
 /** Pocas filas por tabla: la caja se lee sin scrollear. */
 const CAJA_PAGE_SIZE = 8;
@@ -398,7 +399,7 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
                         />
                         <button
                             type="button"
-                            className="adm-btn adm-btn--solid adm-btn--sm"
+                            className="adm-btn adm-btn--sm"
                             onClick={() => void saveTables()}
                             disabled={isSaving || draftTables === String(tables)}
                         >
@@ -410,13 +411,10 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
                 {error ? <p className="adm-error">{error}</p> : null}
 
                 {shifts.length === 0 ? (
-                    <p className="adm-empty">
-                        Ningún turno todavía. Cuando el cajero abra la caja en /gestion y la cierre, el arqueo
-                        aparece aquí con lo esperado, lo contado y la diferencia.
-                    </p>
+                    <OpsEmpty title="Ningún turno todavía. Cuando el cajero abra la caja en /gestion y la cierre, el arqueo aparece aquí con lo esperado, lo contado y la diferencia." />
                 ) : (
                     <div className="adm-scroll">
-                        <table className="adm-table adm-table--compact">
+                        <table className="adm-table adm-table--compact ops-stack">
                             <thead>
                                 <tr>
                                     <th>Abrió</th>
@@ -437,35 +435,39 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
                                     return (
                                         <Fragment key={shift.id}>
                                             <tr className={isExpanded ? "is-expanded" : ""}>
-                                                <td className="adm-name">
-                                                    <button
-                                                        type="button"
-                                                        className="adm-shift-toggle"
-                                                        aria-expanded={isExpanded}
-                                                        onClick={() => void toggleShift(shift.id)}
-                                                    >
-                                                        <span className="adm-shift-toggle__chev" aria-hidden="true">›</span>
-                                                        {shift.openedByName}
-                                                    </button>
-                                                    <em>{formatMoment(shift.openedAt)}</em>
+                                                <td className="adm-name" data-label="Abrió">
+                                                    <span className="ops-stack__value">
+                                                        <button
+                                                            type="button"
+                                                            className="adm-shift-toggle"
+                                                            aria-expanded={isExpanded}
+                                                            onClick={() => void toggleShift(shift.id)}
+                                                        >
+                                                            <span className="adm-shift-toggle__chev" aria-hidden="true">›</span>
+                                                            {shift.openedByName}
+                                                        </button>
+                                                        <em>{formatMoment(shift.openedAt)}</em>
+                                                    </span>
                                                 </td>
-                                                <td className="adm-name">
-                                                    {shift.closedAt ? (
-                                                        <>
-                                                            {shift.closedByName}
-                                                            <em>{formatMoment(shift.closedAt)}</em>
-                                                        </>
-                                                    ) : (
-                                                        <span className="adm-pill is-warn">En curso</span>
-                                                    )}
+                                                <td className="adm-name" data-label="Cerró">
+                                                    <span className="ops-stack__value">
+                                                        {shift.closedAt ? (
+                                                            <>
+                                                                {shift.closedByName}
+                                                                <em>{formatMoment(shift.closedAt)}</em>
+                                                            </>
+                                                        ) : (
+                                                            <span className="adm-pill is-warn">En curso</span>
+                                                        )}
+                                                    </span>
                                                 </td>
-                                                <td className="num">{formatMoney(shift.startingCash)}</td>
-                                                <td className="num">{formatOptionalMoney(shift.salesCash)}</td>
-                                                <td className="num">{formatOptionalMoney(shift.salesCard)}</td>
-                                                <td className="num">{formatOptionalMoney(shift.salesYappy)}</td>
-                                                <td className="num">{shift.expectedCash === null ? "—" : formatMoney(shift.expectedCash)}</td>
-                                                <td className="num">{shift.countedCash === null ? "—" : formatMoney(shift.countedCash)}</td>
-                                                <td className="num">
+                                                <td className="num" data-label="Fondo">{formatMoney(shift.startingCash)}</td>
+                                                <td className="num" data-label="Efectivo">{formatOptionalMoney(shift.salesCash)}</td>
+                                                <td className="num" data-label="Tarjeta">{formatOptionalMoney(shift.salesCard)}</td>
+                                                <td className="num" data-label="Yappy">{formatOptionalMoney(shift.salesYappy)}</td>
+                                                <td className="num" data-label="Esperado">{shift.expectedCash === null ? "—" : formatMoney(shift.expectedCash)}</td>
+                                                <td className="num" data-label="Contado">{shift.countedCash === null ? "—" : formatMoney(shift.countedCash)}</td>
+                                                <td className="num" data-label="Diferencia">
                                                     {shift.difference === null ? (
                                                         "—"
                                                     ) : (
@@ -484,7 +486,7 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
                                                         ) : detailError ? (
                                                             <p className="adm-error">{detailError}</p>
                                                         ) : (
-                                                            <p className="adm-note">Cargando cuentas…</p>
+                                                            <OpsSkeleton label="Cargando cuentas…" />
                                                         )}
                                                     </td>
                                                 </tr>
@@ -515,10 +517,10 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
                 </div>
 
                 {credits.length === 0 ? (
-                    <p className="adm-empty">Nadie debe nada.</p>
+                    <OpsEmpty title="Nadie debe nada." />
                 ) : (
                     <div className="adm-scroll">
-                        <table className="adm-table adm-table--compact">
+                        <table className="adm-table adm-table--compact ops-stack">
                             <thead>
                                 <tr>
                                     <th>Quién</th>
@@ -532,19 +534,21 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
                                     const age = credit.creditAt ? getCreditAge(credit.creditAt) : null;
                                     return (
                                         <tr key={credit.id}>
-                                            <td className="adm-name">{credit.customerName ?? credit.label}</td>
-                                            <td>{credit.tableNumber !== null ? `Mesa ${credit.tableNumber}` : "Para llevar"}</td>
-                                            <td className="adm-name">
-                                                {credit.creditAt ? formatCreditDay(credit.creditAt) : "—"}
-                                                {age ? (
-                                                    <>
-                                                        {" "}
-                                                        <span className={`adm-pill is-${age.isOld ? "warn" : "idle"}`}>{age.label}</span>
-                                                    </>
-                                                ) : null}
-                                                {credit.creditByName ? <em>dio {credit.creditByName}</em> : null}
+                                            <td className="adm-name" data-label="Quién">{credit.customerName ?? credit.label}</td>
+                                            <td data-label="Cuenta">{credit.tableNumber !== null ? `Mesa ${credit.tableNumber}` : "Para llevar"}</td>
+                                            <td className="adm-name" data-label="Desde">
+                                                <span className="ops-stack__value">
+                                                    {credit.creditAt ? formatCreditDay(credit.creditAt) : "—"}
+                                                    {age ? (
+                                                        <>
+                                                            {" "}
+                                                            <span className={`adm-pill is-${age.isOld ? "warn" : "idle"}`}>{age.label}</span>
+                                                        </>
+                                                    ) : null}
+                                                    {credit.creditByName ? <em>dio {credit.creditByName}</em> : null}
+                                                </span>
                                             </td>
-                                            <td className="num">{formatMoney(credit.total)}</td>
+                                            <td className="num" data-label="Monto">{formatMoney(credit.total)}</td>
                                         </tr>
                                     );
                                 })}
@@ -577,12 +581,10 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
                     </div>
 
                     {fund.movements.length === 0 ? (
-                        <p className="adm-empty">
-                            Ningún movimiento todavía. Registra un ajuste con lo que hay hoy en el fondo para empezar.
-                        </p>
+                        <OpsEmpty title="Ningún movimiento todavía. Registra un ajuste con lo que hay hoy en el fondo para empezar." />
                     ) : (
                         <div className="adm-scroll">
-                            <table className="adm-table adm-table--compact">
+                            <table className="adm-table adm-table--compact ops-stack">
                                 <thead>
                                     <tr>
                                         <th>Cuándo</th>
@@ -594,13 +596,15 @@ export const AdminCaja = ({ token, onSessionExpired }: { token: string; onSessio
                                 <tbody>
                                     {getPageSlice(fund.movements, currentFundPage, CAJA_PAGE_SIZE).map((one) => (
                                         <tr key={one.id}>
-                                            <td className="adm-name">{formatMoment(one.createdAt)}</td>
-                                            <td className="adm-name">
-                                                {FUND_MOVEMENT_LABEL[one.type]}
-                                                <em>{one.reason}</em>
+                                            <td className="adm-name" data-label="Cuándo">{formatMoment(one.createdAt)}</td>
+                                            <td className="adm-name" data-label="Movimiento">
+                                                <span className="ops-stack__value">
+                                                    {FUND_MOVEMENT_LABEL[one.type]}
+                                                    <em>{one.reason}</em>
+                                                </span>
                                             </td>
-                                            <td>{one.actorName}</td>
-                                            <td className={`num ${one.amount > 0 ? "is-in" : "is-out"}`}>
+                                            <td data-label="Quién">{one.actorName}</td>
+                                            <td className={`num ${one.amount > 0 ? "is-in" : "is-out"}`} data-label="Monto">
                                                 {one.amount > 0 ? "+" : "−"}
                                                 {formatMoney(Math.abs(one.amount))}
                                             </td>

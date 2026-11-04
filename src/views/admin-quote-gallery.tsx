@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 
-import { FullSheet } from "@/components";
+import { FullSheet, OpsSkeleton } from "@/components";
 import {
     HttpError,
     QUOTE_GALLERY_LIMITS,
@@ -341,7 +341,7 @@ export const AdminQuoteGallery = ({ token, onSessionExpired }: { token: string; 
         void load();
     };
 
-    if (isLoading) return <p className="adm-empty">Cargando la galería…</p>;
+    if (isLoading) return <OpsSkeleton label="Cargando la galería…" />;
 
     const isFull = photos.length >= QUOTE_GALLERY_MAX_PHOTOS;
 

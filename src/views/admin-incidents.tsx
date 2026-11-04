@@ -259,7 +259,7 @@ export const AdminIncidents = ({
                     </p>
                 ) : (
                     <div className="adm-scroll">
-                        <table className="adm-table adm-table--incidents">
+                        <table className="adm-table adm-table--incidents ops-stack">
                             <thead>
                                 <tr>
                                     <th>Pedido</th>
@@ -278,39 +278,47 @@ export const AdminIncidents = ({
 
                                     return (
                                         <tr key={incident.id} className={incident.needsManualAction && isOpenTab ? "is-crit" : ""}>
-                                            <td className="adm-name">
-                                                <span className="adm-mono">{incident.orderId}</span>
-                                                <em>{incident.order?.customerName ?? "Pedido desconocido"}</em>
+                                            <td className="adm-name" data-label="Pedido">
+                                                <span className="ops-stack__value">
+                                                    <span className="adm-mono">{incident.orderId}</span>
+                                                    <em>{incident.order?.customerName ?? "Pedido desconocido"}</em>
+                                                </span>
                                             </td>
-                                            <td>
+                                            <td data-label="Qué pasó">
                                                 <span className={`adm-pill is-${tone}`}>{INCIDENT_LABEL[incident.kind]}</span>
                                             </td>
-                                            <td className="adm-cause">
-                                                {getIncidentCause(incident)}
-                                                {isReceipt && incident.lastError ? <code>{incident.lastError}</code> : null}
+                                            <td className="adm-cause" data-label="Causa">
+                                                <span className="ops-stack__value">
+                                                    {getIncidentCause(incident)}
+                                                    {isReceipt && incident.lastError ? <code>{incident.lastError}</code> : null}
+                                                </span>
                                             </td>
-                                            <td>
-                                                {isReceipt ? (
-                                                    <>
-                                                        <AttemptsMeter attempts={incident.attempts} max={maxAttempts} />
-                                                        {isOpenTab ? (
-                                                            <span className="adm-cause__hint">
-                                                                {incident.nextRetryAt
-                                                                    ? getNextRetryLabel(incident.nextRetryAt)
-                                                                    : "Sin más reintentos automáticos"}
-                                                            </span>
-                                                        ) : null}
-                                                    </>
-                                                ) : (
-                                                    <span className="adm-cause__hint">—</span>
-                                                )}
+                                            <td data-label="Intentos">
+                                                <span className="ops-stack__value">
+                                                    {isReceipt ? (
+                                                        <>
+                                                            <AttemptsMeter attempts={incident.attempts} max={maxAttempts} />
+                                                            {isOpenTab ? (
+                                                                <span className="adm-cause__hint">
+                                                                    {incident.nextRetryAt
+                                                                        ? getNextRetryLabel(incident.nextRetryAt)
+                                                                        : "Sin más reintentos automáticos"}
+                                                                </span>
+                                                            ) : null}
+                                                        </>
+                                                    ) : (
+                                                        <span className="adm-cause__hint">—</span>
+                                                    )}
+                                                </span>
                                             </td>
-                                            <td className="num">{incident.order ? `B/. ${formatMoney(incident.order.total)}` : "—"}</td>
-                                            <td className="adm-name adm-nowrap">
-                                                {formatMoment(isOpenTab ? incident.firstDetectedAt : (incident.resolvedAt ?? incident.firstDetectedAt))}
-                                                {!isOpenTab && incident.resolution ? <em>{incident.resolution}</em> : null}
+                                            <td className="num" data-label="Total">{incident.order ? `B/. ${formatMoney(incident.order.total)}` : "—"}</td>
+                                            <td className="adm-name adm-nowrap" data-label={isOpenTab ? "Detectado" : "Resuelto"}>
+                                                <span className="ops-stack__value">
+                                                    {formatMoment(isOpenTab ? incident.firstDetectedAt : (incident.resolvedAt ?? incident.firstDetectedAt))}
+                                                    {!isOpenTab && incident.resolution ? <em>{incident.resolution}</em> : null}
+                                                </span>
                                             </td>
-                                            <td>
+                                            <td className="ops-stack__actions">
                                                 {isOpenTab ? (
                                                     <div className="adm-actions adm-actions--wrap">
                                                         {isReceipt ? (

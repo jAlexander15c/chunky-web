@@ -1,7 +1,7 @@
 import { AdminCombos } from "./admin-combos";
 import { AdminPromos } from "./admin-promos";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { FormEvent } from "react";
+import type { ReactNode } from "react";
 import { useSearchParams } from "react-router";
 
 import {
@@ -12,23 +12,13 @@ import {
     storeSelection,
     fetchSupplies,
     fetchStaffMe,
-    formatMoney,
     getAdminToken,
-    loadSettings,
-    loginAdmin,
     logoutAdmin,
     setAdminToken,
-    setClientUpdateNotice,
-    setCardPayments,
-    setDeliveryMode,
-    isPastaDeliveryOnly,
-    setPastaFullMenu,
-    setPastaMode,
     syncReceiptsNow,
-    useSettings,
 } from "@/helpers";
 import type { IDashboard, IStaffLogin, IStaffMe, ISupplyStatus, PeriodSelection } from "@/helpers";
-import { shouldOfferFaceId, useChoosePin, useFaceIdLogin } from "@/hooks/useStaffAccess";
+import { shouldOfferFaceId } from "@/hooks/useStaffAccess";
 
 import { AdminCaja } from "./admin-caja";
 import { AdminCollaborators } from "./admin-collaborators";
@@ -45,10 +35,17 @@ import { PeriodPicker } from "./admin-period";
 import { ADMIN_GROUPS, ADMIN_SECTIONS, getSectionFromParam } from "./admin-sections";
 import type { AdminSection, IAdminSectionInfo } from "./admin-sections";
 import { FullSheet, SheetChevron } from "@/components";
-import { AccessPanel, FaceIdLoginButton, FaceIdOffer, InstallHint } from "./staff-access";
+import { AccessPanel, FaceIdOffer } from "./staff-access";
+import { AdminChoosePin, AdminLogin } from "./admin/admin-login";
+import { CardPaymentsPanel } from "./admin/card-payments-panel";
+import { ClientUpdateNoticePanel } from "./admin/client-update-notice-panel";
+import { DeliveryModePanel } from "./admin/delivery-panel";
+import { PastaModePanel } from "./admin/pasta-mode-panel";
 
 import "@/styles/ops.css";
 import "./admin.css";
+// Después de admin.css para no cambiar la cascada: es el último bloque del archivo original
+import "./admin-waste.css";
 
 /** El tablero se refresca solo: la cocina carga producción mientras alguien mira las cifras. */
 const REFRESH_MS = 60000;
@@ -65,411 +62,6 @@ const useAdminHead = () => {
             document.title = previousTitle;
         };
     }, []);
-};
-
-/* ============ Acceso con PIN o Face ID ============ */
-
-interface IAdminLoginProps {
-    /** viaPin: entró escribiendo el PIN (después se le ofrece Face ID). */
-    onLogin: (login: IStaffLogin, viaPin: boolean) => void;
-}
-
-const AdminLogin = ({ onLogin }: IAdminLoginProps) => {
-    const [pin, setPin] = useState("");
-    const [error, setError] = useState("");
-    const [isSending, setIsSending] = useState(false);
-    const faceId = useFaceIdLogin("admin", (login) => onLogin(login, false));
-
-    const submit = async (event: FormEvent) => {
-        event.preventDefault();
-        if (isSending) return;
-
-        setIsSending(true);
-        setError("");
-
-        try {
-            onLogin(await loginAdmin(pin), true);
-        } catch (requestError) {
-            setError(requestError instanceof HttpError ? requestError.message : "No pudimos entrar.");
-            setPin("");
-        } finally {
-            setIsSending(false);
-        }
-    };
-
-    return (
-        <div className="adm-gate">
-            <form className="adm-gate__panel" onSubmit={submit}>
-                <span className="script adm-gate__mark">Chunky Bites</span>
-                <h1>Tablero</h1>
-                <InstallHint />
-                <FaceIdLoginButton kind="adm" faceId={faceId} />
-                {faceId.isAvailable ? null : <p>Escribe tu PIN.</p>}
-
-                <label htmlFor="admin-pin" className="adm-sr-only">PIN</label>
-                <input
-                    id="admin-pin"
-                    className="adm-gate__input"
-                    type="password"
-                    inputMode="numeric"
-                    autoComplete="off"
-                    autoFocus={!faceId.isAvailable}
-                    value={pin}
-                    onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 12))}
-                />
-
-                {error ? <p className="adm-gate__error">{error}</p> : null}
-
-                <button type="submit" className="adm-btn adm-btn--solid adm-btn--block" disabled={pin.length < 4 || isSending}>
-                    {isSending ? "Entrando…" : "Entrar"}
-                </button>
-            </form>
-        </div>
-    );
-};
-
-/** Quien entró con el PIN que generó el sistema elige el suyo antes de ver el tablero. */
-const AdminChoosePin = ({ token, name, onChanged }: { token: string; name: string; onChanged: (login: IStaffLogin) => void }) => {
-    const choose = useChoosePin("admin", token, onChanged);
-    const isFirst = choose.step === "first";
-
-    const submit = (event: FormEvent) => {
-        event.preventDefault();
-        void choose.submit(choose.pin);
-    };
-
-    return (
-        <div className="adm-gate">
-            <form className="adm-gate__panel" onSubmit={submit}>
-                <span className="script adm-gate__mark">Chunky Bites</span>
-                <h1>{isFirst ? "Elige tu PIN" : "Repite tu PIN"}</h1>
-                <div className="sa-steps" aria-hidden="true">
-                    <i className="is-on" />
-                    <i className={isFirst ? undefined : "is-on"} />
-                </div>
-                <p>
-                    {isFirst
-                        ? `Hola, ${name}. Escribe 6 números que recuerdes. Desde ahora entras con ese PIN o con Face ID.`
-                        : "Escríbelo otra vez para confirmarlo."}
-                </p>
-
-                <label htmlFor="admin-new-pin" className="adm-sr-only">{isFirst ? "PIN nuevo" : "Repite el PIN"}</label>
-                <input
-                    key={choose.step}
-                    id="admin-new-pin"
-                    className="adm-gate__input"
-                    type="password"
-                    inputMode="numeric"
-                    autoComplete="new-password"
-                    autoFocus
-                    value={choose.pin}
-                    onChange={(event) => {
-                        choose.setError("");
-                        choose.setPin(event.target.value.replace(/\D/g, "").slice(0, choose.pinLength));
-                    }}
-                />
-
-                {choose.error ? <p className="adm-gate__error" role="alert">{choose.error}</p> : null}
-
-                <button
-                    type="submit"
-                    className="adm-btn adm-btn--solid adm-btn--block"
-                    disabled={choose.pin.length !== choose.pinLength || choose.isSaving}
-                >
-                    {choose.isSaving ? "Guardando…" : isFirst ? "Seguir" : "Guardar PIN"}
-                </button>
-                <p className="sa-hint">No sirven 123456, 111111 ni parecidos.</p>
-            </form>
-        </div>
-    );
-};
-
-/* ============ Delivery ============ */
-
-/** Interruptor del delivery de la web. No pide confirmacion: no cambia el menu ni los pedidos ya hechos. */
-const DeliveryModePanel = ({ token, onSessionExpired }: { token: string; onSessionExpired: () => void }) => {
-    const { settings, isReady } = useSettings();
-    const [isSaving, setIsSaving] = useState(false);
-    const [error, setError] = useState("");
-
-    const isOn = settings.deliveryMode;
-
-    const toggle = async () => {
-        setIsSaving(true);
-        setError("");
-
-        try {
-            await setDeliveryMode(token, !isOn);
-            await loadSettings();
-        } catch (requestError) {
-            if (requestError instanceof HttpError && requestError.status === 401) return onSessionExpired();
-            setError(requestError instanceof HttpError ? requestError.message : "No pudimos cambiar el delivery.");
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    return (
-        <section className="adm-band adm-pasta">
-            <div className="adm-band__head">
-                <h2 className="script">Delivery</h2>
-                <span className="adm-band__sub">Entrega a domicilio en los pedidos de la web</span>
-            </div>
-
-            <div className="adm-pasta__row">
-                <label className="adm-switch">
-                    <input type="checkbox" checked={isOn} onChange={() => void toggle()} disabled={!isReady || isSaving} />
-                    <span className="adm-switch__track" aria-hidden />
-                    <span className="adm-switch__label">Delivery</span>
-                </label>
-                <span className={`adm-pasta__state ${isOn ? "adm-pasta__state--on" : ""}`} role="status">
-                    {isReady ? (isOn ? "Activo" : "Apagado") : "Leyendo…"}
-                </span>
-            </div>
-
-            <p className="adm-pasta__desc">
-                {isOn
-                    ? "El cliente elige en el carrito entre retirar en el local o delivery con envío gratis."
-                    : "Los pedidos de la web son solo para retirar en el local."}
-            </p>
-
-            {isPastaDeliveryOnly(settings) ? <p className="adm-warning">Hoy es día de pasta: todo pedido es delivery igual.</p> : null}
-            {error ? <p className="adm-error">{error}</p> : null}
-        </section>
-    );
-};
-
-/* ============ Pago con tarjeta ============ */
-
-/** Interruptor del pago con tarjeta en la web. Los pedidos ya pagados con tarjeta siguen su curso al apagarlo. */
-const CardPaymentsPanel = ({ token, onSessionExpired }: { token: string; onSessionExpired: () => void }) => {
-    const { settings, isReady } = useSettings();
-    const [isSaving, setIsSaving] = useState(false);
-    const [error, setError] = useState("");
-
-    const isOn = Boolean(settings.cardPayments);
-    const fee = settings.cardServiceFee ?? 0;
-
-    const toggle = async () => {
-        setIsSaving(true);
-        setError("");
-
-        try {
-            await setCardPayments(token, !isOn);
-            await loadSettings();
-        } catch (requestError) {
-            if (requestError instanceof HttpError && requestError.status === 401) return onSessionExpired();
-            setError(requestError instanceof HttpError ? requestError.message : "No pudimos cambiar el pago con tarjeta.");
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    return (
-        <section className="adm-band adm-pasta">
-            <div className="adm-band__head">
-                <h2 className="script">Tarjeta</h2>
-                <span className="adm-band__sub">Pago con Visa o Mastercard por PagueloFacil</span>
-            </div>
-
-            <div className="adm-pasta__row">
-                <label className="adm-switch">
-                    <input type="checkbox" checked={isOn} onChange={() => void toggle()} disabled={!isReady || isSaving} />
-                    <span className="adm-switch__track" aria-hidden />
-                    <span className="adm-switch__label">Pago con tarjeta</span>
-                </label>
-                <span className={`adm-pasta__state ${isOn ? "adm-pasta__state--on" : ""}`} role="status">
-                    {isReady ? (isOn ? "Activo" : "Apagado") : "Leyendo…"}
-                </span>
-            </div>
-
-            <p className="adm-pasta__desc">
-                {isOn
-                    ? `El carrito ofrece pagar con tarjeta, con $${formatMoney(fee)} de servicio web.`
-                    : "El carrito solo ofrece Yappy y coordinar por WhatsApp."}
-            </p>
-
-            {error ? <p className="adm-error">{error}</p> : null}
-        </section>
-    );
-};
-
-/* ============ Aviso de version nueva ============ */
-
-/** Interruptor del aviso "Hay una version nueva" en el sitio publico. En /admin y /gestion el aviso sale siempre. */
-const ClientUpdateNoticePanel = ({ token, onSessionExpired }: { token: string; onSessionExpired: () => void }) => {
-    const { settings, isReady } = useSettings();
-    const [isSaving, setIsSaving] = useState(false);
-    const [error, setError] = useState("");
-
-    const isOn = settings.clientUpdateNotice;
-
-    const toggle = async () => {
-        setIsSaving(true);
-        setError("");
-
-        try {
-            await setClientUpdateNotice(token, !isOn);
-            await loadSettings();
-        } catch (requestError) {
-            if (requestError instanceof HttpError && requestError.status === 401) return onSessionExpired();
-            setError(requestError instanceof HttpError ? requestError.message : "No pudimos cambiar el aviso de versión.");
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    return (
-        <section className="adm-band adm-pasta">
-            <div className="adm-band__head">
-                <h2 className="script">Versión nueva</h2>
-                <span className="adm-band__sub">Aviso al cliente cuando se publica un cambio en la web</span>
-            </div>
-
-            <div className="adm-pasta__row">
-                <label className="adm-switch">
-                    <input type="checkbox" checked={isOn} onChange={() => void toggle()} disabled={!isReady || isSaving} />
-                    <span className="adm-switch__track" aria-hidden />
-                    <span className="adm-switch__label">Avisar al cliente</span>
-                </label>
-                <span className={`adm-pasta__state ${isOn ? "adm-pasta__state--on" : ""}`} role="status">
-                    {isReady ? (isOn ? "Activo" : "Apagado") : "Leyendo…"}
-                </span>
-            </div>
-
-            <p className="adm-pasta__desc">
-                {isOn
-                    ? "El cliente ve \"Hay una versión nueva\" con un botón para actualizar. Igual se actualiza sola al cambiar de página."
-                    : "El cliente no ve ningún aviso: la web se actualiza sola al cambiar de página, sin tocar el carrito."}
-            </p>
-
-            {error ? <p className="adm-error">{error}</p> : null}
-        </section>
-    );
-};
-
-/* ============ Modo pasta ============ */
-
-/** Interruptor del dia de pasta. Cambiarlo pide confirmacion: afecta el menu de todos los clientes. */
-const PastaModePanel = ({ token, onSessionExpired }: { token: string; onSessionExpired: () => void }) => {
-    const { settings, isReady } = useSettings();
-    const [isConfirming, setIsConfirming] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
-    const [error, setError] = useState("");
-
-    const isOn = settings.pastaMode;
-    const isFullMenu = Boolean(settings.pastaFullMenu);
-
-    const changeFullMenu = async () => {
-        setIsSaving(true);
-        setError("");
-
-        try {
-            await setPastaFullMenu(token, !isFullMenu);
-            await loadSettings();
-        } catch (requestError) {
-            if (requestError instanceof HttpError && requestError.status === 401) return onSessionExpired();
-            setError(requestError instanceof HttpError ? requestError.message : "No pudimos cambiar el menú del día de pasta.");
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const change = async (enabled: boolean) => {
-        setIsSaving(true);
-        setError("");
-
-        try {
-            await setPastaMode(token, enabled);
-            // Los clientes con la pagina abierta lo leen en menos de un minuto; aqui se ve al instante
-            await loadSettings();
-            setIsConfirming(false);
-        } catch (requestError) {
-            if (requestError instanceof HttpError && requestError.status === 401) return onSessionExpired();
-            setError(requestError instanceof HttpError ? requestError.message : "No pudimos cambiar el modo pasta.");
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    // Apagar no necesita confirmacion (vuelve el menu completo); encender si
-    const toggle = () => (isOn ? void change(false) : setIsConfirming(true));
-
-    return (
-        <section className="adm-band adm-pasta">
-            <div className="adm-band__head">
-                <h2 className="script">Modo pasta</h2>
-                <span className="adm-band__sub">Un día de pasta: la pasta armable, solo con bebidas o con todo el menú</span>
-            </div>
-
-            <div className="adm-pasta__row">
-                <label className="adm-switch">
-                    <input type="checkbox" checked={isOn} onChange={toggle} disabled={!isReady || isSaving} />
-                    <span className="adm-switch__track" aria-hidden />
-                    <span className="adm-switch__label">Modo pasta</span>
-                </label>
-                <span className={`adm-pasta__state ${isOn ? "adm-pasta__state--on" : ""}`} role="status">
-                    {isReady ? (isOn ? "Activo" : "Apagado") : "Leyendo…"}
-                </span>
-            </div>
-
-            <p className="adm-pasta__desc">
-                {!isOn
-                    ? "Ahora el menú se ve completo y la entrega sigue lo que diga el panel de Delivery."
-                    : isFullMenu
-                        ? "Ahora se vende la pasta armable y todo el menú en el horario de la semana; fuera de ese horario, solo pasta y bebidas. La entrega sigue lo que diga el panel de Delivery."
-                        : "Ahora el menú muestra solo la pasta armable y las bebidas, y los pedidos son con entrega a domicilio."}
-            </p>
-
-            {isOn ? (
-                <div className="adm-pasta__row adm-pasta__row--sub">
-                    <label className="adm-switch">
-                        <input type="checkbox" checked={isFullMenu} onChange={() => void changeFullMenu()} disabled={!isReady || isSaving} />
-                        <span className="adm-switch__track" aria-hidden />
-                        <span className="adm-switch__label">Vender también el resto del menú</span>
-                    </label>
-                    <span className={`adm-pasta__state ${isFullMenu ? "adm-pasta__state--on" : ""}`} role="status">
-                        {isFullMenu ? "Activo" : "Apagado"}
-                    </span>
-                </div>
-            ) : null}
-
-            {isOn && !settings.pasta ? (
-                <p className="adm-warning">
-                    La pasta no aparece en el menú: revisa que el item esté activo en Loyverse y que LOYVERSE_PASTA_ITEM_ID sea el correcto.
-                </p>
-            ) : null}
-            {error ? <p className="adm-error">{error}</p> : null}
-
-            {isConfirming ? (
-                <div className="adm-modal" role="dialog" aria-modal="true" aria-label="Activar el modo pasta">
-                    <div className="adm-modal__panel">
-                        <h3 className="script">¿Activar el modo pasta?</h3>
-                        <ul className="adm-pasta__list">
-                            {isFullMenu ? (
-                                <>
-                                    <li>El menú sumará la pasta armable; el resto se vende en el horario de la semana.</li>
-                                    <li>La entrega sigue lo que diga el panel de Delivery.</li>
-                                </>
-                            ) : (
-                                <>
-                                    <li>El menú mostrará solo la pasta armable y las bebidas.</li>
-                                    <li>Todo pedido nuevo será delivery y pedirá dirección.</li>
-                                </>
-                            )}
-                            <li>Los pedidos ya creados no cambian.</li>
-                        </ul>
-                        <div className="adm-modal__actions">
-                            <button type="button" className="adm-btn" onClick={() => setIsConfirming(false)} disabled={isSaving}>Cancelar</button>
-                            <button type="button" className="adm-btn adm-btn--solid" onClick={() => void change(true)} disabled={isSaving}>
-                                {isSaving ? "Activando…" : "Activar modo pasta"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            ) : null}
-        </section>
-    );
 };
 
 /** Las secciones que usan el período del encabezado. */
@@ -591,6 +183,59 @@ const AdminDashboard = ({ token, personName, onLogout, onTokenChange }: IAdminDa
         ? new Date(dashboard.serverTime).toLocaleDateString("es-PA", { weekday: "short", day: "numeric", month: "short" })
         : "";
 
+    /** Qué se dibuja en cada sección: un mapa en vez de una cadena de ternarios. */
+    const sectionViews: Record<AdminSection, () => ReactNode> = {
+        resumen: () => (
+            <>
+                {error ? <p className="adm-error">{error}</p> : null}
+                {dashboard?.salesError ? (
+                    <p className="adm-warning">
+                        {dashboard.salesError} Las finanzas y el inventario siguen al día: salen de nuestra base.
+                    </p>
+                ) : null}
+
+                <AdminOverview
+                    token={token}
+                    onSessionExpired={onLogout}
+                    refreshKey={refreshKey}
+                    dashboard={dashboard}
+                    supplies={supplies}
+                    openIncidents={openIncidents}
+                    onOpen={openSection}
+                />
+            </>
+        ),
+        ventas: () => <AdminFinance token={token} onSessionExpired={onLogout} refreshKey={refreshKey} from={range.from} to={range.to} />,
+        web: () => <AdminWeb token={token} onSessionExpired={onLogout} refreshKey={refreshKey} from={range.from} to={range.to} />,
+        clientes: () => <AdminCustomers token={token} onSessionExpired={onLogout} refreshKey={refreshKey} />,
+        inventario: () => <AdminInventory token={token} onSessionExpired={onLogout} refreshKey={refreshKey} from={range.from} to={range.to} />,
+        menu: () => <AdminMenu token={token} onSessionExpired={onLogout} />,
+        promos: () => <AdminPromos token={token} onSessionExpired={onLogout} />,
+        combos: () => <AdminCombos token={token} onSessionExpired={onLogout} />,
+        inicio: () => <AdminSite token={token} onSessionExpired={onLogout} />,
+        caja: () => <AdminCaja token={token} onSessionExpired={onLogout} />,
+        local: () => (
+            <>
+                <AdminHours token={token} onSessionExpired={onLogout} />
+                <DeliveryModePanel token={token} onSessionExpired={onLogout} />
+                <CardPaymentsPanel token={token} onSessionExpired={onLogout} />
+                <PastaModePanel token={token} onSessionExpired={onLogout} />
+                <ClientUpdateNoticePanel token={token} onSessionExpired={onLogout} />
+            </>
+        ),
+        acceso: () => (
+            <AccessPanel
+                kind="adm"
+                scope="admin"
+                token={token}
+                personName={personName}
+                onSessionExpired={onLogout}
+                onTokenChange={onTokenChange}
+            />
+        ),
+        colaboradores: () => <AdminCollaborators token={token} onSessionExpired={onLogout} />,
+    };
+
     if (isLoading) {
         return (
             <div className="adm-gate">
@@ -698,63 +343,7 @@ const AdminDashboard = ({ token, personName, onLogout, onTokenChange }: IAdminDa
                         {PERIOD_SECTIONS.includes(section) ? <PeriodPicker selection={period} onChange={changePeriod} /> : null}
                     </div>
 
-                    {section === "resumen" ? (
-                        <>
-                            {error ? <p className="adm-error">{error}</p> : null}
-                            {dashboard?.salesError ? (
-                                <p className="adm-warning">
-                                    {dashboard.salesError} Las finanzas y el inventario siguen al día: salen de nuestra base.
-                                </p>
-                            ) : null}
-
-                            <AdminOverview
-                                token={token}
-                                onSessionExpired={onLogout}
-                                refreshKey={refreshKey}
-                                dashboard={dashboard}
-                                supplies={supplies}
-                                openIncidents={openIncidents}
-                                onOpen={openSection}
-                            />
-                        </>
-                    ) : section === "ventas" ? (
-                        <AdminFinance token={token} onSessionExpired={onLogout} refreshKey={refreshKey} from={range.from} to={range.to} />
-                    ) : section === "web" ? (
-                        <AdminWeb token={token} onSessionExpired={onLogout} refreshKey={refreshKey} from={range.from} to={range.to} />
-                    ) : section === "clientes" ? (
-                        <AdminCustomers token={token} onSessionExpired={onLogout} refreshKey={refreshKey} />
-                    ) : section === "inventario" ? (
-                        <AdminInventory token={token} onSessionExpired={onLogout} refreshKey={refreshKey} from={range.from} to={range.to} />
-                    ) : section === "menu" ? (
-                        <AdminMenu token={token} onSessionExpired={onLogout} />
-                    ) : section === "promos" ? (
-                        <AdminPromos token={token} onSessionExpired={onLogout} />
-                    ) : section === "combos" ? (
-                        <AdminCombos token={token} onSessionExpired={onLogout} />
-                    ) : section === "inicio" ? (
-                        <AdminSite token={token} onSessionExpired={onLogout} />
-                    ) : section === "caja" ? (
-                        <AdminCaja token={token} onSessionExpired={onLogout} />
-                    ) : section === "local" ? (
-                        <>
-                            <AdminHours token={token} onSessionExpired={onLogout} />
-                            <DeliveryModePanel token={token} onSessionExpired={onLogout} />
-                            <CardPaymentsPanel token={token} onSessionExpired={onLogout} />
-                            <PastaModePanel token={token} onSessionExpired={onLogout} />
-                            <ClientUpdateNoticePanel token={token} onSessionExpired={onLogout} />
-                        </>
-                    ) : section === "acceso" ? (
-                        <AccessPanel
-                            kind="adm"
-                            scope="admin"
-                            token={token}
-                            personName={personName}
-                            onSessionExpired={onLogout}
-                            onTokenChange={onTokenChange}
-                        />
-                    ) : (
-                        <AdminCollaborators token={token} onSessionExpired={onLogout} />
-                    )}
+                    {sectionViews[section]()}
 
                     {/* Los descuadres se cuentan en todas las secciones (el aviso del encabezado), pero se muestran en el resumen */}
                     <div hidden={section !== "resumen"}>

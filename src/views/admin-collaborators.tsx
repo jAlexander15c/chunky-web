@@ -12,6 +12,7 @@ import {
     updateCollaborator,
 } from "@/helpers";
 import type { CollaboratorRole, ICollaborator } from "@/helpers";
+import { OpsEmpty } from "@/components";
 
 /** El PIN recién creado, que solo se ve una vez. */
 interface IFreshPin {
@@ -226,13 +227,10 @@ export const AdminCollaborators = ({ token, onSessionExpired }: { token: string;
                 {error ? <p className="adm-error">{error}</p> : null}
 
                 {collaborators.length === 0 ? (
-                    <p className="adm-empty">
-                        Nadie todavía. Al crear al primero, el sistema genera su PIN y con él entra a /gestion
-                        a cargar inventario, atender mesas o las dos cosas.
-                    </p>
+                    <OpsEmpty title="Nadie todavía. Al crear al primero, el sistema genera su PIN y con él entra a /gestion a cargar inventario, atender mesas o las dos cosas." />
                 ) : (
                     <div className="adm-scroll">
-                        <table className="adm-table">
+                        <table className="adm-table ops-stack">
                             <thead>
                                 <tr>
                                     <th>Nombre</th>
@@ -246,24 +244,26 @@ export const AdminCollaborators = ({ token, onSessionExpired }: { token: string;
                             <tbody>
                                 {collaborators.map((collaborator) => (
                                     <tr key={collaborator.id} className={collaborator.isActive ? undefined : "is-off"}>
-                                        <td className="adm-name">{collaborator.name}</td>
-                                        <td>
-                                            {collaborator.roles.length === 0 ? (
-                                                <span className="adm-pill is-crit">Sin permisos</span>
-                                            ) : (
-                                                collaborator.roles.map((role) => (
-                                                    <span className="adm-pill is-idle" key={role}>{ROLE_LABEL[role]}</span>
-                                                ))
-                                            )}
+                                        <td className="adm-name" data-label="Nombre">{collaborator.name}</td>
+                                        <td data-label="Puede">
+                                            <span className="ops-stack__value">
+                                                {collaborator.roles.length === 0 ? (
+                                                    <span className="adm-pill is-crit">Sin permisos</span>
+                                                ) : (
+                                                    collaborator.roles.map((role) => (
+                                                        <span className="adm-pill is-idle" key={role}>{ROLE_LABEL[role]}</span>
+                                                    ))
+                                                )}
+                                            </span>
                                         </td>
-                                        <td>
+                                        <td data-label="Estado">
                                             <span className={`adm-pill is-${collaborator.isActive ? "ok" : "idle"}`}>
                                                 {collaborator.isActive ? "Activo" : "Desactivado"}
                                             </span>
                                         </td>
-                                        <td>{formatLastLogin(collaborator.lastLoginAt)}</td>
-                                        <td className="num">{collaborator.movementsToday}</td>
-                                        <td className="adm-actions">
+                                        <td data-label="Último acceso">{formatLastLogin(collaborator.lastLoginAt)}</td>
+                                        <td className="num" data-label="Registros hoy">{collaborator.movementsToday}</td>
+                                        <td className="adm-actions ops-stack__actions">
                                             <button
                                                 type="button"
                                                 className="adm-btn adm-btn--sm"

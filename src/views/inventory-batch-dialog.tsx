@@ -3,6 +3,7 @@ import type { ISupplyStatus } from "@/helpers/admin";
 import { discardBatch, expirationLabel, fetchBatches } from "@/helpers/inventory";
 import type { BatchDetail } from "@/helpers/inventory";
 import { HttpError } from "@/helpers/getHttp";
+import { OpsEmpty, OpsSkeleton } from "@/components";
 const date = (v: string | null) => (v ? new Date(v).toLocaleString("es-PA", { timeZone: "America/Panama" }) : "—");
 export const InventoryBatchDialog = ({
     token,
@@ -62,7 +63,7 @@ export const InventoryBatchDialog = ({
                             {supply.daysLeft ?? "Sin datos"} · {expirationLabel(detail.nextExpiration)}
                         </p>
                         <div className="adm-scroll">
-                            <table className="adm-table adm-table--compact">
+                            <table className="adm-table adm-table--compact ops-stack">
                                 <thead>
                                     <tr>
                                         <th>Lote</th>
@@ -78,16 +79,18 @@ export const InventoryBatchDialog = ({
                                 <tbody>
                                     {detail.batches.map((b) => (
                                         <tr key={b.id}>
-                                            <td>
-                                                #{b.id}
-                                                {b.origin === "MIGRATION_INITIAL_STOCK" ? <em>Saldo inicial</em> : null}
+                                            <td data-label="Lote">
+                                                <span className="ops-stack__value">
+                                                    #{b.id}
+                                                    {b.origin === "MIGRATION_INITIAL_STOCK" ? <em>Saldo inicial</em> : null}
+                                                </span>
                                             </td>
-                                            <td>{date(b.purchasedAt ?? b.createdAt)}</td>
-                                            <td>{date(b.producedAt)}</td>
-                                            <td>{b.quantityInitial}</td>
-                                            <td>{b.quantityRemaining}</td>
-                                            <td>{date(b.expirationDate)}</td>
-                                            <td>
+                                            <td data-label="Entrada">{date(b.purchasedAt ?? b.createdAt)}</td>
+                                            <td data-label="Producción">{date(b.producedAt)}</td>
+                                            <td data-label="Inicial">{b.quantityInitial}</td>
+                                            <td data-label="Restante">{b.quantityRemaining}</td>
+                                            <td data-label="Vencimiento">{date(b.expirationDate)}</td>
+                                            <td data-label="Estado">
                                                 {
                                                     {
                                                         ACTIVE: "Activo",
@@ -97,7 +100,7 @@ export const InventoryBatchDialog = ({
                                                     }[b.status]
                                                 }
                                             </td>
-                                            <td>
+                                            <td className="ops-stack__actions">
                                                 {["ACTIVE", "EXPIRED"].includes(b.status) ? (
                                                     <button
                                                         className="adm-btn adm-btn--sm"
@@ -113,10 +116,10 @@ export const InventoryBatchDialog = ({
                                 </tbody>
                             </table>
                         </div>
-                        {detail.batches.length === 0 ? <p className="adm-empty">No hay lotes.</p> : null}
+                        {detail.batches.length === 0 ? <OpsEmpty title="No hay lotes." /> : null}
                     </>
                 ) : (
-                    <p className="adm-note">Cargando lotes…</p>
+                    <OpsSkeleton label="Cargando lotes…" />
                 )}
                 {error ? (
                     <p className="adm-error" role="alert">

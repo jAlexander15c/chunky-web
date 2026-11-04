@@ -5,6 +5,7 @@ import { HttpError, formatMoney, formatQuantity } from "@/helpers";
 import { fetchWasteReport } from "@/helpers/inventory";
 import { WASTE_REASON_LABEL, formatWastePercent, getWasteTone } from "@/helpers/product-waste";
 import type { IWasteReport, WasteByReason, WasteReason } from "@/helpers/product-waste";
+import { OpsEmpty, OpsSkeleton } from "@/components";
 
 
 interface IAdminWasteProps {
@@ -92,11 +93,11 @@ export const AdminWaste = ({ token, onSessionExpired, refreshKey, from, to }: IA
                 {error ? <p className="adm-error">{error}</p> : null}
 
                 {!report ? (
-                    isLoading ? <p className="adm-empty">Cargando la merma…</p> : null
+                    isLoading ? <OpsSkeleton label="Cargando la merma…" /> : null
                 ) : (
                     <div className={isLoading ? "adm-waste__body is-stale" : "adm-waste__body"}>
                         {report.totals.produced === 0 && report.totals.waste === 0 && report.products.length === 0 ? (
-                            <p className="adm-empty">No hubo lotes ni merma de productos en este período.</p>
+                            <OpsEmpty title="No hubo lotes ni merma de productos en este período." />
                         ) : (
                             <>
                                 <div className="adm-waste__kpis">

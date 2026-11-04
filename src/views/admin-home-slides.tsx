@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 
-import { FullSheet, Mascot, PromoSlide } from "@/components";
+import { FullSheet, Mascot, PromoSlide, OpsSkeleton } from "@/components";
 import {
     HOME_SLIDE_DESTINATION_LABEL,
     HOME_SLIDE_LIMITS,
@@ -512,7 +512,7 @@ export const AdminHomeSlides = ({ token, onSessionExpired }: { token: string; on
 
     const getCategoryName = (categoryId: string | null) => categories.find((category) => category.id === categoryId)?.name;
 
-    if (isLoading) return <p className="adm-empty">Cargando las láminas…</p>;
+    if (isLoading) return <OpsSkeleton label="Cargando las láminas…" />;
 
     return (
         <section className="ahs">

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 
-import { StatTile } from "./admin-finance";
+import { StatTile } from "./admin/stat-tile";
 import { AdminPagination } from "./admin-pagination";
 import {
     CUSTOMER_PERIODS,
@@ -16,6 +16,7 @@ import {
     updateCustomer,
 } from "@/helpers";
 import type { CustomerPeriod, CustomerSegment, ICustomerDetail, ICustomerReport, ICustomerRow } from "@/helpers";
+import { OpsEmpty, OpsSkeleton } from "@/components";
 
 const REFRESH_MS = 60000;
 const PAGE_SIZE = 12;
@@ -364,7 +365,7 @@ const CustomerCard = ({ token, customerId, customers, onChanged, onSessionExpire
     if (!detail) {
         return (
             <aside className="adm-card adm-cust-card" aria-live="polite">
-                {error ? <p className="adm-error">{error}</p> : <p className="adm-empty">Cargando el cliente…</p>}
+                {error ? <p className="adm-error">{error}</p> : <OpsSkeleton label="Cargando el cliente…" />}
             </aside>
         );
     }
@@ -603,7 +604,7 @@ export const AdminCustomers = ({ token, onSessionExpired, refreshKey }: IAdminCu
             {error ? <p className="adm-error">{error}</p> : null}
 
             {!report || !summary ? (
-                isLoading ? <p className="adm-empty">Cargando los clientes…</p> : null
+                isLoading ? <OpsSkeleton label="Cargando los clientes…" /> : null
             ) : (
                 <>
                     <div className="adm-tiles">
@@ -659,16 +660,13 @@ export const AdminCustomers = ({ token, onSessionExpired, refreshKey }: IAdminCu
                             </div>
 
                             {report.customers.length === 0 ? (
-                                <p className="adm-empty">
-                                    Todavía no hay clientes. Se registran solos al pagar un pedido en la web con el aviso de
-                                    privacidad aceptado; después la caja les puede asignar sus compras del local.
-                                </p>
+                                <OpsEmpty title="Todavía no hay clientes. Se registran solos al pagar un pedido en la web con el aviso de privacidad aceptado; después la caja les puede asignar sus compras del local." />
                             ) : filtered.length === 0 ? (
-                                <p className="adm-empty">Nadie coincide con ese filtro.</p>
+                                <OpsEmpty title="Nadie coincide con ese filtro." />
                             ) : (
                                 <>
                                     <div className="adm-scroll">
-                                        <table className="adm-table adm-table--customers">
+                                        <table className="adm-table adm-table--customers ops-stack">
                                             <thead>
                                                 <tr>
                                                     <th>Cliente</th>
@@ -692,29 +690,31 @@ export const AdminCustomers = ({ token, onSessionExpired, refreshKey }: IAdminCu
                                                             setSelectedId(one.id);
                                                         }}
                                                     >
-                                                        <td className="adm-name">
-                                                            {one.name}
-                                                            <em>{formatPhone(one.phone)}</em>
-                                                            <span className="adm-cust-tags">
-                                                                {(Object.keys(SEGMENT_TAG) as CustomerSegment[])
-                                                                    .filter((id) => one.segments[id])
-                                                                    .map((id) => (
-                                                                        <span key={id} className={`adm-pill is-${SEGMENT_TAG[id].tone}`}>
-                                                                            {SEGMENT_TAG[id].label}
-                                                                        </span>
-                                                                    ))}
+                                                        <td className="adm-name" data-label="Cliente">
+                                                            <span className="ops-stack__value">
+                                                                {one.name}
+                                                                <em>{formatPhone(one.phone)}</em>
+                                                                <span className="adm-cust-tags">
+                                                                    {(Object.keys(SEGMENT_TAG) as CustomerSegment[])
+                                                                        .filter((id) => one.segments[id])
+                                                                        .map((id) => (
+                                                                            <span key={id} className={`adm-pill is-${SEGMENT_TAG[id].tone}`}>
+                                                                                {SEGMENT_TAG[id].label}
+                                                                            </span>
+                                                                        ))}
+                                                                </span>
                                                             </span>
                                                         </td>
-                                                        <td>
+                                                        <td data-label="Dónde compra">
                                                             <span className="adm-cust-chans">
                                                                 {one.webCount ? <span className="adm-cust-chan is-web">Web {one.webCount}</span> : null}
                                                                 {one.localCount ? <span className="adm-cust-chan is-local">Local {one.localCount}</span> : null}
                                                                 {!one.webCount && !one.localCount ? <span className="adm-note">—</span> : null}
                                                             </span>
                                                         </td>
-                                                        <td className="num">{one.webCount + one.localCount}</td>
-                                                        <td className="num">B/. {formatMoney(one.spent)}</td>
-                                                        <td className={one.segments.cooled ? "adm-cust-late" : undefined}>{formatAgo(one.lastPurchaseAt)}</td>
+                                                        <td className="num" data-label="Compras">{one.webCount + one.localCount}</td>
+                                                        <td className="num" data-label="Gastado">B/. {formatMoney(one.spent)}</td>
+                                                        <td className={one.segments.cooled ? "adm-cust-late" : undefined} data-label="Última">{formatAgo(one.lastPurchaseAt)}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>
