@@ -47,6 +47,7 @@ import type { AdminSection, IAdminSectionInfo } from "./admin-sections";
 import { FullSheet, SheetChevron } from "@/components";
 import { AccessPanel, FaceIdLoginButton, FaceIdOffer, InstallHint } from "./staff-access";
 
+import "@/styles/ops.css";
 import "./admin.css";
 
 /** El tablero se refresca solo: la cocina carga producción mientras alguien mira las cifras. */

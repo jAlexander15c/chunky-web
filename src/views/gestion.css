@@ -2,21 +2,21 @@
    Pensada para teléfono o iPad en bodega: botones grandes y nada de dinero a la vista. */
 
 .ges {
-    --ges-panel: #fffef6;
-    --ges-panel-2: #f6f2df;
-    --ges-line: #e4dec6;
-    --ges-text-2: var(--text-soft);
-    --ges-text-3: #8d93b4;
+    /* Alias de los tokens compartidos (styles/ops.css) */
+    --ges-panel: var(--ops-card);
+    --ges-panel-2: var(--ops-card-2);
+    --ges-line: var(--ops-line);
+    --ges-text-2: var(--ops-text-2);
+    --ges-text-3: var(--ops-text-3);
 
-    --ges-good: #2f6f4c;
-    --ges-good-bg: #dfeee4;
-    --ges-warn: #8d5d0c;
-    --ges-warn-bg: #f8e9c9;
-    --ges-crit: #a33a2a;
-    --ges-crit-bg: #f6ddd7;
+    --ges-good: var(--ops-good);
+    --ges-good-bg: var(--ops-good-bg);
+    --ges-warn: var(--ops-warn);
+    --ges-warn-bg: var(--ops-warn-bg);
+    --ges-crit: var(--ops-crit);
+    --ges-crit-bg: var(--ops-crit-bg);
 
     min-height: 100dvh;
-    background: var(--crema);
     color: var(--ink);
     font-size: 15px;
     display: flex;
@@ -39,31 +39,33 @@
 
 .ges-btn {
     font: inherit;
-    font-size: 0.85rem;
-    font-weight: 800;
-    color: var(--ges-text-2);
-    background: transparent;
-    border: 2px solid var(--sky);
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--mora);
+    background: var(--ops-card);
+    border: 1px solid var(--ops-line-strong);
     border-radius: var(--radius-pill);
-    padding: 0.5rem 1rem;
-    min-height: 44px;
+    padding: 0.5rem 1.1rem;
+    min-height: var(--ops-tap);
     cursor: pointer;
     white-space: nowrap;
-    transition: transform 160ms var(--ease-out), background-color 150ms ease;
+    box-shadow: 0 1px 2px rgb(var(--shadow-tint) / 0.06);
+    transition: transform var(--ops-fast) var(--ease-out), background-color 150ms ease, box-shadow 150ms ease;
 }
 
-.ges-btn:active { transform: scale(0.96); }
-.ges-btn:disabled { opacity: 0.55; cursor: default; }
+.ges-btn:active:not(:disabled) { transform: scale(0.97); }
+.ges-btn:disabled { opacity: 1; cursor: default; background: rgb(58 75 142 / 0.1); border-color: transparent; color: #5b6496; box-shadow: none; }
 
 .ges-btn--solid {
     background: var(--mora);
     border-color: var(--mora);
     color: var(--crema);
+    box-shadow: var(--ops-shadow-cta);
 }
 
 @media (hover: hover) and (pointer: fine) {
-    .ges-btn:hover:not(:disabled) { background: var(--sky); }
-    .ges-btn--solid:hover:not(:disabled) { background: var(--ink); }
+    .ges-btn:hover:not(:disabled) { background: #fff; box-shadow: var(--ops-shadow-1); }
+    .ges-btn--solid:hover:not(:disabled) { background: var(--ink); border-color: var(--ink); }
 }
 
 /* ============ Acceso ============ */
@@ -72,32 +74,33 @@
     min-height: 100dvh;
     display: grid;
     place-items: center;
-    background: var(--crema);
     padding: var(--gutter);
 }
 
 .ges-gate__panel {
-    background: var(--ges-panel);
-    border-radius: var(--radius-panel);
-    padding: 2rem 1.6rem;
-    width: min(360px, 100%);
+    background: var(--ops-glass);
+    -webkit-backdrop-filter: var(--ops-glass-blur);
+    backdrop-filter: var(--ops-glass-blur);
+    border: 1px solid var(--ops-glass-border);
+    border-radius: 28px;
+    padding: 2rem 1.4rem 1.6rem;
+    width: min(380px, 100%);
     text-align: center;
-    box-shadow: 0 18px 34px -24px rgb(var(--shadow-tint) / 0.7);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.75), 0 24px 48px -24px rgb(var(--shadow-tint) / 0.45);
 }
 
 .ges-gate__mark {
     display: block;
-    font-size: 2.2rem;
+    font-size: 2.6rem;
     color: var(--mora);
-    line-height: 1;
+    line-height: 1.05;
 }
 
 .ges-gate__panel h1 {
-    margin: 0.4rem 0 0.2rem;
-    font-size: 1.2rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    margin: 0.5rem 0 0.25rem;
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
 }
 
 .ges-gate__panel p {
@@ -141,22 +144,23 @@
 
 .ges-key {
     font: inherit;
-    min-height: 58px;
-    border-radius: 18px;
-    border: 2px solid var(--sky);
-    background: var(--crema);
-    font-size: 1.35rem;
-    font-weight: 800;
+    min-height: 62px;
+    border-radius: 20px;
+    border: 1px solid var(--ops-line);
+    background: var(--ops-card);
+    box-shadow: 0 1px 2px rgb(var(--shadow-tint) / 0.06), 0 8px 18px -14px rgb(var(--shadow-tint) / 0.35);
+    font-size: 1.45rem;
+    font-weight: 600;
     color: var(--ink);
     cursor: pointer;
     transition: transform 140ms var(--ease-out), background-color 120ms ease;
 }
 
-.ges-key:active { transform: scale(0.94); background: var(--sky); }
+.ges-key:active { transform: scale(0.95); background: var(--sky); }
 .ges-key:disabled { opacity: 0.5; cursor: default; }
-.ges-key--soft { background: transparent; border-color: transparent; font-size: 1rem; color: var(--ges-text-2); }
+.ges-key--soft { background: transparent; border-color: transparent; box-shadow: none; font-size: 1.1rem; color: var(--ges-text-2); }
 
-.ges-btn--sm { min-height: 34px; font-size: 0.75rem; padding: 0.25rem 0.8rem; border-width: 1.5px; }
+.ges-btn--sm { min-height: 40px; font-size: 0.82rem; padding: 0.25rem 0.95rem; }
 .ges-btn--block { width: 100%; }
 
 /* ============ Armazón: menú al lado en computadora, abajo en el teléfono ============ */
@@ -164,69 +168,100 @@
 .ges-shell { display: grid; }
 
 @media (min-width: 900px) {
-    .ges-shell { grid-template-columns: 210px 1fr; }
+    .ges-shell { grid-template-columns: 216px 1fr; }
 }
 
 @media (max-width: 899px) {
     .ges-shell { grid-template-rows: 1fr auto; }
 }
 
-.ges-nav { background: var(--mora); color: var(--crema); display: flex; }
+/* La navegación flota en vidrio: al lado en pantalla ancha, abajo en el teléfono */
+.ges-nav {
+    display: flex;
+    color: var(--mora);
+    background: var(--ops-glass);
+    -webkit-backdrop-filter: var(--ops-glass-blur);
+    backdrop-filter: var(--ops-glass-blur);
+    border: 1px solid var(--ops-glass-border);
+    box-shadow: var(--ops-shadow-3);
+    z-index: var(--z-header);
+}
 
 @media (min-width: 900px) {
-    .ges-nav { flex-direction: column; padding: 1.1rem 0.75rem; gap: 0.25rem; }
+    .ges-nav {
+        position: sticky;
+        top: 0.9rem;
+        align-self: start;
+        height: calc(100dvh - 1.8rem);
+        margin: 0.9rem 0 0.9rem 0.9rem;
+        border-radius: var(--ops-radius-lg);
+        flex-direction: column;
+        padding: 1rem 0.65rem;
+        gap: 0.2rem;
+    }
 }
 
 @media (max-width: 899px) {
     .ges-nav {
         order: 2;
         position: sticky;
-        bottom: 0;
-        padding: 0.5rem 0.4rem calc(0.6rem + env(safe-area-inset-bottom, 0px));
-        gap: 0.25rem;
+        bottom: 0.6rem;
+        margin: 0 0.6rem calc(0.6rem + env(safe-area-inset-bottom, 0px));
+        border-radius: 26px;
+        padding: 0.4rem;
+        gap: 0.2rem;
     }
 }
 
-.ges-nav__brand { font-size: 1.3rem; padding: 0 0.6rem 0.8rem; line-height: 1.1; }
+.ges-nav__brand { font-size: 1.4rem; padding: 0 0.6rem 0.8rem; line-height: 1.1; color: var(--mora); }
 
 .ges-nav__item {
+    position: relative;
     font: inherit;
     border: 0;
     background: transparent;
-    color: var(--sky);
+    color: var(--mora);
     border-radius: 14px;
     display: flex;
     align-items: center;
-    gap: 0.6rem;
-    font-weight: 800;
-    font-size: 0.88rem;
-    padding: 0.7rem 0.75rem;
+    gap: 0.65rem;
+    font-weight: 600;
+    font-size: 0.92rem;
+    min-height: var(--ops-tap);
+    padding: 0.6rem 0.75rem;
     text-align: left;
     cursor: pointer;
-    transition: background-color 150ms ease, color 150ms ease;
+    transition: background-color 150ms ease, color 150ms ease, transform var(--ops-fast) var(--ease-out);
 }
 
-.ges-nav__item[aria-current="true"] { background: var(--crema); color: var(--mora); }
+.ges-nav__item:active { transform: scale(0.97); }
+
+.ges-nav__item[aria-current="true"] {
+    background: var(--mora);
+    color: var(--crema);
+    box-shadow: 0 8px 18px -10px rgb(var(--shadow-tint) / 0.7);
+}
 
 @media (hover: hover) and (pointer: fine) {
-    .ges-nav__item:hover:not([aria-current="true"]) { background: rgb(215 224 249 / 0.18); color: var(--crema); }
+    .ges-nav__item:hover:not([aria-current="true"]) { background: rgb(58 75 142 / 0.08); }
 }
 
 .ges-nav__ico { width: 22px; height: 22px; flex: none; }
 
 .ges-nav__foot {
     margin-top: auto;
-    font-size: 0.72rem;
+    font-size: 0.8rem;
     padding: 0.8rem 0.6rem 0;
-    border-top: 1px solid rgb(215 224 249 / 0.25);
+    border-top: 1px solid var(--ops-line);
     font-weight: 700;
+    color: var(--ink);
 }
 
-.ges-nav__foot span { display: block; color: var(--sky); font-weight: 600; opacity: 0.85; }
+.ges-nav__foot span { display: block; color: var(--ops-text-2); font-weight: 500; }
 
 @media (max-width: 899px) {
     .ges-nav__brand, .ges-nav__foot { display: none; }
-    .ges-nav__item { flex: 1 1 0; min-width: 0; flex-direction: column; gap: 0.1rem; font-size: 0.68rem; padding: 0.45rem 0.25rem; justify-content: center; }
+    .ges-nav__item { flex: 1 1 0; min-width: 0; flex-direction: column; gap: 0.15rem; font-size: 0.68rem; min-height: 56px; padding: 0.4rem 0.2rem; justify-content: center; border-radius: 20px; }
     /* Con más de cinco secciones, las últimas se eligen desde "Más" */
     .ges-nav__item.is-overflow { display: none; }
 }
@@ -260,28 +295,42 @@
     .ges-panel { order: 1; min-height: 0; }
 }
 
+/* La cabecera flota en vidrio y se queda arriba al hacer scroll */
 .ges-top {
+    position: sticky;
+    top: 0.9rem;
+    z-index: var(--z-header);
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 0.8rem;
     flex-wrap: wrap;
-    padding: 0.9rem var(--gutter);
-    background: var(--ges-panel);
-    border-bottom: 1px solid var(--ges-line);
+    margin: 0.9rem 0.9rem 0;
+    padding: 0.75rem 0.9rem 0.75rem 1.2rem;
+    border-radius: 20px;
+    background: var(--ops-glass);
+    -webkit-backdrop-filter: var(--ops-glass-blur);
+    backdrop-filter: var(--ops-glass-blur);
+    border: 1px solid var(--ops-glass-border);
+    box-shadow: var(--ops-shadow-3);
 }
 
-.ges-top h1 { margin: 0; font-size: 1.15rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
-.ges-top__sub { margin: 0.1rem 0 0; font-size: 0.75rem; color: var(--ges-text-2); }
+@media (max-width: 899px) {
+    .ges-top { top: 0.6rem; margin: 0.6rem 0.6rem 0; padding: 0.65rem 0.75rem 0.65rem 1rem; }
+}
+
+.ges-top h1 { margin: 0; font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em; }
+.ges-top__sub { margin: 0.1rem 0 0; font-size: 0.8rem; color: var(--ges-text-2); }
 .ges-top__right { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
 
 .ges-chip {
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
-    font-size: 0.72rem;
-    font-weight: 800;
-    padding: 0.3rem 0.75rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    min-height: 32px;
+    padding: 0.3rem 0.8rem;
     border-radius: var(--radius-pill);
     background: var(--ges-good-bg);
     color: var(--ges-good);
@@ -290,20 +339,23 @@
 .ges-chip.is-off { background: var(--ges-crit-bg); color: var(--ges-crit); }
 .ges-chip i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 /* "Activar sonido" y "Activar avisos": el chip apagado se toca para arreglarlo */
-button.ges-chip { border: 0; font-family: inherit; cursor: pointer; min-height: 32px; }
+button.ges-chip { border: 0; font-family: inherit; cursor: pointer; min-height: var(--ops-tap); }
 button.ges-chip:disabled { opacity: 0.6; cursor: default; }
 
 .ges-top__hint {
-    margin: 0;
-    padding: 0.6rem var(--gutter);
-    font-size: 0.8rem;
+    margin: 0.6rem 0.9rem 0;
+    padding: 0.7rem 1rem;
+    border-radius: var(--ops-radius);
+    font-size: 0.85rem;
     font-weight: 600;
     background: var(--ges-crit-bg);
     color: var(--ges-crit);
-    border-bottom: 1px solid var(--ges-line);
 }
 
 .ges-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+/* Acción suelta arriba de una sección (Salida sin venta en Caja): con la misma sangría que la barra */
+.ges-body > .ges-btn { margin: 0.6rem 0.9rem 0; }
 
 /* Las cotizaciones no traen margen propio: lo pone el armazón que las muestra */
 .ges-quotes { padding: 1rem var(--gutter) 2.5rem; }
@@ -323,31 +375,36 @@ button.ges-chip:disabled { opacity: 0.6; cursor: default; }
 .ges-tab {
     font: inherit;
     flex: none;
-    border: 2px solid var(--sky);
-    background: transparent;
+    border: 1px solid var(--ops-line);
+    background: rgb(255 255 255 / 0.55);
     border-radius: var(--radius-pill);
-    padding: 0.35rem 0.9rem;
-    min-height: 40px;
-    font-weight: 800;
-    font-size: 0.82rem;
+    padding: 0.35rem 1rem;
+    min-height: var(--ops-tap);
+    font-weight: 600;
+    font-size: 0.88rem;
     color: var(--ges-text-2);
     cursor: pointer;
-    transition: background-color 150ms ease, color 150ms ease;
+    transition: background-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
 }
 
 .ges-tab[aria-selected="true"] {
-    background: var(--ink);
-    border-color: var(--ink);
+    background: var(--mora);
+    border-color: var(--mora);
     color: var(--crema);
+    box-shadow: 0 8px 18px -12px rgb(var(--shadow-tint) / 0.7);
 }
 
-.ges-tab small { font-weight: 700; opacity: 0.75; margin-left: 0.3rem; }
+.ges-tab small { font-weight: 700; opacity: 0.8; margin-left: 0.3rem; }
 
 /* Los filtros usan aria-pressed en vez de aria-selected: no son pestañas */
 .ges-tab[aria-pressed="true"] {
-    background: var(--ink);
-    border-color: var(--ink);
+    background: var(--mora);
+    border-color: var(--mora);
     color: var(--crema);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .ges-tab:hover:not([aria-selected="true"]):not([aria-pressed="true"]) { background: #fff; }
 }
 
 .ges-tabs--flush { padding: 0; }

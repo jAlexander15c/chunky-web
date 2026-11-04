@@ -2,17 +2,24 @@
    En el teléfono una fila de pestañas que no cabe se elige aquí en lugar de deslizarla de lado. */
 
 .fsheet {
-    --fsheet-line: #e4dec6;
+    --fsheet-line: rgb(58 75 142 / 0.14);
     --fsheet-soft: var(--text-soft);
-    --fsheet-faint: #8d93b4;
+    --fsheet-faint: #5e6699;
     position: fixed;
     inset: 0;
     z-index: 80;
     display: flex;
     flex-direction: column;
-    background: #fffef6;
+    /* Vidrio casi opaco: se intuye la pantalla de atrás sin competir con las opciones */
+    background: rgb(252 250 233 / 0.86);
+    -webkit-backdrop-filter: blur(28px) saturate(170%);
+    backdrop-filter: blur(28px) saturate(170%);
     color: var(--ink);
     padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+    .fsheet { background: #fffef6; -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -32,19 +39,22 @@
     padding: 1rem var(--gutter) 0.6rem;
 }
 
-.fsheet__head h2 { margin: 0; font-size: 1.15rem; font-weight: 800; }
+.fsheet__head h2 { margin: 0; font-size: 1.25rem; font-weight: 700; }
 
 .fsheet__close {
     display: grid;
     place-items: center;
     width: 44px;
     height: 44px;
-    border: 1.5px solid var(--fsheet-line);
+    border: 0;
     border-radius: 50%;
-    background: #fff;
-    color: var(--ink);
+    background: rgb(58 75 142 / 0.08);
+    color: var(--mora);
     cursor: pointer;
+    transition: transform 160ms var(--ease-out), background-color 150ms ease;
 }
+
+.fsheet__close:active { transform: scale(0.94); }
 
 .fsheet__close svg { width: 18px; height: 18px; }
 
@@ -63,10 +73,8 @@
 
 .fsheet__label {
     padding: 0 0.5rem 0.25rem;
-    font-size: 0.66rem;
-    font-weight: 800;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    font-size: 0.78rem;
+    font-weight: 600;
     color: var(--fsheet-faint);
 }
 
@@ -87,16 +95,16 @@
     cursor: pointer;
 }
 
-.fsheet__opt[aria-current="true"] { background: var(--sky); }
+.fsheet__opt[aria-current="true"] { background: #fffdf4; box-shadow: 0 1px 2px rgb(var(--shadow-tint) / 0.06), 0 10px 24px -18px rgb(var(--shadow-tint) / 0.3); }
 
 .fsheet__ico {
     display: grid;
     place-items: center;
     flex: none;
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    background: #f6f2df;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: rgb(255 255 255 / 0.75);
     color: var(--mora);
 }
 
@@ -105,7 +113,7 @@
 .fsheet__opt[aria-current="true"] .fsheet__ico { background: var(--mora); color: var(--crema); }
 
 .fsheet__text { display: grid; flex: 1; min-width: 0; }
-.fsheet__text b { font-size: 0.95rem; font-weight: 800; }
+.fsheet__text b { font-size: 0.95rem; font-weight: 700; }
 
 .fsheet__text small {
     font-size: 0.74rem;

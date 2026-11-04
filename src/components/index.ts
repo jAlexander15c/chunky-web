@@ -30,5 +30,6 @@ export * from "./pastry-recipes";
 export * from "./use-catalog";
 export * from "./update-banner";
 export * from "./full-sheet";
+export * from "./ops-states";
 export * from "./home-carousel";
 export * from "./quote-gallery";

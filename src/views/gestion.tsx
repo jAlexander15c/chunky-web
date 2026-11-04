@@ -32,6 +32,7 @@ import { GestionPasteleria } from "./gestion/pasteleria";
 import { GestionTurno } from "./gestion/turno";
 import { AccessPanel, FaceIdLoginButton, FaceIdOffer, InstallHint } from "./staff-access";
 
+import "@/styles/ops.css";
 import "./gestion.css";
 import "./admin.css";
 
