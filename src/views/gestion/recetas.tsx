@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { FullSheet } from "@/components";
+import { FullSheet, OpsEmpty, OpsSkeleton } from "@/components";
 import { HttpError, fetchGestionSupplies, formatQuantity } from "@/helpers";
 import type { ISupplyStatus } from "@/helpers";
 import { getIntermediateUnitLabel } from "@/helpers/elaborados";
@@ -159,7 +159,7 @@ const RecipeSheet = ({ token, product, catalog, supplies, onRulesSaved, onChange
             {() => (
                 <div className="ges-rec-sheet">
                     {isBatch ? null : isLoading ? (
-                        <p className="ges-empty">Cargando…</p>
+                        <OpsSkeleton label="Cargando…" />
                     ) : (
                         <>
                             <div className="ges-rec-head">
@@ -415,11 +415,9 @@ export const GestionRecetas = ({ token, onSessionExpired, onSuppliesChanged }: I
                     ) : null}
 
                     {isLoading ? (
-                        <p className="ges-empty">Cargando…</p>
+                        <OpsSkeleton label="Cargando…" />
                     ) : elaborados.length === 0 ? (
-                        <p className="ges-empty">
-                            {search.trim() ? "Ningún elaborado coincide con la búsqueda." : "Todavía no hay elaborados. Crea el primero."}
-                        </p>
+                        <OpsEmpty title={search.trim() ? "Ningún elaborado coincide con la búsqueda." : "Todavía no hay elaborados. Crea el primero."} />
                     ) : (
                         <ul className="ges-avail-list">
                             {elaborados.map((supply) => {
@@ -505,9 +503,9 @@ export const GestionRecetas = ({ token, onSessionExpired, onSuppliesChanged }: I
                 ) : null}
 
                 {isLoading ? (
-                    <p className="ges-empty">Cargando…</p>
+                    <OpsSkeleton label="Cargando…" />
                 ) : pageItems.length === 0 ? (
-                    <p className="ges-empty">{products.length ? "Ningún producto coincide con la búsqueda." : "No hay productos en el menú."}</p>
+                    <OpsEmpty title={products.length ? "Ningún producto coincide con la búsqueda." : "No hay productos en el menú."} />
                 ) : (
                     <ul className="ges-avail-list">
                         {pageItems.map((product) => {

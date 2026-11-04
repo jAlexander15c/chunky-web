@@ -6,6 +6,7 @@ import type { IRecipeView } from "@/helpers/inventory";
 import { HttpError, KITCHEN_LATE_MINUTES, cancelDeliveryOrder, formatPastaOptions, formatPhone, formatPrice, getMinutesSince, isUnpaidOrder } from "@/helpers";
 import type { IKitchenOrder, KitchenStep } from "@/helpers";
 import type { IKitchenFeed } from "@/hooks/useKitchenFeed";
+import { OpsEmpty, OpsSkeleton } from "@/components";
 
 import "./cocina.css";
 
@@ -73,7 +74,7 @@ const KitchenRecipeModal = ({ token, line, onClose }: { token: string; line: Kit
                 </h3>
                 {details ? <p className="kit-recipe__sub">{details}</p> : null}
                 {error ? <p className="ges-error" role="alert">{error}</p> : null}
-                {!recipe && !error ? <p className="ges-empty">Cargando…</p> : null}
+                {!recipe && !error ? <OpsSkeleton label="Cargando…" /> : null}
                 {recipe?.lines.map((entry) => (
                     <div key={entry.supplyId} className="kit-recipe__row">
                         <b>{entry.name}</b>
@@ -153,7 +154,7 @@ const KitchenTicket = ({ order, now, onStep, onOpenDelivery, onOpenRecipe, onRej
                         ? <span className="kitchen-ticket__badge kitchen-ticket__badge--wa">Por confirmar</span>
                         : isUnpaidOrder(order) && <span className="kitchen-ticket__badge kitchen-ticket__badge--due">Por cobrar</span>}
                 </span>
-                <span className={`kitchen-ticket__time ${isLate ? "kitchen-ticket__time--late" : ""}`}>
+                <span className={`kitchen-ticket__time ops-num ${isLate ? "kitchen-ticket__time--late" : ""}`}>
                     {timeLabel} <b>{minutes}</b> min
                 </span>
             </header>
@@ -261,7 +262,7 @@ const KitchenColumn = ({ title, orders, empty, isNew, now, onStep, onOpenDeliver
         <h2 className="kitchen-col__head">{title} <span className="kitchen-count">{orders.length}</span></h2>
         <div className="kitchen-col__list">
             {orders.length === 0
-                ? <p className="kitchen-empty">{empty}</p>
+                ? <OpsEmpty title={empty} />
                 : orders.map((order) => <KitchenTicket key={order.id} order={order} now={now} onStep={onStep} onOpenDelivery={onOpenDelivery} onOpenRecipe={onOpenRecipe} onReject={onReject} />)}
         </div>
     </section>

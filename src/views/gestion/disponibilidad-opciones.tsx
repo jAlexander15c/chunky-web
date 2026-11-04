@@ -8,6 +8,7 @@ import {
     isOptionAvailable,
 } from "@/helpers";
 import type { IModifier } from "@/helpers";
+import { OpsEmpty, OpsSkeleton } from "@/components";
 
 interface IGestionOpcionesProps {
     token: string;
@@ -97,9 +98,9 @@ export const GestionOpciones = ({ token, onSessionExpired, onSoldOutCountChange 
             {error ? <p className="ges-error" role="alert">{error}</p> : null}
 
             {isLoading ? (
-                <p className="ges-empty">Cargando…</p>
+                <OpsSkeleton label="Cargando…" />
             ) : modifiers.length === 0 ? (
-                <p className="ges-empty">No hay modificadores en esta tienda.</p>
+                <OpsEmpty title="No hay modificadores en esta tienda." />
             ) : (
                 modifiers.map((modifier) => (
                     <section key={modifier.id} className="ges-avail-group" aria-labelledby={`ges-mod-${modifier.id}`}>

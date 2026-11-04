@@ -25,7 +25,7 @@
   font-family: inherit;
   font-weight: 900;
   cursor: pointer;
-  min-height: 40px;
+  min-height: var(--ops-tap);
 }
 
 /* Rechazo de un pedido de Yappy: el dinero se devuelve a mano */
@@ -109,9 +109,10 @@
 }
 
 .kitchen-ticket {
-  background: #fff;
-  border: 2px solid var(--ink);
-  border-radius: 16px;
+  background: var(--ops-card);
+  border: 2px solid var(--ops-line-strong);
+  border-radius: var(--ops-radius);
+  box-shadow: var(--ops-shadow-1);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -120,7 +121,6 @@
 .kitchen-ticket--new {
   border-color: var(--kitchen-alert);
   box-shadow: 0 0 0 4px rgb(225 168 229 / 0.55);
-  animation: kitchen-glow 1.4s ease-in-out infinite;
 }
 
 .kitchen-ticket--ready {
@@ -193,7 +193,7 @@
   padding: 7px 10px;
   border-radius: 10px;
   background: #fdebc0;
-  border-left: 4px solid #d99a1e;
+  border: 1px solid rgb(217 154 30 / 0.55);
   font-size: 0.9rem;
   font-weight: 700;
 }
@@ -204,7 +204,7 @@
   padding: 5px 9px;
   border-radius: 8px;
   background: #fdebc0;
-  border-left: 4px solid #d99a1e;
+  border: 1px solid rgb(217 154 30 / 0.55);
   font-size: 0.9rem;
   font-weight: 800;
 }
@@ -222,7 +222,7 @@
 
 .kitchen-ticket__action {
   margin: 0 10px 10px;
-  min-height: 52px;
+  min-height: var(--ops-tap-lg);
   border: 0;
   border-radius: 999px;
   font-family: inherit;
@@ -231,18 +231,31 @@
   cursor: pointer;
 }
 
-.kitchen-ticket__action:active {
-  transform: scale(0.98);
+.kitchen-ticket__action:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.kitchen-ticket__action:focus-visible {
+  outline: 3px solid var(--mora);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .kitchen-ticket__action {
+    transition: transform var(--ops-fast) var(--ease-out), box-shadow var(--ops-fast) ease;
+  }
 }
 
 .kitchen-ticket__action--accept {
   background: var(--kitchen-alert);
   color: #fff;
+  box-shadow: var(--ops-shadow-cta);
 }
 
 .kitchen-ticket__action--ready {
   background: var(--mora);
   color: var(--crema);
+  box-shadow: var(--ops-shadow-cta);
 }
 
 .kitchen-ticket__action--deliver {
@@ -261,11 +274,18 @@
   align-items: center;
   gap: 14px;
   max-width: calc(100% - 32px);
-  background: var(--ink);
-  color: var(--crema);
+  background: var(--ops-glass-strong);
+  -webkit-backdrop-filter: var(--ops-glass-blur);
+  backdrop-filter: var(--ops-glass-blur);
+  border: 1px solid var(--ops-glass-border);
+  color: var(--ink);
   padding: 12px 20px 12px 14px;
   border-radius: 999px;
-  box-shadow: 0 18px 30px -14px rgb(15 20 50 / 0.7);
+  box-shadow: var(--ops-shadow-3);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .kitchen-toast { background: var(--ops-card); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 
 .kitchen-toast__bell {
@@ -278,7 +298,6 @@
   display: grid;
   place-items: center;
   font-weight: 900;
-  animation: kitchen-ring 0.9s ease-in-out infinite;
 }
 
 .kitchen-toast b {
@@ -288,7 +307,7 @@
 .kitchen-toast small {
   display: block;
   font-size: 0.8rem;
-  color: var(--sky);
+  color: var(--ops-text-2);
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -305,10 +324,14 @@
   75% { transform: rotate(-14deg); }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .kitchen-ticket--new,
+/* Los avisos se animan solo si el sistema lo permite */
+@media (prefers-reduced-motion: no-preference) {
+  .kitchen-ticket--new {
+    animation: kitchen-glow 1.4s ease-in-out infinite;
+  }
+
   .kitchen-toast__bell {
-    animation: none;
+    animation: kitchen-ring 0.9s ease-in-out infinite;
   }
 }
 
@@ -351,6 +374,7 @@
   align-self: center;
   margin: -4px 10px 10px;
   padding: 6px 10px;
+  min-height: var(--ops-tap);
   border: 0;
   background: none;
   color: var(--kitchen-alert);

@@ -12,6 +12,7 @@ import {
     payCreditTicket,
 } from "@/helpers";
 import type { ICreditTicket, IShiftDetail, ITicketLine, PaymentMethod } from "@/helpers";
+import { OpsEmpty, OpsSkeleton } from "@/components";
 import { TicketLinePricing } from "./ticket-pricing";
 
 const PAYMENT_METHODS: PaymentMethod[] = ["efectivo", "tarjeta", "yappy"];
@@ -89,7 +90,7 @@ const CollectDialog = ({ token, credit, onPaid, onClose, onSessionExpired }: ICo
 
                 <div className="ges-rows">
                     {lines === null ? (
-                        <p className="ges-empty">Cargando la cuenta…</p>
+                        <OpsSkeleton label="Cargando la cuenta…" />
                     ) : (
                         lines.map((line) => (
                             <div className="ges-tl" key={line.id}>
@@ -231,7 +232,7 @@ export const GestionCreditos = ({ token, onSessionExpired, onShiftChange }: IGes
         return () => controller.abort();
     }, [load]);
 
-    if (isLoading) return <p className="ges-empty">Cargando los créditos…</p>;
+    if (isLoading) return <OpsSkeleton label="Cargando los créditos…" />;
 
     const owed = roundMoney(credits.reduce((sum, one) => sum + one.total, 0));
 
@@ -250,7 +251,7 @@ export const GestionCreditos = ({ token, onSessionExpired, onShiftChange }: IGes
             </section>
 
             {credits.length === 0 ? (
-                <p className="ges-empty">Nadie debe nada. Una cuenta se deja a crédito desde el cobro en Caja.</p>
+                <OpsEmpty title="Nadie debe nada. Una cuenta se deja a crédito desde el cobro en Caja." />
             ) : (
                 <div className="ges-credits">
                     {credits.map((credit) => {

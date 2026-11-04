@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { FullSheet } from "@/components";
+import { FullSheet, OpsSkeleton } from "@/components";
 import { HttpError, formatQuantity } from "@/helpers";
 import type { ISupplyStatus } from "@/helpers";
 import { getBatchShortcuts, getIntermediateUnitLabel, parsePositiveAmount } from "@/helpers/elaborados";
@@ -182,7 +182,7 @@ const ProduceSupplySheet = ({ token, supply, onSaved, onClose }: IProduceSupplyS
                         }}
                     >
                         {!recipe ? (
-                            error ? null : <p className="ges-empty">Cargando…</p>
+                            error ? null : <OpsSkeleton label="Cargando…" />
                         ) : !recipe.yieldQuantity || recipe.ingredients.length === 0 ? (
                             <p className="ges-empty">Este elaborado no tiene receta. Ponla en Recetas → Elaborados.</p>
                         ) : (

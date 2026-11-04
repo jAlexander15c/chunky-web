@@ -1,0 +1,283 @@
+/* Caja: mapa de mesas, catálogo y cuenta. Se carga antes que gestion.css, así que aquí
+   solo van selectores que gestion.css no repite. Tarjetas sólidas; el vidrio es solo del total. */
+
+/* ============ Mapa de mesas ============ */
+
+.ges-tables {
+    display: grid;
+    gap: 0.7rem;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    padding: var(--gutter);
+    align-content: start;
+}
+
+@media (max-width: 520px) {
+    .ges-tables { grid-template-columns: repeat(2, 1fr); }
+}
+
+.ges-table {
+    font: inherit;
+    background: var(--ops-card);
+    border: 2px solid var(--ops-line);
+    border-radius: var(--ops-radius);
+    box-shadow: var(--ops-shadow-1);
+    padding: 0.8rem;
+    text-align: left;
+    display: grid;
+    gap: 0.15rem;
+    align-content: start;
+    min-height: max(108px, var(--ops-tap-lg));
+    color: inherit;
+    cursor: pointer;
+}
+
+.ges-table:disabled, .ges-prod:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+.ges-table.is-busy { background: var(--sky); border-color: var(--mora); }
+.ges-table.is-ready { background: var(--ops-good-bg); border-color: var(--ops-good); }
+.ges-table.is-due { background: var(--ops-warn-bg); border-color: var(--ops-warn); }
+.ges-table--togo { border-style: dashed; }
+
+.ges-table:focus-visible, .ges-prod:focus-visible, .ges-account-chip:focus-visible {
+    outline: 3px solid var(--mora);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .ges-table, .ges-prod, .ges-account-chip {
+        transition: transform var(--ops-fast) var(--ease-out), border-color var(--ops-fast) ease, box-shadow var(--ops-fast) ease;
+    }
+}
+
+.ges-table:active:not(:disabled), .ges-prod:active:not(:disabled), .ges-account-chip:active:not(:disabled) { transform: scale(0.97); }
+
+@media (hover: hover) and (pointer: fine) {
+    .ges-table:hover:not(:disabled), .ges-prod:hover:not(:disabled) { border-color: var(--mora); box-shadow: var(--ops-shadow-2); }
+}
+
+.ges-table__n { font-weight: 800; font-size: 1.05rem; }
+/* A nombre de quién va el pedido para llevar */
+.ges-table__who { font-weight: 700; font-size: 0.78rem; color: var(--ops-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ges-table__free { font-size: 0.78rem; color: var(--ops-text-3); font-weight: 700; }
+
+/* Para llevar va arriba y siempre se puede abrir uno más: puede haber varios a la vez */
+.ges-tables__group {
+    margin: 0;
+    padding: 1rem var(--gutter) 0;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ops-text-3);
+}
+
+.ges-tables__group + .ges-tables { padding-top: 0.6rem; }
+.ges-tables:has(+ .ges-tables__group) { padding-bottom: 0.4rem; }
+
+.ges-table--new {
+    border-style: dashed;
+    border-color: var(--mora);
+    color: var(--mora);
+    place-content: center;
+    justify-items: center;
+    text-align: center;
+    gap: 0.3rem;
+    box-shadow: none;
+}
+
+.ges-table--new b { font-size: 1.9rem; line-height: 1; font-weight: 700; }
+.ges-table--new span { font-weight: 800; font-size: 0.9rem; }
+.ges-table__t { font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.ges-table__m { font-size: 0.72rem; color: var(--ops-text-2); font-weight: 700; }
+
+.ges-table__pend,
+.ges-table__due,
+.ges-table__ok {
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    justify-self: start;
+    margin-top: 0.15rem;
+}
+
+.ges-table__pend { color: var(--ops-warn); background: var(--ops-warn-bg); padding: 0.05rem 0.45rem; border-radius: var(--radius-pill); }
+.ges-table__ok { color: var(--ops-good); }
+.ges-table__due { color: var(--ops-warn); }
+.ges-table__paid { font-size: 0.72rem; font-weight: 800; color: var(--ops-warn); font-variant-numeric: tabular-nums; }
+.ges-table__accounts { justify-self: start; font-size: 0.66rem; font-weight: 800; color: var(--ops-warn); background: var(--ops-warn-bg); padding: 0.05rem 0.45rem; border-radius: var(--radius-pill); }
+
+/* ============ Catálogo y cuenta ============ */
+
+.ges-account { display: grid; flex: 1; min-height: 0; }
+
+@media (min-width: 900px) {
+    .ges-account { grid-template-columns: 1fr 360px; }
+}
+
+.ges-account__menu { min-width: 0; overflow: auto; }
+
+.ges-grid {
+    display: grid;
+    gap: 0.7rem;
+    padding: 0.5rem var(--gutter) var(--gutter);
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+}
+
+@media (max-width: 520px) {
+    .ges-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.ges-prod {
+    font: inherit;
+    background: var(--ops-card);
+    border: 1px solid var(--ops-line);
+    border-radius: var(--ops-radius);
+    box-shadow: var(--ops-shadow-1);
+    padding: 0;
+    overflow: hidden;
+    text-align: left;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    min-height: var(--ops-tap-lg);
+    color: inherit;
+    cursor: pointer;
+}
+
+/* Misma proporción para todas: las fotos de Loyverse vienen de cualquier tamaño */
+.ges-prod__img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    background: var(--sky);
+}
+
+.ges-prod__img--none {
+    display: grid;
+    place-items: center;
+    font-weight: 800;
+    font-size: 1.4rem;
+    letter-spacing: 0.02em;
+    color: var(--mora);
+}
+
+.ges-prod__txt { display: grid; gap: 0.15rem; align-content: start; padding: 0.55rem 0.7rem 0.7rem; }
+.ges-prod b { font-weight: 800; font-size: 0.86rem; line-height: 1.25; }
+.ges-prod__txt > span { font-weight: 800; color: var(--mora); font-variant-numeric: tabular-nums; }
+.ges-prod em { font-style: normal; font-size: 0.65rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ops-text-3); }
+
+/* La cuenta es una tarjeta sólida; lo único que flota (en vidrio) es el total con sus botones */
+.ges-ticket {
+    background: var(--ops-card);
+    border-top: 1px solid var(--ops-line);
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+/* La cuenta no crece con cada plato: mide lo que la pantalla, la lista hace scroll
+   y el total con los botones de cobrar siempre quedan a la vista */
+@media (min-width: 900px) {
+    .ges-panel:has(.ges-account) { height: 100dvh; }
+    .ges-account { overflow: hidden; grid-template-rows: minmax(0, 1fr); }
+    .ges-ticket { border-top: 0; border-left: 1px solid var(--ops-line); min-height: 0; }
+    .ges-ticket__list { min-height: 0; }
+}
+
+.ges-ticket__head {
+    padding: 0.8rem var(--gutter) 0.3rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.ges-ticket__head h2 {
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ops-text-2);
+}
+
+.ges-ticket__list { flex: 1; overflow: auto; padding: 0 var(--gutter); min-height: 90px; }
+
+.ges-grp {
+    margin: 0.6rem 0 0.1rem;
+    font-size: 0.64rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ops-text-3);
+}
+
+.ges-grp.is-pend { color: var(--ops-warn); }
+
+/* Total y botones: vidrio fijo abajo de la cuenta. En el teléfono queda sobre la barra de abajo */
+.ges-ticket__foot {
+    position: sticky;
+    bottom: calc(5.6rem + env(safe-area-inset-bottom, 0px));
+    z-index: 2;
+    margin: 0.6rem;
+    padding: 0.9rem 1rem;
+    border-radius: var(--ops-radius-lg);
+    display: grid;
+    gap: 0.55rem;
+    background: var(--ops-glass-strong);
+    -webkit-backdrop-filter: var(--ops-glass-blur);
+    backdrop-filter: var(--ops-glass-blur);
+    border: 1px solid var(--ops-glass-border);
+    box-shadow: var(--ops-shadow-3);
+}
+
+@media (min-width: 900px) {
+    .ges-ticket__foot { bottom: 0.6rem; }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+    .ges-ticket__foot { background: var(--ops-card); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+
+/* Cobrar es la única acción primaria; el resto es secundaria. Todo con toque grande */
+.ges-account .ges-btn:not(.ges-btn--sm) { min-height: var(--ops-tap-lg); }
+.ges-ticket__foot .ges-btn--solid { font-size: 1.02rem; }
+
+/* iPad acostado: el pie apretado para que la lista de platos no quede en un hilo.
+   Cobrar sigue en 52; las secundarias bajan al mínimo de 44 */
+@media (min-width: 900px) and (max-height: 860px) {
+    .ges-ticket__foot { padding: 0.7rem 0.85rem; gap: 0.4rem; margin: 0.5rem; }
+    .ges-ticket__foot .ges-btn:not(.ges-btn--solid) { min-height: var(--ops-tap); padding-block: 0.4rem; }
+    .ges-ticket__foot .ges-total b { font-size: 1.6rem; }
+}
+
+.ges-total { display: flex; justify-content: space-between; align-items: baseline; }
+.ges-total span { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ops-text-2); }
+.ges-total b { font-size: 1.9rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+
+/* ============ Cuentas de una mesa ============ */
+
+.ges-accounts { display: flex; gap: 0.4rem; overflow-x: auto; padding: 0.2rem var(--gutter) 0.4rem; }
+.ges-modal .ges-accounts { flex-wrap: wrap; overflow: visible; padding: 0; }
+
+.ges-account-chip {
+    font: inherit;
+    flex: none;
+    display: grid;
+    gap: 0.05rem;
+    text-align: left;
+    min-height: var(--ops-tap-lg);
+    padding: 0.35rem 0.85rem;
+    border: 2px solid var(--sky);
+    border-radius: 14px;
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.ges-account-chip b { font-size: 0.8rem; font-weight: 800; max-width: 12ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ges-account-chip span { font-size: 0.72rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ops-text-2); }
+.ges-account-chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--crema); }
+.ges-account-chip[aria-pressed="true"] span { color: var(--crema); opacity: 0.8; }
+.ges-account-chip.is-add { border-style: dashed; place-items: center; font-size: 0.78rem; font-weight: 800; }
+.ges-account-chip:disabled { opacity: 0.45; cursor: default; }

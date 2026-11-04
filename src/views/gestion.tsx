@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
 
 import {
     COLLABORATOR_ROLES,
@@ -8,8 +7,6 @@ import {
     fetchStaffMe,
     formatCash,
     getGestionToken,
-    hasUsedFaceIdHere,
-    loginGestion,
     logoutGestion,
     setGestionToken,
 } from "@/helpers";
@@ -19,7 +16,7 @@ import { useDeliveryFeed } from "@/hooks/useDeliveryFeed";
 import { useKitchenFeed } from "@/hooks/useKitchenFeed";
 import { useOrderAlerts } from "@/hooks/useOrderAlerts";
 import type { OrderAlertsStatus } from "@/hooks/useOrderAlerts";
-import { shouldOfferFaceId, useChoosePin, useFaceIdLogin } from "@/hooks/useStaffAccess";
+import { shouldOfferFaceId } from "@/hooks/useStaffAccess";
 
 import { FullSheet } from "@/components";
 
@@ -29,14 +26,15 @@ import { GestionCreditos } from "./gestion/creditos";
 import { GestionDelivery } from "./gestion/delivery";
 import { GestionInventario } from "./gestion/inventario";
 import { GestionPasteleria } from "./gestion/pasteleria";
+import { GestionChoosePin, GestionLogin } from "./gestion/login";
+import { SECTIONS } from "./gestion/sections";
+import type { Section } from "./gestion/sections";
 import { GestionTurno } from "./gestion/turno";
-import { AccessPanel, FaceIdLoginButton, FaceIdOffer, InstallHint } from "./staff-access";
+import { AccessPanel, FaceIdOffer } from "./staff-access";
 
 import "@/styles/ops.css";
 import "./gestion.css";
 import "./admin.css";
-
-const PIN_LENGTH = 6;
 
 /** Por que no se pueden activar los avisos aqui, al tocar "Activar avisos". */
 const ALERT_HINT: Record<OrderAlertsStatus, string> = {
@@ -58,275 +56,6 @@ const useGestionHead = () => {
         };
     }, []);
 };
-
-/* ============ Acceso con PIN o Face ID ============ */
-
-const PIN_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"];
-
-interface IPinPadProps {
-    pin: string;
-    isBusy: boolean;
-    /** Lo que se lee bajo los puntos: el error o "Entrando…". */
-    status: string;
-    onChange: (pin: string) => void;
-    /** Con seis dígitos se envía solo: no hace falta buscar el botón con las manos ocupadas. */
-    onComplete: (pin: string) => void;
-}
-
-/** Los puntos y el teclado grande de /gestion, para entrar y para elegir el PIN. */
-const PinPad = ({ pin, isBusy, status, onChange, onComplete }: IPinPadProps) => {
-    const pressKey = (key: string) => {
-        if (isBusy) return;
-        if (key === "⌫") {
-            onChange(pin.slice(0, -1));
-            return;
-        }
-        if (pin.length >= PIN_LENGTH) return;
-
-        const next = pin + key;
-        onChange(next);
-        if (next.length === PIN_LENGTH) onComplete(next);
-    };
-
-    return (
-        <>
-            <div className="ges-dots" role="status" aria-label={`${pin.length} de ${PIN_LENGTH} dígitos`}>
-                {Array.from({ length: PIN_LENGTH }, (_value, index) => (
-                    <span key={index} className={index < pin.length ? "is-on" : undefined} />
-                ))}
-            </div>
-
-            <p className="ges-gate__error" role="alert">{status}</p>
-
-            <div className="ges-keys">
-                {PIN_KEYS.map((key, index) =>
-                    key ? (
-                        <button
-                            key={key}
-                            type="button"
-                            className={`ges-key${key === "⌫" ? " ges-key--soft" : ""}`}
-                            onClick={() => pressKey(key)}
-                            disabled={isBusy}
-                            aria-label={key === "⌫" ? "Borrar" : key}
-                        >
-                            {key}
-                        </button>
-                    ) : (
-                        <span key={`vacio-${index}`} />
-                    )
-                )}
-            </div>
-        </>
-    );
-};
-
-interface IGestionLoginProps {
-    /** viaPin: entró escribiendo el PIN (después se le ofrece Face ID). */
-    onLogin: (login: IStaffLogin, viaPin: boolean) => void;
-}
-
-const GestionLogin = ({ onLogin }: IGestionLoginProps) => {
-    const [pin, setPin] = useState("");
-    const [error, setError] = useState("");
-    const [isSending, setIsSending] = useState(false);
-    const faceId = useFaceIdLogin("gestion", (login) => onLogin(login, false));
-
-    const submit = useCallback(
-        async (candidate: string) => {
-            setIsSending(true);
-            setError("");
-
-            try {
-                onLogin(await loginGestion(candidate), true);
-            } catch (loginError) {
-                setPin("");
-                setIsSending(false);
-                setError(
-                    loginError instanceof HttpError && loginError.status < 500
-                        ? loginError.message
-                        : "No pudimos conectar. Revisa el Wi-Fi."
-                );
-            }
-        },
-        [onLogin]
-    );
-
-    const isReturning = faceId.isAvailable && hasUsedFaceIdHere();
-
-    return (
-        <div className="ges ges-gate">
-            <div className="ges-gate__panel">
-                <span className="ges-gate__mark script">Gestión</span>
-                <h1>{isReturning ? "Hola de nuevo" : "Entra con tu PIN"}</h1>
-                <p>Es tuyo: lo que registres queda a tu nombre.</p>
-                <InstallHint />
-                <FaceIdLoginButton kind="ges" faceId={faceId} />
-
-                <PinPad
-                    pin={pin}
-                    isBusy={isSending}
-                    status={isSending ? "Entrando…" : error}
-                    onChange={(next) => {
-                        setError("");
-                        setPin(next);
-                    }}
-                    onComplete={(next) => void submit(next)}
-                />
-            </div>
-        </div>
-    );
-};
-
-/** Quien entró con el PIN que generó el tablero elige el suyo, con el mismo teclado. */
-const GestionChoosePin = ({ token, name, onChanged }: { token: string; name: string; onChanged: (login: IStaffLogin) => void }) => {
-    const choose = useChoosePin("gestion", token, onChanged);
-    const isFirst = choose.step === "first";
-
-    return (
-        <div className="ges ges-gate">
-            <div className="ges-gate__panel">
-                <span className="ges-gate__mark script">Gestión</span>
-                <h1>{isFirst ? "Elige tu PIN" : "Repite tu PIN"}</h1>
-                <div className="sa-steps" aria-hidden="true">
-                    <i className="is-on" />
-                    <i className={isFirst ? undefined : "is-on"} />
-                </div>
-                <p>
-                    {isFirst
-                        ? `Hola, ${name}. Escribe 6 números que recuerdes. Desde ahora entras con ese PIN o con Face ID.`
-                        : "Escríbelo otra vez para confirmarlo."}
-                </p>
-
-                <PinPad
-                    pin={choose.pin}
-                    isBusy={choose.isSaving}
-                    status={choose.isSaving ? "Guardando…" : choose.error}
-                    onChange={(next) => {
-                        choose.setError("");
-                        choose.setPin(next);
-                    }}
-                    onComplete={(next) => void choose.submit(next)}
-                />
-                <p className="sa-hint">No sirven 123456, 111111 ni parecidos.</p>
-            </div>
-        </div>
-    );
-};
-
-/* ============ Armazón ============ */
-
-type Section = "caja" | "turno" | "creditos" | "cocina" | "delivery" | "inventario" | "pasteleria" | "acceso";
-
-interface ISectionInfo {
-    id: Section;
-    label: string;
-    /** Se ve con cualquiera de estos roles. */
-    roles: CollaboratorRole[];
-    sub: string;
-    icon: ReactNode;
-}
-
-const SECTIONS: ISectionInfo[] = [
-    {
-        id: "caja",
-        label: "Caja",
-        roles: ["caja"],
-        sub: "Toma las mesas, envía a cocina y cobra",
-        icon: (
-            <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <rect x="2" y="7" width="20" height="13" rx="2" />
-                <path d="M6 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2M2 12h20" />
-            </svg>
-        ),
-    },
-    {
-        id: "turno",
-        label: "Turno",
-        roles: ["caja"],
-        sub: "Fondo inicial, movimientos de efectivo y cierre",
-        icon: (
-            <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 7v5l3 2" />
-            </svg>
-        ),
-    },
-    {
-        id: "creditos",
-        label: "Créditos",
-        roles: ["caja"],
-        sub: "Cuentas que se pagan después: quién debe y desde cuándo",
-        icon: (
-            <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" />
-                <path d="M9 8h6M9 12h6" />
-            </svg>
-        ),
-    },
-    {
-        id: "cocina",
-        label: "Cocina",
-        roles: ["caja"],
-        sub: "Pedidos de la web: acéptalos, márcalos listos y entrega lo que se retira",
-        icon: (
-            <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M6 13.9A4 4 0 0 1 7 6a5 5 0 0 1 10 0 4 4 0 0 1 1 7.9V20H6z" />
-                <path d="M6 17h12" />
-            </svg>
-        ),
-    },
-    {
-        id: "delivery",
-        label: "Delivery",
-        roles: ["caja", "repartidor"],
-        sub: "Pedidos por WhatsApp y a domicilio: confírmalos, manda el enlace y llévalos",
-        icon: (
-            <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="6" cy="17" r="3" />
-                <circle cx="18" cy="17" r="3" />
-                <path d="M9 17h6l-2-7H9M13 10h3l2 7M5 10h4" />
-            </svg>
-        ),
-    },
-    {
-        id: "inventario",
-        label: "Inventario",
-        roles: ["inventario"],
-        sub: "Compras, conteos, mermas y disponibilidad",
-        icon: (
-            <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M3 7l9-4 9 4v10l-9 4-9-4z" />
-                <path d="M3 7l9 4 9-4M12 11v10" />
-            </svg>
-        ),
-    },
-    {
-        id: "pasteleria",
-        label: "Repostería",
-        roles: ["pastelera"],
-        sub: "Cotizaciones, ingredientes y recetas de tus postres",
-        icon: (
-            <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M4 21V11h16v10M2 11h20M12 11V7" />
-                <circle cx="12" cy="5" r="2" />
-            </svg>
-        ),
-    },
-    {
-        // Va al final y la ve cualquiera con un rol: es de la persona, no de su trabajo
-        id: "acceso",
-        // Corto: en la barra de abajo del teléfono ya van siete secciones
-        label: "Acceso",
-        roles: COLLABORATOR_ROLES,
-        sub: "Tu PIN y tus equipos con Face ID",
-        icon: (
-            <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" />
-                <path d="M9 9.5v1M15 9.5v1M12 9.5v3.5h-1M9.5 15.5c1.4 1.1 3.6 1.1 5 0" />
-            </svg>
-        ),
-    },
-];
 
 interface IGestionShellProps {
     token: string;

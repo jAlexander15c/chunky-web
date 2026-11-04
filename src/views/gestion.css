@@ -160,7 +160,7 @@
 .ges-key:disabled { opacity: 0.5; cursor: default; }
 .ges-key--soft { background: transparent; border-color: transparent; box-shadow: none; font-size: 1.1rem; color: var(--ges-text-2); }
 
-.ges-btn--sm { min-height: 40px; font-size: 0.82rem; padding: 0.25rem 0.95rem; }
+.ges-btn--sm { min-height: var(--ops-tap); font-size: 0.82rem; padding: 0.25rem 0.95rem; }
 .ges-btn--block { width: 100%; }
 
 /* ============ Armazón: menú al lado en computadora, abajo en el teléfono ============ */
@@ -637,6 +637,8 @@ button.ges-chip:disabled { opacity: 0.6; cursor: default; }
 .ges-pill.is-crit { background: var(--ges-crit-bg); color: var(--ges-crit); }
 .ges-pill.is-idle { background: var(--sky); color: var(--mora); }
 
+.ges .ops-skel { margin: 1.2rem 0; }
+
 .ges-empty {
     margin: 1.4rem 0;
     color: var(--ges-text-2);
@@ -690,96 +692,7 @@ button.ges-chip:disabled { opacity: 0.6; cursor: default; }
     .ges-acts { grid-template-columns: repeat(3, minmax(0, 140px)); justify-content: end; }
 }
 
-/* ============ Caja: mapa de mesas ============ */
-
-.ges-tables {
-    display: grid;
-    gap: 0.7rem;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    padding: var(--gutter);
-    align-content: start;
-}
-
-@media (max-width: 520px) {
-    .ges-tables { grid-template-columns: repeat(2, 1fr); }
-}
-
-.ges-table {
-    font: inherit;
-    background: var(--ges-panel);
-    border: 2px solid var(--ges-line);
-    border-radius: 16px;
-    padding: 0.8rem;
-    text-align: left;
-    display: grid;
-    gap: 0.15rem;
-    align-content: start;
-    min-height: 108px;
-    color: inherit;
-    cursor: pointer;
-    transition: transform 150ms var(--ease-out), border-color 150ms ease;
-}
-
-.ges-table:active:not(:disabled) { transform: scale(0.97); }
-.ges-table:disabled, .ges-prod:disabled { opacity: 0.45; cursor: not-allowed; }
-.ges-table.is-busy { background: var(--sky); border-color: var(--mora); }
-.ges-table.is-ready { background: var(--ges-good-bg); border-color: var(--ges-good); }
-.ges-table.is-due { background: var(--ges-warn-bg); border-color: var(--ges-warn); }
-.ges-table--togo { border-style: dashed; }
-
-@media (hover: hover) and (pointer: fine) {
-    .ges-table:hover:not(:disabled) { border-color: var(--mora); }
-}
-
-.ges-table__n { font-weight: 800; font-size: 1.05rem; }
-/* A nombre de quién va el pedido para llevar */
-.ges-table__who { font-weight: 700; font-size: 0.78rem; color: var(--ges-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ges-table__free { font-size: 0.78rem; color: var(--ges-text-3); font-weight: 700; }
-
-/* Para llevar va arriba y siempre se puede abrir uno más: puede haber varios a la vez */
-.ges-tables__group {
-    margin: 0;
-    padding: 1rem var(--gutter) 0;
-    font-size: 0.68rem;
-    font-weight: 800;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--ges-text-3);
-}
-
-.ges-tables__group + .ges-tables { padding-top: 0.6rem; }
-.ges-tables:has(+ .ges-tables__group) { padding-bottom: 0.4rem; }
-
-.ges-table--new {
-    border-style: dashed;
-    border-color: var(--mora);
-    color: var(--mora);
-    place-content: center;
-    justify-items: center;
-    text-align: center;
-    gap: 0.3rem;
-}
-
-.ges-table--new b { font-size: 1.9rem; line-height: 1; font-weight: 700; }
-.ges-table--new span { font-weight: 800; font-size: 0.9rem; }
-.ges-table__t { font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
-.ges-table__m { font-size: 0.72rem; color: var(--ges-text-2); font-weight: 700; }
-
-.ges-table__pend,
-.ges-table__due,
-.ges-table__ok {
-    font-size: 0.66rem;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    justify-self: start;
-    margin-top: 0.15rem;
-}
-
-.ges-table__pend { color: var(--ges-warn); background: var(--ges-warn-bg); padding: 0.05rem 0.45rem; border-radius: var(--radius-pill); }
-.ges-table__ok { color: var(--ges-good); }
-.ges-table__due { color: var(--ges-warn); }
-.ges-table__paid { font-size: 0.72rem; font-weight: 800; color: var(--ges-warn); font-variant-numeric: tabular-nums; }
+/* ============ Caja: avisos ============ */
 
 .ges-warning {
     margin: var(--gutter) var(--gutter) 0;
@@ -791,117 +704,7 @@ button.ges-chip:disabled { opacity: 0.6; cursor: default; }
     font-size: 0.85rem;
 }
 
-/* ============ Caja: catálogo y cuenta ============ */
-
-.ges-account { display: grid; flex: 1; min-height: 0; }
-
-@media (min-width: 900px) {
-    .ges-account { grid-template-columns: 1fr 340px; }
-}
-
-.ges-account__menu { min-width: 0; overflow: auto; }
-
-.ges-grid {
-    display: grid;
-    gap: 0.6rem;
-    padding: 0.5rem var(--gutter) var(--gutter);
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-}
-
-@media (max-width: 520px) {
-    .ges-grid { grid-template-columns: repeat(2, 1fr); }
-}
-
-.ges-prod {
-    font: inherit;
-    background: var(--ges-panel);
-    border: 2px solid var(--ges-line);
-    border-radius: 16px;
-    padding: 0;
-    overflow: hidden;
-    text-align: left;
-    display: grid;
-    grid-template-rows: auto 1fr;
-    color: inherit;
-    cursor: pointer;
-    transition: transform 150ms var(--ease-out), border-color 150ms ease;
-}
-
-.ges-prod:active:not(:disabled) { transform: scale(0.97); }
-
-/* Misma proporción para todas: las fotos de Loyverse vienen de cualquier tamaño */
-.ges-prod__img {
-    display: block;
-    width: 100%;
-    aspect-ratio: 4 / 3;
-    object-fit: cover;
-    background: var(--sky);
-}
-
-.ges-prod__img--none {
-    display: grid;
-    place-items: center;
-    font-weight: 800;
-    font-size: 1.4rem;
-    letter-spacing: 0.02em;
-    color: var(--mora);
-}
-
-.ges-prod__txt { display: grid; gap: 0.15rem; align-content: start; padding: 0.55rem 0.7rem 0.7rem; }
-.ges-prod b { font-weight: 800; font-size: 0.86rem; line-height: 1.25; }
-.ges-prod__txt > span { font-weight: 800; color: var(--mora); font-variant-numeric: tabular-nums; }
-.ges-prod em { font-style: normal; font-size: 0.65rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ges-text-3); }
-
-@media (hover: hover) and (pointer: fine) {
-    .ges-prod:hover:not(:disabled) { border-color: var(--mora); }
-}
-
-.ges-ticket {
-    background: var(--ges-panel-2);
-    border-top: 1px solid var(--ges-line);
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-}
-
-/* La cuenta no crece con cada plato: mide lo que la pantalla, la lista hace scroll
-   y el total con los botones de cobrar siempre quedan a la vista */
-@media (min-width: 900px) {
-    .ges-panel:has(.ges-account) { height: 100dvh; }
-    .ges-account { overflow: hidden; grid-template-rows: minmax(0, 1fr); }
-    .ges-ticket { border-top: 0; border-left: 1px solid var(--ges-line); min-height: 0; }
-    .ges-ticket__list { min-height: 0; }
-}
-
-.ges-ticket__head {
-    padding: 0.8rem var(--gutter) 0.3rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 0.6rem;
-}
-
-.ges-ticket__head h2 {
-    margin: 0;
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--ges-text-2);
-}
-
-.ges-ticket__list { flex: 1; overflow: auto; padding: 0 var(--gutter); min-height: 90px; }
-
-.ges-grp {
-    margin: 0.6rem 0 0.1rem;
-    font-size: 0.64rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--ges-text-3);
-}
-
-.ges-grp.is-pend { color: var(--ges-warn); }
+/* ============ Cuenta: líneas ============ */
 
 .ges-tl {
     display: grid;
@@ -922,8 +725,8 @@ button.ges-chip:disabled { opacity: 0.6; cursor: default; }
     border: 1.5px solid var(--sky);
     background: var(--ges-panel);
     border-radius: var(--radius-pill);
-    width: 30px;
-    height: 30px;
+    width: var(--ops-tap);
+    height: var(--ops-tap);
     font-weight: 800;
     line-height: 1;
     color: var(--ges-text-2);
@@ -931,7 +734,7 @@ button.ges-chip:disabled { opacity: 0.6; cursor: default; }
 }
 
 /* Pasar un plato a otra cuenta de la mesa: va al final de la línea, con texto y no redondo */
-.ges-tl small .ges-tl__move { width: auto; height: 28px; margin-left: auto; padding: 0 0.7rem; font-size: 0.72rem; color: var(--ink); }
+.ges-tl small .ges-tl__move { width: auto; height: var(--ops-tap); margin-left: auto; padding: 0 0.7rem; font-size: 0.72rem; color: var(--ink); }
 /* Nota y Pasar a… van juntas al final de la línea, y si no caben bajan juntas */
 .ges-tl__acts { margin-left: auto; display: flex; gap: 0.35rem; }
 .ges-tl small .ges-tl__acts .ges-tl__move { margin-left: 0; }
@@ -946,7 +749,7 @@ button.ges-chip:disabled { opacity: 0.6; cursor: default; }
 .ges-tl__parts { grid-column: 1 / -1; margin: 0; padding: 0; list-style: none; display: grid; gap: 0.2rem; font-size: 0.74rem; color: var(--ges-text-2); }
 .ges-tl__parts li { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; min-width: 0; }
 .ges-tl__parts em { font-weight: 700; color: var(--ges-warn); }
-.ges-tl__part-note { font: inherit; font-size: 0.68rem; font-weight: 800; margin-left: auto; height: 24px; padding: 0 0.6rem; border-radius: var(--radius-pill); border: 1.5px solid var(--sky); background: var(--ges-panel); color: var(--ink); cursor: pointer; }
+.ges-tl__part-note { font: inherit; font-size: 0.68rem; font-weight: 800; margin-left: auto; min-height: var(--ops-tap); padding: 0 0.8rem; border-radius: var(--radius-pill); border: 1.5px solid var(--sky); background: var(--ges-panel); color: var(--ink); cursor: pointer; }
 .ges-tl__part-note.has-note { border-color: #d99a1e; background: #fdebc0; }
 .ges-prod__img--combo { background: var(--orquidea); color: var(--ink); }
 
@@ -955,56 +758,16 @@ button.ges-chip:disabled { opacity: 0.6; cursor: default; }
 .ges-combo-slot { border: 1px solid var(--ges-line); border-radius: 14px; padding: 0.6rem 0.7rem; margin: 0; display: grid; gap: 0.5rem; min-width: 0; }
 .ges-combo-slot legend { font-size: 0.8rem; font-weight: 800; padding: 0 0.3rem; }
 .ges-combo-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-.ges-combo-chip { font: inherit; font-size: 0.8rem; font-weight: 700; min-height: 40px; padding: 0.35rem 0.85rem; border-radius: var(--radius-pill); border: 2px solid var(--sky); background: transparent; color: var(--ink); cursor: pointer; }
+.ges-combo-chip { font: inherit; font-size: 0.8rem; font-weight: 700; min-height: var(--ops-tap); padding: 0.35rem 0.85rem; border-radius: var(--radius-pill); border: 2px solid var(--sky); background: transparent; color: var(--ink); cursor: pointer; }
 .ges-combo-chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--crema); }
 .ges-combo-chip:disabled { text-decoration: line-through; opacity: 0.45; cursor: default; }
 
-/* ============ Cuentas de una mesa ============ */
-
-.ges-accounts { display: flex; gap: 0.4rem; overflow-x: auto; padding: 0.2rem var(--gutter) 0.4rem; }
-.ges-modal .ges-accounts { flex-wrap: wrap; overflow: visible; padding: 0; }
-
-.ges-account-chip {
-    font: inherit;
-    flex: none;
-    display: grid;
-    gap: 0.05rem;
-    text-align: left;
-    min-height: 44px;
-    padding: 0.35rem 0.75rem;
-    border: 2px solid var(--sky);
-    border-radius: 14px;
-    background: transparent;
-    color: var(--ink);
-    cursor: pointer;
-}
-
-.ges-account-chip b { font-size: 0.8rem; font-weight: 800; max-width: 12ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ges-account-chip span { font-size: 0.72rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ges-text-2); }
-.ges-account-chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--crema); }
-.ges-account-chip[aria-pressed="true"] span { color: var(--crema); opacity: 0.8; }
-.ges-account-chip.is-add { border-style: dashed; place-items: center; font-size: 0.78rem; font-weight: 800; }
-.ges-account-chip:disabled { opacity: 0.45; cursor: default; }
-
-.ges-table__accounts { justify-self: start; font-size: 0.66rem; font-weight: 800; color: var(--ges-warn); background: var(--ges-warn-bg); padding: 0.05rem 0.45rem; border-radius: var(--radius-pill); }
-
 /* Cuántas unidades se pasan a otra cuenta */
 .ges-qty { display: flex; align-items: center; gap: 0.8rem; }
-.ges-qty button { font: inherit; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--sky); background: transparent; font-weight: 800; font-size: 1.1rem; color: var(--ink); cursor: pointer; }
+.ges-qty button { font: inherit; width: var(--ops-tap); height: var(--ops-tap); border-radius: 50%; border: 2px solid var(--sky); background: transparent; font-weight: 800; font-size: 1.1rem; color: var(--ink); cursor: pointer; }
 .ges-qty button:disabled { opacity: 0.4; cursor: default; }
 .ges-qty b { font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 2ch; text-align: center; }
 .ges-qty em { font-style: normal; font-size: 0.8rem; color: var(--ges-text-2); }
-
-.ges-ticket__foot {
-    padding: 0.7rem var(--gutter) calc(0.9rem + env(safe-area-inset-bottom, 0px));
-    border-top: 1px solid var(--ges-line);
-    display: grid;
-    gap: 0.5rem;
-}
-
-.ges-total { display: flex; justify-content: space-between; align-items: baseline; }
-.ges-total span { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ges-text-2); }
-.ges-total b { font-size: 1.7rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 
 /* ============ Diálogos de caja ============ */
 
@@ -1136,8 +899,8 @@ button.ges-chip:disabled { opacity: 0.6; cursor: default; }
     border: 1.5px solid var(--sky);
     background: var(--ges-panel);
     border-radius: var(--radius-pill);
-    width: 34px;
-    height: 34px;
+    width: var(--ops-tap);
+    height: var(--ops-tap);
     font-weight: 800;
     color: var(--ges-crit);
     cursor: pointer;
@@ -1252,7 +1015,7 @@ button.ges-chip:disabled { opacity: 0.6; cursor: default; }
     .ges-cards__two { grid-template-columns: 1fr 1fr; }
 }
 
-.ges-card { background: var(--ges-panel); border-radius: 16px; padding: 1rem; display: grid; gap: 0.7rem; align-content: start; }
+.ges-card { background: var(--ops-card); border: 1px solid var(--ops-line); box-shadow: var(--ops-shadow-1); border-radius: var(--ops-radius); padding: 1rem; display: grid; gap: 0.7rem; align-content: start; }
 .ges-card h2 { margin: 0; font-size: 0.92rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
 
 .ges-rows { display: grid; gap: 0.4rem; }
@@ -1357,7 +1120,7 @@ button.ges-chip:disabled { opacity: 0.6; cursor: default; }
     border: 2px solid var(--mora);
     border-radius: var(--radius-pill);
     padding: 0.35rem 0.8rem;
-    min-height: 40px;
+    min-height: var(--ops-tap);
     cursor: pointer;
     transition: background-color 150ms ease, transform 120ms var(--ease-out);
 }
@@ -1408,9 +1171,11 @@ button.ges-chip:disabled { opacity: 0.6; cursor: default; }
     font: inherit;
     text-align: left;
     color: inherit;
-    background: var(--ges-panel);
+    background: var(--ops-card);
     border: 2px solid transparent;
-    border-radius: 16px;
+    box-shadow: var(--ops-shadow-1);
+    border-radius: var(--ops-radius);
+    min-height: var(--ops-tap-lg);
     padding: 0.8rem 0.9rem;
     display: grid;
     grid-template-columns: 1fr auto;
@@ -1419,7 +1184,8 @@ button.ges-chip:disabled { opacity: 0.6; cursor: default; }
     cursor: pointer;
     transition: transform 160ms var(--ease-out), border-color 150ms ease;
 }
-.ges-debt:active { transform: scale(0.98); }
+.ges-debt:active { transform: scale(0.97); }
+.ges-debt:focus-visible { outline: 3px solid var(--mora); outline-offset: 2px; }
 .ges-debt b { font-size: 0.95rem; font-weight: 800; }
 .ges-debt small { grid-column: 1; font-size: 0.74rem; color: var(--ges-text-2); }
 .ges-debt__amt { grid-row: 1 / span 2; grid-column: 2; font-weight: 800; font-variant-numeric: tabular-nums; font-size: 1.05rem; }
@@ -1596,10 +1362,11 @@ button.ges-chip:disabled { opacity: 0.6; cursor: default; }
     min-height: 76px;
     border: 2px solid var(--sky);
     border-radius: 18px;
-    background: var(--ges-panel);
+    background: var(--ops-card);
+    box-shadow: var(--ops-shadow-1);
     color: var(--ink);
     cursor: pointer;
-    transition: transform 160ms var(--ease-out), background-color 150ms ease;
+    transition: transform var(--ops-fast) var(--ease-out), background-color 150ms ease;
 }
 
 .ges-happened__btn svg { width: 24px; height: 24px; }

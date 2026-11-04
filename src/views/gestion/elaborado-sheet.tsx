@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { FullSheet } from "@/components";
+import { FullSheet, OpsSkeleton } from "@/components";
 import { HttpError } from "@/helpers";
 import type { ISupplyStatus } from "@/helpers";
 import { getIntermediateUnitLabel } from "@/helpers/elaborados";
@@ -93,7 +93,7 @@ export const ElaboradoSheet = ({ token, supplyId, supplies, onSaved, onClose }: 
         <FullSheet title={isNew ? "Nuevo elaborado" : form.name || "Elaborado"} onClose={onClose}>
             {(close) =>
                 isLoading ? (
-                    <p className="ges-empty">Cargando…</p>
+                    <OpsSkeleton label="Cargando…" />
                 ) : (
                     <form
                         className="ges-rec-sheet"

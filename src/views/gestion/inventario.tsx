@@ -6,7 +6,7 @@ import {PurchaseDialog} from "../inventory-purchase-dialog";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
-import { AmountDialog, FullSheet, SheetSelect } from "@/components";
+import { AmountDialog, FullSheet, OpsEmpty, OpsSkeleton, SheetSelect } from "@/components";
 import {
     HttpError,
     SUPPLY_CATEGORY_LABEL,
@@ -576,17 +576,17 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                     {error ? <p className="ges-error" role="alert">{error}</p> : null}
 
                     {isLoading ? (
-                        <p className="ges-empty">Cargando…</p>
+                        <OpsSkeleton label="Cargando…" />
                     ) : listLength === 0 ? (
-                        <p className="ges-empty">
-                            {search.trim()
+                        <OpsEmpty
+                            title={search.trim()
                                 ? "Nada coincide con la búsqueda."
                                 : isProducts
                                   ? "Ningún producto lleva stock todavía. Toca «Llegó un lote» para registrar el primero."
                                   : category === "elaborados"
                                     ? "Todavía no hay elaborados. Créalos en Recetas → Elaborados."
                                     : `Todavía no hay insumos de ${SUPPLY_CATEGORY_LABEL[category].toLowerCase()}. El administrador los da de alta desde el tablero.`}
-                        </p>
+                        />
                     ) : isProducts ? (
                         getPageSlice(visibleProducts, currentPage).map(renderProduct)
                     ) : (
@@ -612,7 +612,7 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
             <section className="ges-mine">
                 <h2>Lo que registraste hoy</h2>
                 {movements.length === 0 ? (
-                    <p className="ges-empty">Nada todavía. Lo que cargues aparece aquí.</p>
+                    <OpsEmpty title="Nada todavía. Lo que cargues aparece aquí." />
                 ) : (
                     <ul>
                         {getPageSlice(movements, currentMinePage).map((movement) => (

@@ -10,7 +10,7 @@ import {
 } from "@/helpers";
 import type { ISaleAvailability } from "@/helpers";
 
-import { SheetSelect } from "@/components";
+import { OpsEmpty, OpsSkeleton, SheetSelect } from "@/components";
 
 import { GestionPager } from "./pager";
 
@@ -219,11 +219,11 @@ export const GestionDisponibilidad = ({ token, onSessionExpired }: IGestionDispo
             {error ? <p className="ges-error" role="alert">{error}</p> : null}
 
             {isLoading ? (
-                <p className="ges-empty">Cargando…</p>
+                <OpsSkeleton label="Cargando…" />
             ) : products.length === 0 ? (
-                <p className="ges-empty">No hay productos a la venta en esta tienda.</p>
+                <OpsEmpty title="No hay productos a la venta en esta tienda." />
             ) : pageItems.length === 0 ? (
-                <p className="ges-empty">Ningún producto coincide con los filtros.</p>
+                <OpsEmpty title="Ningún producto coincide con los filtros." />
             ) : (
                 <ul className="ges-avail-list">
                     {pageItems.map((product) => {
