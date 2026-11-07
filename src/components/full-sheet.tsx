@@ -6,10 +6,32 @@ import "./full-sheet.css";
 /** Marca de la entrada que la hoja agrega al historial: el botón atrás del teléfono la cierra. */
 const SHEET_HISTORY_KEY = "fullSheet";
 
-/** Lo que se corre al cerrar (ej. navegar), cuando el historial ya volvió atrás. Hay una sola hoja a la vez. */
+/** Lo que se corre al cerrar (ej. navegar), cuando el historial ya volvió atrás. Solo cierra la hoja de arriba. */
 let pendingAfterClose: (() => void) | undefined;
 
-const isSheetEntry = () => Boolean((window.history.state as Record<string, unknown> | null)?.[SHEET_HISTORY_KEY]);
+/**
+ * Hojas abiertas, de abajo hacia arriba: una hoja puede abrir otra (ej. "Agregar ingrediente" dentro de una opción).
+ * Cada una tiene su entrada en el historial con su profundidad, y atrás cierra solo la de arriba.
+ */
+const sheetStack: symbol[] = [];
+
+/** Profundidad de la entrada actual del historial: 0 sin hoja. */
+const getSheetDepth = () => Number((window.history.state as Record<string, unknown> | null)?.[SHEET_HISTORY_KEY] ?? 0);
+
+// La página de atrás se bloquea con la primera hoja y se suelta con la última, no con cada una
+let lockCount = 0;
+let overflowBeforeLock = "";
+
+const lockPageScroll = () => {
+    if (lockCount++ === 0) {
+        overflowBeforeLock = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+    }
+};
+
+const unlockPageScroll = () => {
+    if (--lockCount === 0) document.body.style.overflow = overflowBeforeLock;
+};
 
 interface IFullSheetProps {
     title: string;
@@ -31,30 +53,39 @@ export const FullSheet = ({ title, onClose, children }: IFullSheetProps) => {
         onCloseRef.current = onClose;
     }, [onClose]);
 
+    const depth = useRef(0);
+
     useEffect(() => {
-        // En modo estricto el efecto corre dos veces: una sola entrada en el historial
-        if (!isSheetEntry()) window.history.pushState({ ...window.history.state, [SHEET_HISTORY_KEY]: true }, "");
+        const id = Symbol(title);
+        sheetStack.push(id);
+        depth.current = sheetStack.length;
+        // En modo estricto el efecto corre dos veces: una sola entrada en el historial por hoja
+        if (getSheetDepth() !== depth.current)
+            window.history.pushState({ ...window.history.state, [SHEET_HISTORY_KEY]: depth.current }, "");
         const onPop = () => {
+            // Atrás sacó la entrada de una hoja de más arriba: esta sigue abierta
+            if (getSheetDepth() >= depth.current) return;
             onCloseRef.current();
             const after = pendingAfterClose;
             pendingAfterClose = undefined;
             after?.();
         };
         window.addEventListener("popstate", onPop);
-        // Sin scroll de la página de atrás mientras la hoja está abierta
-        const previousOverflow = document.body.style.overflow;
-        document.body.style.overflow = "hidden";
+        lockPageScroll();
         closeButton.current?.focus();
         return () => {
             window.removeEventListener("popstate", onPop);
-            document.body.style.overflow = previousOverflow;
+            sheetStack.splice(sheetStack.indexOf(id), 1);
+            unlockPageScroll();
         };
+        // Solo al abrir: el título puede cambiar mientras se escribe
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const close = useCallback(
         (after?: () => void) => {
-            if (isSheetEntry()) {
-                // Primero se saca la entrada de la hoja; lo elegido va después
+            if (getSheetDepth() === depth.current) {
+                // Primero se saca la entrada de esta hoja; lo elegido va después
                 pendingAfterClose = after;
                 window.history.back();
                 return;
