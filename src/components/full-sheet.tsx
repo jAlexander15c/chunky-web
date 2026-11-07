@@ -24,12 +24,18 @@ interface IFullSheetProps {
  */
 export const FullSheet = ({ title, onClose, children }: IFullSheetProps) => {
     const closeButton = useRef<HTMLButtonElement>(null);
+    // onClose puede llegar nuevo en cada render (flecha en línea): el efecto de abrir no debe repetirse
+    // por eso, o le roba el foco al campo que se está escribiendo y sube la hoja al inicio
+    const onCloseRef = useRef(onClose);
+    useEffect(() => {
+        onCloseRef.current = onClose;
+    }, [onClose]);
 
     useEffect(() => {
         // En modo estricto el efecto corre dos veces: una sola entrada en el historial
         if (!isSheetEntry()) window.history.pushState({ ...window.history.state, [SHEET_HISTORY_KEY]: true }, "");
         const onPop = () => {
-            onClose();
+            onCloseRef.current();
             const after = pendingAfterClose;
             pendingAfterClose = undefined;
             after?.();
@@ -43,7 +49,7 @@ export const FullSheet = ({ title, onClose, children }: IFullSheetProps) => {
             window.removeEventListener("popstate", onPop);
             document.body.style.overflow = previousOverflow;
         };
-    }, [onClose]);
+    }, []);
 
     const close = useCallback(
         (after?: () => void) => {
