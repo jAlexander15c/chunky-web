@@ -92,7 +92,7 @@ const ProductCard = ({ item, index, closedLabel, modifiers, onChooseOptions, var
                     {promo && <span className="promo-seal">{getPromoLabel(promo)}</span>}
                     <span className="matcha-hero__kicker">La estrella de la casa</span>
                     <h2 className="matcha-hero__name">{item.item_name}</h2>
-                    <p className="matcha-hero__desc">{description || "Arma el tuyo: elige la leche, una compota, cuánta vainilla y si lleva cold foam."}</p>
+                    <p className="matcha-hero__desc">{description || "Arma tu matcha a tu manera"}</p>
                     {isCustomizable && (
                         <ul className="matcha-hero__chips" aria-label="Se puede personalizar">
                             {getItemModifiers(item, modifiers).map((modifier) => <li key={modifier.id}>{capitalizeFirst(modifier.name.trim())}</li>)}
