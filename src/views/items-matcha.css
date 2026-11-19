@@ -1,0 +1,194 @@
+/* ============ Matcha primero en Bebidas ============
+   El Matcha Latte va destacado a todo el ancho con la estética del menú de matcha;
+   los demás matcha llevan un sello y un separador los aparta del resto. */
+.matcha-hero {
+  --mx-paper: #f4f0e4;
+  --mx-paper-2: #ebe5d3;
+  --mx-ink: #26331f;
+  --mx-ink-soft: #5d6650;
+  --mx-line: #9aa086;
+  --mx-leaf: #6f7a5a;
+  --mx-script: "Yellowtail", "Brush Script MT", cursive;
+  grid-column: 1 / -1;
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border: 2px solid var(--mx-ink);
+  border-radius: 16px;
+  background: var(--mx-paper);
+  color: var(--mx-ink);
+}
+
+@media (min-width: 720px) {
+  .matcha-hero {
+    grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
+    align-items: center;
+    gap: 1.75rem;
+    padding: 1.25rem 1.5rem;
+  }
+}
+
+.matcha-hero .mx-branch {
+  position: absolute;
+  top: 0.4rem;
+  right: -0.6rem;
+  width: 120px;
+  height: 74px;
+  color: var(--mx-leaf);
+  transform: scaleX(-1);
+  pointer-events: none;
+}
+
+.matcha-hero__img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid var(--mx-line);
+  background: linear-gradient(135deg, #cfd8b8, #9fb08a);
+}
+
+@media (min-width: 720px) {
+  .matcha-hero__img {
+    aspect-ratio: 1 / 1;
+  }
+}
+
+.matcha-hero__copy {
+  position: relative;
+  min-width: 0;
+}
+
+.matcha-hero__kicker {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mx-ink-soft);
+}
+
+.matcha-hero__name {
+  margin: 0.25rem 0 0.4rem;
+  font-family: var(--mx-script);
+  font-weight: 400;
+  font-size: clamp(2.4rem, 8vw, 3.4rem);
+  line-height: 1;
+  color: var(--mx-ink);
+}
+
+.matcha-hero__desc {
+  margin: 0;
+  max-width: 46ch;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--mx-ink-soft);
+}
+
+.matcha-hero__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.matcha-hero__chips li {
+  padding: 0.2rem 0.65rem;
+  border: 1px solid var(--mx-line);
+  border-radius: 999px;
+  background: var(--mx-paper-2);
+  font-size: 0.75rem;
+}
+
+.matcha-hero__foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.matcha-hero__price {
+  font-size: 1.35rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.matcha-hero__price small {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--mx-ink-soft);
+}
+
+.matcha-hero__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  padding: 0 1.25rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--mx-ink);
+  color: var(--mx-paper);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.matcha-hero__button:focus-visible {
+  outline: 2px solid var(--mx-ink);
+  outline-offset: 3px;
+}
+
+.matcha-hero .promo-seal {
+  position: static;
+  display: inline-block;
+  margin-bottom: 0.4rem;
+}
+
+/* Sello de los demás matcha, sobre la tarjeta de siempre */
+.matcha-seal {
+  align-self: flex-start;
+  padding: 0.05rem 0.6rem;
+  border: 1px solid #9aa086;
+  border-radius: 999px;
+  background: #f4f0e4;
+  color: #26331f;
+  font-family: "Yellowtail", "Brush Script MT", cursive;
+  font-size: 1rem;
+}
+
+.products__divider {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.products__divider::before,
+.products__divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.3;
+}
+
+/* Sin foto en Loyverse: solo el texto, a todo el ancho */
+@media (min-width: 720px) {
+  .matcha-hero--no-image {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

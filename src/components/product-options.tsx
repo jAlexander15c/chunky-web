@@ -9,7 +9,7 @@ import { ModifierPicker } from "./modifier-picker";
 import { Stamp } from "./stamp";
 import { useCart } from "./use-cart";
 
-import { formatCartModifiers, formatModifierOptions, formatPrice, getAvailableQuantity, getItemCartQuantity, getItemPrice, getLineMax, getModifiersPrice, getStockNote, getItemModifiers, isMatchaLatteName, sortMatchaModifiers, useModifiers } from "@/helpers";
+import { formatCartModifiers, formatModifierOptions, formatPrice, getAvailableQuantity, getItemCartQuantity, getItemPrice, getLineMax, getModifiersPrice, getStockNote, getItemModifiers, isMatchaLatteName, loadMatchaFont, sortMatchaModifiers, useModifiers } from "@/helpers";
 import type { ICartModifier, IModifier } from "@/helpers";
 import type { IItem } from "@/interfaces";
 
@@ -22,19 +22,8 @@ interface IProductOptionsProps {
     onClose: () => void;
 }
 
-/** Yellowtail (los títulos a mano de la maqueta) se pide solo al abrir el Matcha Latte: el resto de la web no la paga. */
-const MATCHA_FONT_ID = "matcha-options-font";
-const loadMatchaFont = () => {
-    if (typeof document === "undefined" || document.getElementById(MATCHA_FONT_ID)) return;
-    const link = document.createElement("link");
-    link.id = MATCHA_FONT_ID;
-    link.rel = "stylesheet";
-    link.href = "https://fonts.googleapis.com/css2?family=Yellowtail&display=swap";
-    document.head.appendChild(link);
-};
-
 /** Una rama dibujada a línea: la de la izquierda del título y, espejada por CSS, la de la derecha. */
-const MatchaBranch = ({ side }: { side: "left" | "right" }) => (
+export const MatchaBranch = ({ side }: { side: "left" | "right" }) => (
     <svg className={`mx-branch mx-branch--${side}`} viewBox="0 0 112 70" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" aria-hidden="true">
         <path d="M4 52 C30 40 58 30 108 14" />
         <path d="M26 44 c-6-10-2-20 8-24 c2 10-2 18-8 24z" fill="currentColor" fillOpacity=".14" />

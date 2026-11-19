@@ -1,11 +1,18 @@
 import { getPromoCart, getPromoLabel, hasPromoForItem, formatPromoDate, usePromos } from "@/helpers/promos";
 import "../components/promos.css";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router";
 import { PiArrowLeftBold, PiPlusBold, PiSlidersHorizontalBold, PiStarFourFill, PiWhatsappLogoBold } from "react-icons/pi";
 
 import { Mascot, ProductOptions, QuantityStepper, Stamp, useCart } from "@/components";
+import { MatchaBranch } from "@/components/product-options";
+import "./items-matcha.css";
 import {
+    capitalizeFirst,
+    isMatchaLatteName,
+    isMatchaName,
+    loadMatchaFont,
+    sortMatchaFirst,
     formatPrice,
     getCategoryById,
     getCategoryImageUrl,
@@ -62,9 +69,11 @@ interface IProductCardProps {
     closedLabel: string | null;
     modifiers: IModifier[];
     onChooseOptions: (item: IItem) => void;
+    /** "hero": el Matcha Latte destacado a todo el ancho; "matcha": los demás matcha con su sello. */
+    variant?: "hero" | "matcha";
 }
 
-const ProductCard = ({ item, index, closedLabel, modifiers, onChooseOptions }: IProductCardProps) => {
+const ProductCard = ({ item, index, closedLabel, modifiers, onChooseOptions, variant }: IProductCardProps) => {
     const { lines, addItem, setQuantity, getQuantity } = useCart();
     const { promos } = usePromos();
     const promo = getPromoCart([{ lineKey: item.id, item, quantity: 2 }], promos).prices[item.id]?.promo;
@@ -73,6 +82,43 @@ const ProductCard = ({ item, index, closedLabel, modifiers, onChooseOptions }: I
     const description = getPlainText(item.description);
     // Con modificadores se elige antes de agregar, asi que la tarjeta no lleva contador
     const isCustomizable = hasItemModifiers(item, modifiers);
+
+    if (variant === "hero") {
+        return (
+            <article className={`matcha-hero${item.image_url ? "" : " matcha-hero--no-image"}`}>
+                <MatchaBranch side="left" />
+                {item.image_url && <img className="matcha-hero__img" src={item.image_url} alt={item.item_name} loading="eager" />}
+                <div className="matcha-hero__copy">
+                    {promo && <span className="promo-seal">{getPromoLabel(promo)}</span>}
+                    <span className="matcha-hero__kicker">La estrella de la casa</span>
+                    <h2 className="matcha-hero__name">{item.item_name}</h2>
+                    <p className="matcha-hero__desc">{description || "Arma el tuyo: elige la leche, una compota, cuánta vainilla y si lleva cold foam."}</p>
+                    {isCustomizable && (
+                        <ul className="matcha-hero__chips" aria-label="Se puede personalizar">
+                            {getItemModifiers(item, modifiers).map((modifier) => <li key={modifier.id}>{capitalizeFirst(modifier.name.trim())}</li>)}
+                        </ul>
+                    )}
+                    <div className="matcha-hero__foot">
+                        <span className="matcha-hero__price">{formatPrice(promo?.kind === "percent" ? promoPrice : getItemPrice(item))}{isCustomizable && <small> desde</small>}</span>
+                        {closedLabel ? (
+                            <span className="product__closed">{closedLabel}</span>
+                        ) : isCustomizable ? (
+                            <button type="button" className="matcha-hero__button" aria-label={`Armar tu ${item.item_name}`} onClick={() => {
+                                trackEvent("product_open", item.id, item.item_name);
+                                onChooseOptions(item);
+                            }}>
+                                Armar el mío
+                            </button>
+                        ) : (
+                            <button type="button" className="matcha-hero__button" aria-label={`Agregar ${item.item_name}`} onClick={() => addItem(item)}>
+                                <PiPlusBold aria-hidden /> Agregar
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </article>
+        );
+    }
 
     return (
         <Stamp
@@ -85,6 +131,7 @@ const ProductCard = ({ item, index, closedLabel, modifiers, onChooseOptions }: I
         >
             <div className="product">
                 {promo && <span className="promo-seal">{getPromoLabel(promo)}</span>}
+                {variant === "matcha" && <span className="matcha-seal">Matcha</span>}
                 <h2 className="product__name">{item.item_name}</h2>
                 {description && <p className="product__desc">{description}</p>}
                 {isCustomizable && (
@@ -151,9 +198,16 @@ export const Items = () => {
     const loading = isLoadingItems || !isSettingsReady;
     const isOpen = isAcceptingOrders(settings);
 
-    const availableItems = items.filter(
+    // Lo de matcha va primero (el Matcha Latte destacado); en las demás categorías no cambia nada
+    const availableItems = sortMatchaFirst(items.filter(
         (item) => item.category_id === selectedCategoryId && item.id !== settings.pasta?.itemId && hasItemAvailableForSale(item)
-    );
+    ));
+    const hasMatchaHero = availableItems.some((item) => isMatchaLatteName(item.item_name));
+    const hasMatcha = availableItems.some((item) => isMatchaName(item.item_name));
+    const firstOtherIndex = availableItems.findIndex((item) => !isMatchaName(item.item_name));
+    useEffect(() => {
+        if (hasMatchaHero) loadMatchaFont();
+    }, [hasMatchaHero]);
 
     return (
         <main className="section page-items">
@@ -237,14 +291,17 @@ export const Items = () => {
                     {promos.filter((promo) => availableItems.some((item) => hasPromoForItem(promo, item))).map((promo) => <p className="promo-banner" key={promo.id}><b>{promo.name}</b> · {promo.kind === "two_for_one" ? "Llévate 2 y paga 1" : getPromoLabel(promo)}{promo.endsOn && <small>Hasta el {formatPromoDate(promo.endsOn)}</small>}</p>)}
                     <div className="products">
                         {availableItems.map((item, index) => (
-                            <ProductCard
-                                key={item.id}
-                                item={item}
-                                index={index}
-                                closedLabel={isOpen ? null : getClosedLabel(settings)}
-                                modifiers={modifiers}
-                                onChooseOptions={setOptionsItem}
-                            />
+                            <Fragment key={item.id}>
+                                {hasMatcha && index > 0 && index === firstOtherIndex && <p className="products__divider">Más bebidas</p>}
+                                <ProductCard
+                                    item={item}
+                                    index={index}
+                                    closedLabel={isOpen ? null : getClosedLabel(settings)}
+                                    modifiers={modifiers}
+                                    onChooseOptions={setOptionsItem}
+                                    variant={isMatchaLatteName(item.item_name) ? "hero" : isMatchaName(item.item_name) ? "matcha" : undefined}
+                                />
+                            </Fragment>
                         ))}
                     </div>
                     </>
