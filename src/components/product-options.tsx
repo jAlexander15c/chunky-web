@@ -51,7 +51,7 @@ const MatchaHead = ({ name }: { name: string }) => (
             <Drawer.Title asChild>
                 <h2>{name}</h2>
             </Drawer.Title>
-            <p>Arma tu matcha a tu gusto. Todo es opcional.</p>
+            <p>Arma tu matcha a tu manera</p>
         </div>
     </header>
 );
