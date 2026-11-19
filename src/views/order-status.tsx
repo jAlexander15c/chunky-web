@@ -11,6 +11,7 @@ import {
     buildPaymentHelpMessage,
     clearCheckoutDraft,
     fetchOrder,
+    formatModifierPhrases,
     formatPastaOptions,
     formatPrice,
     getFailedOrderReason,
@@ -167,7 +168,7 @@ const OrderTicket = ({ order }: { order: IPublicOrder }) => {
                                 <small className="order-ticket__options">
                                     {[
                                         ...(row.line.options ? [formatPastaOptions(row.line.options)] : []),
-                                        ...(row.line.modifiers ?? []).map((modifier) => `${modifier.name} ${modifier.option}`),
+                                        ...formatModifierPhrases(row.line.modifiers ?? []),
                                     ].join(" · ")}
                                 </small>
                             )}

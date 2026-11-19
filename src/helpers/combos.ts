@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { fetchItemsByCategoryCached, getCatalogScope, useCategories } from "./catalog";
 import { getApiUrl, httpDelete, httpGet, httpPost, httpPostBinary, httpPut } from "./getHttp";
+import { capitalizeFirst, formatModifierPhrases, getModifiersPrice, groupModifierEntries } from "./modifiers";
 import type { ICartModifier } from "./modifiers";
 import type { IPublicOrder } from "./payment";
 import { useSettings } from "./settings";
@@ -231,11 +232,9 @@ export const getComboExtras = (choices: Pick<IComboChoice, "modifiers">[]) =>
 export const getComboUnitPrice = (selectionTotal: number, choices: Pick<IComboChoice, "modifiers">[]) =>
     Math.round((selectionTotal + getComboExtras(choices)) * 100) / 100;
 
-/** "Leche: Avena". */
-const formatModifierLabel = (modifier: ICartModifier) => {
-    const name = modifier.name.trim();
-    return `${name.charAt(0).toUpperCase()}${name.slice(1)}: ${modifier.option}`;
-};
+/** "Leche: Avena"; si se repite, "Endulzante: Vainilla ×3". */
+const formatModifierLabel = (modifier: ICartModifier, count = 1) =>
+    `${capitalizeFirst(modifier.name.trim())}: ${modifier.option}${count > 1 ? ` ×${count}` : ""}`;
 
 /** Identidad de la línea del carrito: el combo y, por hueco, el producto y sus modificadores. */
 export const getComboLineKey = (comboId: number, choices: IComboChoice[]) =>
@@ -247,7 +246,7 @@ export const getComboLineKey = (comboId: number, choices: IComboChoice[]) =>
 export const formatComboChoices = (choices: IComboChoice[], separator = " · ") =>
     choices
         .map((choice) => choice.modifiers.length
-            ? `${choice.item.item_name} (${choice.modifiers.map((modifier) => `${formatModifierLabel(modifier)}${modifier.price > 0 ? ` +$${modifier.price.toFixed(2)}` : ""}`).join(", ")})`
+            ? `${choice.item.item_name} (${groupModifierEntries(choice.modifiers).map(({ entry, count }) => `${formatModifierLabel(entry, count)}${entry.price > 0 ? ` +$${getModifiersPrice(Array(count).fill(entry)).toFixed(2)}` : ""}`).join(", ")})`
             : choice.item.item_name)
         .join(separator);
 
@@ -265,7 +264,7 @@ export const groupOrderLines = (lines: IPublicOrder["lines"]): OrderTicketRow[] 
             return;
         }
         const extras = (line.modifiers ?? []).reduce((sum, modifier) => sum + modifier.price, 0) * line.quantity;
-        const product = line.modifiers?.length ? `${line.name} (${line.modifiers.map((modifier) => `${modifier.name} ${modifier.option}`).join(", ")})` : line.name;
+        const product = line.modifiers?.length ? `${line.name} (${formatModifierPhrases(line.modifiers).join(", ")})` : line.name;
         const existing = rows.find((row) => row.kind === "combo" && row.groupKey === line.combo!.groupKey);
         if (existing && existing.kind === "combo") {
             existing.products.push(product);

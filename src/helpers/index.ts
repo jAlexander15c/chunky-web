@@ -6,6 +6,7 @@ export * from "./specials";
 export * from "./order";
 export * from "./hours";
 export * from "./modifiers";
+export * from "./matcha-latte";
 export * from "./pasta";
 export * from "./settings";
 export * from "./payment";

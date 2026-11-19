@@ -1,4 +1,4 @@
-import { formatCash, formatQuantity } from "@/helpers";
+import { formatCash, formatModifierOptions, formatQuantity } from "@/helpers";
 import type { ITicketLine } from "@/helpers";
 import { TicketLinePricing } from "../ticket-pricing";
 import { ComboTicketRow } from "./combo-ticket-row";
@@ -61,7 +61,7 @@ export const TicketLines = ({ lines, pending, sent, isDelivered, tableNumber, on
                                             +
                                         </button>
                                         {line.modifiers.length > 0
-                                            ? line.modifiers.map((one) => one.option).join(", ")
+                                            ? formatModifierOptions(line.modifiers)
                                             : `× ${formatCash(line.unitPrice)}`}
                                         <span className="ges-tl__acts">
                                             <button
@@ -109,7 +109,7 @@ export const TicketLines = ({ lines, pending, sent, isDelivered, tableNumber, on
                                     <TicketLinePricing line={line} />
                                     <small>
                                         <em>{formatQuantity(line.quantity)}</em> × {formatCash(line.unitPrice)}
-                                        {line.modifiers.length > 0 ? ` · ${line.modifiers.map((one) => one.option).join(", ")}` : ""}
+                                        {line.modifiers.length > 0 ? ` · ${formatModifierOptions(line.modifiers)}` : ""}
                                         {tableNumber !== null ? (
                                             <button type="button" className="ges-tl__move" onClick={() => onMove(line)}>
                                                 Pasar a…

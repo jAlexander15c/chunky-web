@@ -103,15 +103,75 @@ export const hasItemModifiers = (item: IItem, modifiers: IModifier[]) => getItem
 /** Un modificador con una sola opcion se muestra como casilla; con varias, se elige una. */
 export const isSingleOptionModifier = (modifier: IModifier) => modifier.options.length === 1;
 
+/** Con repeticiones (Endulzante x3) la suma de decimales acumula ruido: se redondea a centavos. */
 export const getModifiersPrice = (modifiers: ICartModifier[] = []) =>
-    modifiers.reduce((sum, modifier) => sum + modifier.price, 0);
+    Math.round(modifiers.reduce((sum, modifier) => sum + modifier.price, 0) * 100) / 100;
+
+/** "Endulzante" -> "endulzante": sin acentos, espacios colapsados y en minúsculas. */
+export const normalizeModifierName = (name: string) =>
+    name.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+
+/** Modificadores cuya opción elegida se puede agregar varias veces (mismo contrato que el API). */
+export const REPEATABLE_MODIFIER_NAMES = ["endulzante"];
+
+/** Tope de repeticiones de una opción repetible. */
+export const MAX_MODIFIER_REPEAT = 20;
+
+/**
+ * Un modificador repetible se elige una sola vez y se cuenta: la opción viaja como el mismo id
+ * repetido N veces (y como N entradas idénticas en el carrito), así los precios suman N × precio.
+ */
+export const isRepeatableModifier = (modifier: Pick<IModifier, "name">) =>
+    REPEATABLE_MODIFIER_NAMES.includes(normalizeModifierName(modifier.name));
+
+/**
+ * La opción de un modificador repetible queda `count` veces (0 a MAX_MODIFIER_REPEAT). Lo que ese
+ * modificador tuviera antes se reemplaza: elegir otra opción del Endulzante no suma, cambia.
+ */
+export const setRepeatedOption = (chosen: ICartModifier[], modifier: IModifier, option: IModifierOption, count: number): ICartModifier[] => {
+    const next = Math.min(MAX_MODIFIER_REPEAT, Math.max(0, count));
+    return [
+        ...chosen.filter((entry) => entry.modifierId !== modifier.id),
+        ...Array.from({ length: next }, () => toCartModifier(modifier, option)),
+    ];
+};
 
 /** El nombre del grupo con mayúscula inicial: "leche" -> "Leche". */
-const capitalizeFirst = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+export const capitalizeFirst = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
-/** "Leche: Avena · Extra: Shot de espresso" */
+/** Lo mínimo que tiene un modificador elegido en cualquier pantalla (carrito, comanda, cocina, pedido). */
+type ModifierEntry = { name: string; option: string };
+
+/** Junta las repeticiones de una misma opción, en el orden de la primera vez que aparece. */
+export const groupModifierEntries = <T extends ModifierEntry>(modifiers: T[]): { entry: T; count: number }[] => {
+    const groups = new Map<string, { entry: T; count: number }>();
+    modifiers.forEach((modifier) => {
+        const key = `${modifier.name}\u0000${modifier.option}`;
+        const group = groups.get(key);
+        if (group) group.count += 1;
+        else groups.set(key, { entry: modifier, count: 1 });
+    });
+    return [...groups.values()];
+};
+
+/** "Vainilla ×3"; una sola vez, sin "×1". */
+const withRepeat = (text: string, count: number) => (count > 1 ? `${text} ×${count}` : text);
+
+/** "Leche: Avena · Endulzante: Vainilla ×3 · Extra: Shot de espresso" */
 export const formatCartModifiers = (modifiers: ICartModifier[], separator = " · ") =>
-    modifiers.map((modifier) => `${capitalizeFirst(modifier.name.trim())}: ${modifier.option}`).join(separator);
+    groupModifierEntries(modifiers)
+        .map(({ entry, count }) => `${capitalizeFirst(entry.name.trim())}: ${withRepeat(entry.option, count)}`)
+        .join(separator);
+
+/** Solo las opciones, para donde el nombre del grupo sobra: "Avena, Vainilla ×3". */
+export const formatModifierOptions = (modifiers: ModifierEntry[], separator = ", ") =>
+    groupModifierEntries(modifiers)
+        .map(({ entry, count }) => withRepeat(entry.option, count))
+        .join(separator);
+
+/** Una frase por opción, como se lee en la comanda: ["Leche Avena", "Endulzante Vainilla ×3"]. */
+export const formatModifierPhrases = (modifiers: ModifierEntry[]) =>
+    groupModifierEntries(modifiers).map(({ entry, count }) => withRepeat(`${entry.name} ${entry.option}`, count));
 
 export const toCartModifier = (modifier: IModifier, option: IModifierOption): ICartModifier => ({
     modifierId: modifier.id,

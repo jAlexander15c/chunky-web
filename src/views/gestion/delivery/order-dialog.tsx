@@ -9,6 +9,7 @@ import {
     confirmDeliveryOrder,
     deliverOrder,
     formatCash,
+    formatModifierPhrases,
     formatPastaOptions,
     formatPhone,
     getCashSuggestions,
@@ -237,7 +238,7 @@ export const DeliveryOrderDialog = ({ token, order, meId, roles, onChanged, onCl
                                         {" "}
                                         {[
                                             ...(line.options ? [formatPastaOptions(line.options)] : []),
-                                            ...(line.modifiers ?? []).map((modifier) => `${modifier.name} ${modifier.option}`),
+                                            ...formatModifierPhrases(line.modifiers ?? []),
                                         ].join(" · ")}
                                     </em>
                                 ) : null}

@@ -3358,6 +3358,43 @@ main {
   font-variant-numeric: tabular-nums;
 }
 
+/* Contador del Endulzante (hoja de siempre y Caja) */
+.modifier-counts {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.modifier-count {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  min-height: 56px;
+  padding: 0.4rem 0.6rem 0.4rem 0.8rem;
+  border: 2px solid var(--sky);
+  border-radius: 16px;
+  background: #fff;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.modifier-count--on {
+  border-color: var(--mora);
+  background: #f4f7ff;
+}
+
+.modifier-count__name {
+  min-width: 0;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.modifier-count__name small {
+  display: block;
+  font-weight: 600;
+  color: var(--text-soft);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Opcion agotada: se ve, pero no se puede elegir */
 .opt-chip--sold {
   background: #f3f1e4;

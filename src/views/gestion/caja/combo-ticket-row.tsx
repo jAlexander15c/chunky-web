@@ -1,4 +1,4 @@
-import { formatCash, formatQuantity, getTicketLineTotal } from "@/helpers";
+import { formatCash, formatModifierOptions, formatQuantity, getTicketLineTotal } from "@/helpers";
 import type { ITicketLine } from "@/helpers";
 
 interface IComboTicketRowProps {
@@ -24,7 +24,7 @@ export const ComboTicketRow = ({ combo, lines, isSent, canMove, onQuantity, onMo
                 {lines.map((line) => (
                     <li key={line.id}>
                         {line.name}
-                        {line.modifiers.length > 0 ? ` · ${line.modifiers.map((one) => one.option).join(", ")}` : ""}
+                        {line.modifiers.length > 0 ? ` · ${formatModifierOptions(line.modifiers)}` : ""}
                         {line.note ? <em> · Nota: {line.note}</em> : null}
                         {!isSent ? (
                             <button type="button" className={`ges-tl__part-note${line.note ? " has-note" : ""}`} onClick={() => onNote(line)}>

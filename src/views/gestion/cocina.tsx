@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { fetchRecipeView } from "@/helpers/inventory";
 import type { IRecipeView } from "@/helpers/inventory";
 
-import { HttpError, KITCHEN_LATE_MINUTES, cancelDeliveryOrder, formatPastaOptions, formatPhone, formatPrice, getMinutesSince, isUnpaidOrder } from "@/helpers";
+import { HttpError, KITCHEN_LATE_MINUTES, cancelDeliveryOrder, formatModifierPhrases, formatPastaOptions, formatPhone, formatPrice, getMinutesSince, isUnpaidOrder } from "@/helpers";
 import type { IKitchenOrder, KitchenStep } from "@/helpers";
 import type { IKitchenFeed } from "@/hooks/useKitchenFeed";
 import { OpsEmpty, OpsSkeleton } from "@/components";
@@ -17,7 +17,7 @@ const formatClock = (date: Date | string | number) =>
 const formatKitchenLine = (line: IKitchenOrder["lines"][number]) => {
     const details = [
         ...(line.options ? [formatPastaOptions(line.options, ", ")] : []),
-        ...(line.modifiers ?? []).map((modifier) => `${modifier.name} ${modifier.option}`),
+        ...formatModifierPhrases(line.modifiers ?? []),
     ];
     return `${line.quantity}× ${line.name}${details.length ? ` (${details.join(", ")})` : ""}`;
 };
@@ -45,7 +45,7 @@ type KitchenLine = IKitchenOrder["lines"][number];
 const getLineDetails = (line: KitchenLine) =>
     [
         ...(line.options ? [formatPastaOptions(line.options)] : []),
-        ...(line.modifiers ?? []).map((modifier) => `${modifier.name} ${modifier.option}`),
+        ...formatModifierPhrases(line.modifiers ?? []),
     ].join(" · ");
 
 /** "Ver receta": lo que lleva la línea con sus opciones, ya multiplicado. Solo lectura. */

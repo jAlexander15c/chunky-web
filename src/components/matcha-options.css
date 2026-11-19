@@ -1,0 +1,380 @@
+/* ============ Hoja de opciones del Matcha Latte ============
+   Papel crema, verde tinta, ramas a línea y títulos a mano (Yellowtail, que se pide al abrirla).
+   Solo se aplica con .opts--matcha; los demás productos usan la hoja de siempre. */
+.opts--matcha {
+  --mx-paper: #f4f0e4;
+  --mx-paper-2: #ebe5d3;
+  --mx-ink: #26331f;
+  --mx-ink-soft: #5d6650;
+  --mx-line: #9aa086;
+  --mx-leaf: #6f7a5a;
+  --mx-script: "Yellowtail", "Brush Script MT", cursive;
+}
+
+.opts--matcha .mx-head {
+  padding: 0 1.25rem;
+}
+
+.opts--matcha .mx-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--mx-ink-soft);
+}
+
+/* Chakra ancla su botón de cerrar arriba a la derecha; aquí va en la barra, en su sitio */
+.opts--matcha .mx-bar .mx-bar__back {
+  position: static;
+  inset: auto;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--mx-ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.opts--matcha .mx-title {
+  position: relative;
+  padding: 0.6rem 0 0.75rem;
+  text-align: center;
+}
+
+.opts--matcha .mx-branch {
+  position: absolute;
+  top: 4px;
+  width: 112px;
+  height: 70px;
+  color: var(--mx-leaf);
+  pointer-events: none;
+}
+
+.opts--matcha .mx-branch--left {
+  left: -14px;
+}
+
+.opts--matcha .mx-branch--right {
+  right: -14px;
+  transform: scaleX(-1);
+}
+
+.opts--matcha .mx-title h2 {
+  margin: 1.1rem 0 0.4rem;
+  font-family: var(--mx-script);
+  font-weight: 400;
+  font-size: 3.1rem;
+  line-height: 1;
+  color: var(--mx-ink);
+}
+
+.opts--matcha .mx-title p {
+  margin: 0 auto;
+  max-width: 28ch;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--mx-ink-soft);
+}
+
+/* El cuerpo ya no separa con huecos: las líneas finas hacen de separador */
+.opts--matcha .mx-body {
+  gap: 0;
+  color: var(--mx-ink);
+}
+
+.opts--matcha .mx-rule {
+  height: 1px;
+  margin: 0.85rem 0;
+  background: var(--mx-line);
+}
+
+.opts--matcha .mx-base {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.opts--matcha .mx-base span {
+  font-size: 0.9rem;
+}
+
+.opts--matcha .mx-base strong {
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Grupos: pueden ser <div> o <fieldset>, por eso se limpian los bordes del navegador */
+.opts--matcha .mx-group {
+  min-width: 0;
+  margin: 0;
+  padding: 0.65rem 0 0.25rem;
+  border: 0;
+}
+
+.opts--matcha .mx-group + .mx-group {
+  border-top: 1px solid color-mix(in srgb, var(--mx-line) 55%, transparent);
+}
+
+.opts--matcha .mx-group__title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: var(--mx-script);
+  font-weight: 400;
+  font-size: 1.85rem;
+  line-height: 1.25;
+}
+
+.opts--matcha .mx-group__title small {
+  font-family: inherit;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  color: var(--mx-ink-soft);
+}
+
+.opts--matcha .mx-group__title small,
+.opts--matcha .mx-row,
+.opts--matcha .mx-sweet,
+.opts--matcha .mx-summary,
+.opts--matcha .mx-add {
+  font-family: 'Montserrat', system-ui, sans-serif;
+}
+
+.opts--matcha .mx-rows {
+  display: grid;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.opts--matcha .mx-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 11px 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: none;
+  color: var(--mx-ink);
+  font-size: 0.95rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.opts--matcha .mx-group--check .mx-row {
+  margin-top: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .opts--matcha .mx-row:not(:disabled):hover {
+    background: color-mix(in srgb, var(--mx-paper-2) 70%, transparent);
+  }
+}
+
+.opts--matcha .mx-row:focus-visible,
+.opts--matcha .mx-step__button:focus-visible,
+.opts--matcha .mx-add:focus-visible,
+.opts--matcha .mx-bar__back:focus-visible {
+  outline: 2px solid var(--mx-ink);
+  outline-offset: 2px;
+}
+
+.opts--matcha .mx-row__name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.opts--matcha .mx-row__script {
+  font-family: var(--mx-script);
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+
+.opts--matcha .mx-dot {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--mx-leaf);
+  border-radius: 50%;
+  font-size: 12px;
+  color: var(--mx-paper);
+}
+
+.opts--matcha .mx-dot--box {
+  border-radius: 5px;
+}
+
+.opts--matcha .mx-row[aria-checked="true"] {
+  background: var(--mx-paper-2);
+  border-color: var(--mx-line);
+}
+
+.opts--matcha .mx-row[aria-checked="true"] .mx-dot {
+  background: var(--mx-ink);
+  border-color: var(--mx-ink);
+}
+
+.opts--matcha .mx-row[aria-checked="true"] .mx-dot:not(.mx-dot--box)::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--mx-paper);
+}
+
+.opts--matcha .mx-row__price {
+  flex: none;
+  font-size: 0.85rem;
+  color: var(--mx-ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Opción agotada: se ve tachada y no se puede elegir */
+.opts--matcha .mx-row:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* Endulzante: una opción con contador − / + */
+.opts--matcha .mx-sweets {
+  display: grid;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.opts--matcha .mx-sweet {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+}
+
+.opts--matcha .mx-sweet__name {
+  min-width: 0;
+  font-size: 0.95rem;
+}
+
+.opts--matcha .mx-sweet__name small {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.8rem;
+  color: var(--mx-ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.opts--matcha .mx-step {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--mx-line);
+  border-radius: 999px;
+}
+
+.opts--matcha .mx-step__button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--mx-paper-2);
+  color: var(--mx-ink);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: transform 140ms var(--ease-out);
+}
+
+.opts--matcha .mx-step__button:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.opts--matcha .mx-step__button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.opts--matcha .mx-step__value {
+  min-width: 26px;
+  text-align: center;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Pie fijo: el resumen de lo elegido y el botón con el total */
+.opts--matcha .mx-foot {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin-inline: -1.25rem;
+  margin-top: 0.5rem;
+  padding: 14px 1.25rem calc(22px + env(safe-area-inset-bottom));
+  background: var(--mx-paper);
+  box-shadow: 0 -8px 10px -4px var(--mx-paper), 0 -1px 0 color-mix(in srgb, var(--mx-line) 45%, transparent);
+}
+
+/* En escritorio el cuerpo tiene más margen: el pie lo iguala para llegar de borde a borde */
+@media (min-width: 768px) {
+  .opts--matcha .mx-head {
+    padding-inline: 2rem 1.75rem;
+  }
+
+  .opts--matcha .mx-foot {
+    margin-inline: -2rem -1.75rem;
+    padding-inline: 2rem 1.75rem;
+  }
+}
+
+.opts--matcha .mx-summary {
+  min-height: 1.2em;
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  text-align: center;
+  color: var(--mx-ink-soft);
+}
+
+.opts--matcha .mx-add {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  min-height: 52px;
+  padding: 15px 18px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--mx-ink);
+  color: var(--mx-paper);
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.opts--matcha .mx-add:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.opts--matcha .mx-add strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.opts--matcha .mx-hint {
+  margin: 8px 0 0;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--mx-ink-soft);
+}
