@@ -174,27 +174,14 @@ export const ADMIN_OPERATION_LINKS: IAdminOperationLink[] = [
         ),
     },
     {
-        id: "cocina",
-        label: "Cocina",
-        subtitle: "Pedidos de la web: acéptalos y márcalos listos",
-        href: "/gestion?s=cocina",
+        id: "pedidos",
+        label: "Pedidos",
+        subtitle: "Pedidos de la web: confírmalos, prepáralos, llévalos o entrégalos",
+        href: "/gestion?s=pedidos",
         icon: (
             <>
-                <path d="M6 13.9A4 4 0 0 1 7 6a5 5 0 0 1 10 0 4 4 0 0 1 1 7.9V20H6z" />
-                <path d="M6 17h12" />
-            </>
-        ),
-    },
-    {
-        id: "delivery",
-        label: "Delivery",
-        subtitle: "Pedidos por WhatsApp y a domicilio",
-        href: "/gestion?s=delivery",
-        icon: (
-            <>
-                <circle cx="6" cy="17" r="3" />
-                <circle cx="18" cy="17" r="3" />
-                <path d="M9 17h6l-2-7H9M13 10h3l2 7M5 10h4" />
+                <path d="M6 2l-2 4v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6l-2-4z" />
+                <path d="M4 6h16M16 10a4 4 0 0 1-8 0" />
             </>
         ),
     },
