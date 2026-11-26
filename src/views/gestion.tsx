@@ -4,6 +4,7 @@ import {
     COLLABORATOR_ROLES,
     HttpError,
     ROLE_LABEL,
+    fetchShift,
     fetchStaffMe,
     formatCash,
     getGestionToken,
@@ -91,6 +92,21 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
     const [deliveryOpenId, setDeliveryOpenId] = useState<string | null>(null);
 
     const current = available.find((one) => one.id === section) ?? available[0];
+
+    // Caja, Turno y Créditos avisan el turno al cargar. Quien entra directo a otra sección
+    // (un aviso de pedido abre Cocina) también tiene que ver el turno como está
+    const isCaja = roles.includes("caja");
+    const reportsShift = current?.id === "caja" || current?.id === "turno" || current?.id === "creditos";
+    useEffect(() => {
+        if (!isCaja || reportsShift) return;
+        const controller = new AbortController();
+        fetchShift(token, controller.signal)
+            .then((data) => setShift(data.shift))
+            .catch(() => {
+                // Si falla, el aviso se queda como estaba: no es motivo para sacar a nadie
+            });
+        return () => controller.abort();
+    }, [token, isCaja, reportsShift]);
 
     // Los pedidos de la web se siguen en cualquier seccion: quien cobra tambien atiende la cocina
     const kitchen = useKitchenFeed(token, roles.includes("caja"), onLogout);
