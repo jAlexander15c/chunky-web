@@ -3,6 +3,7 @@ import { platformAuthenticatorIsAvailable, startAuthentication, startRegistratio
 import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequestOptionsJSON } from "@simplewebauthn/browser";
 
 import type { CollaboratorRole } from "./admin";
+import { getAdminAuthHeaders } from "./admin-headers";
 import { HttpError, httpDelete, httpGet, httpPost } from "./getHttp";
 
 export type StaffScope = "admin" | "gestion";
@@ -38,7 +39,7 @@ export type FaceIdLoginOptions = PublicKeyCredentialRequestOptionsJSON;
 export type FaceIdRegistrationOptions = PublicKeyCredentialCreationOptionsJSON;
 
 const getScopeHeaders = (scope: StaffScope, token: string): Record<string, string> =>
-    scope === "admin" ? { "x-admin-token": token } : { "x-gestion-token": token };
+    scope === "admin" ? getAdminAuthHeaders(token) : { "x-gestion-token": token };
 
 export const fetchStaffMe = (scope: StaffScope, token: string, signal?: AbortSignal) =>
     httpGet<IStaffMe>(`/${scope}/me`, { signal, headers: getScopeHeaders(scope, token) });

@@ -1,8 +1,9 @@
 import type { IPedidosYaConfigInput, IPedidosYaStatus, IPedidosYaTestResult } from "@/interfaces";
 
+import { getAdminAuthHeaders } from "./admin-headers";
 import { httpGet, httpPost, httpPut } from "./getHttp";
 
-const getAdminHeaders = (token: string) => ({ "x-admin-token": token });
+const getAdminHeaders = getAdminAuthHeaders;
 
 /** Estado de la conexión con PedidosYa. Nunca trae las claves, solo si están y sus últimos 4. */
 export const getPedidosYaStatus = (token: string, signal?: AbortSignal) =>

@@ -1,8 +1,8 @@
 import { AdminCombos } from "./admin-combos";
 import { AdminPromos } from "./admin-promos";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { useSearchParams } from "react-router";
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
 
 import {
     HttpError,
@@ -13,8 +13,12 @@ import {
     fetchSupplies,
     fetchStaffMe,
     getAdminToken,
+    getGestionToken,
     logoutAdmin,
+    logoutGestion,
     setAdminToken,
+    setGestionToken,
+    setUnifiedAdminToken,
     syncReceiptsNow,
 } from "@/helpers";
 import type { IDashboard, IStaffLogin, IStaffMe, ISupplyStatus, PeriodSelection } from "@/helpers";
@@ -75,11 +79,22 @@ interface IAdminDashboardProps {
     token: string;
     /** Null si se entró con la llave de recuperación (ADMIN_PIN). */
     personName: string | null;
+    /** Con qué sesión se cambian el PIN y Face ID: la de /gestion en el login único. */
+    accessScope?: "admin" | "gestion";
+    /** Muestra el enlace a la operación (/gestion): solo con la sesión de una persona. */
+    hasOperation?: boolean;
     onLogout: () => void;
     onTokenChange: (login: IStaffLogin) => void;
 }
 
-const AdminDashboard = ({ token, personName, onLogout, onTokenChange }: IAdminDashboardProps) => {
+const AdminDashboard = ({
+    token,
+    personName,
+    accessScope = "admin",
+    hasOperation = false,
+    onLogout,
+    onTokenChange,
+}: IAdminDashboardProps) => {
     const [dashboard, setDashboard] = useState<IDashboard | null>(null);
     const [supplies, setSupplies] = useState<ISupplyStatus[]>([]);
     const [error, setError] = useState("");
@@ -231,7 +246,7 @@ const AdminDashboard = ({ token, personName, onLogout, onTokenChange }: IAdminDa
         acceso: () => (
             <AccessPanel
                 kind="adm"
-                scope="admin"
+                scope={accessScope}
                 token={token}
                 personName={personName}
                 onSessionExpired={onLogout}
@@ -268,6 +283,9 @@ const AdminDashboard = ({ token, personName, onLogout, onTokenChange }: IAdminDa
                     <button type="button" className="adm-btn adm-btn--sm" onClick={runSync} disabled={isSyncing} title="Trae los recibos nuevos de Loyverse">
                         {isSyncing ? "Leyendo…" : "Leer recibos"}
                     </button>
+                    {hasOperation ? (
+                        <Link className="adm-btn adm-btn--sm" to="/gestion">Operación</Link>
+                    ) : null}
                     <button type="button" className="adm-btn adm-btn--sm adm-btn--ghost" onClick={onLogout}>Salir</button>
                 </div>
                 <div className="awning" aria-hidden="true" />
@@ -379,7 +397,11 @@ const SectionIcon = ({ section }: { section: IAdminSectionInfo }) => (
     </svg>
 );
 
-export const AdminView = () => {
+/**
+ * La llave de recuperación (ADMIN_PIN) y las sesiones del tablero de antes del login único:
+ * su propia pantalla de PIN y su sesión aparte, sin cambios.
+ */
+const RecoveryAdminView = () => {
     const [token, setToken] = useState<string | null>(() => getAdminToken());
     const [me, setMe] = useState<IStaffMe | null>(null);
     const [meError, setMeError] = useState("");
@@ -387,7 +409,6 @@ export const AdminView = () => {
     const [isOfferingFaceId, setIsOfferingFaceId] = useState(false);
     /** Entró con PIN en esta visita: al terminar se le ofrece Face ID una vez. */
     const offerAfterPinRef = useRef(false);
-    useAdminHead();
 
     // También al vencer la sesión: revocar una ya vencida no hace daño
     const logout = useCallback(() => {
@@ -472,4 +493,117 @@ export const AdminView = () => {
             onTokenChange={(login) => applyLogin(login)}
         />
     );
+};
+
+/** Mientras se pregunta quién tiene la sesión, o si no se pudo entrar. */
+const AdminGate = ({ message, action }: { message: string; action?: ReactNode }) => (
+    <div className="adm-gate">
+        <div className="adm-gate__panel">
+            <span className="script adm-gate__mark">Chunky Bites</span>
+            {action ? (
+                <>
+                    <p className="adm-gate__error" role="alert">{message}</p>
+                    {action}
+                </>
+            ) : (
+                <p className="adm-gate__loading script">{message}</p>
+            )}
+        </div>
+    </div>
+);
+
+interface IUnifiedAdminViewProps {
+    token: string;
+    onTokenChange: (token: string | null) => void;
+}
+
+/** El tablero con la misma sesión de /gestion: un solo PIN o Face ID para todo el equipo. */
+const UnifiedAdminView = ({ token, onTokenChange }: IUnifiedAdminViewProps) => {
+    const navigate = useNavigate();
+    const [me, setMe] = useState<IStaffMe | null>(null);
+    const [meError, setMeError] = useState("");
+    const [retryKey, setRetryKey] = useState(0);
+
+    // Antes que los efectos de las secciones: sus llamadas al tablero van con x-gestion-token
+    useLayoutEffect(() => {
+        setUnifiedAdminToken(token);
+        return () => setUnifiedAdminToken(null);
+    }, [token]);
+
+    const logout = useCallback(() => {
+        void logoutGestion(token);
+        setGestionToken(null);
+        onTokenChange(null);
+        navigate("/gestion", { replace: true });
+    }, [token, onTokenChange, navigate]);
+
+    // Quién tiene la sesión y sus roles: se pregunta al API cada vez, como en /gestion
+    useEffect(() => {
+        const controller = new AbortController();
+        fetchStaffMe("gestion", token, controller.signal)
+            .then((loaded) => {
+                setMeError("");
+                setMe(loaded);
+            })
+            .catch((requestError) => {
+                if (controller.signal.aborted) return;
+                if (requestError instanceof HttpError && requestError.status === 401) {
+                    setGestionToken(null);
+                    onTokenChange(null);
+                    return;
+                }
+                setMeError("No pudimos conectar. Revisa la conexión.");
+            });
+        return () => controller.abort();
+    }, [token, retryKey, onTokenChange]);
+
+    if (!me) {
+        if (!meError) return <AdminGate message="Entrando…" />;
+        return (
+            <AdminGate
+                message={meError}
+                action={
+                    <button type="button" className="adm-btn adm-btn--block" onClick={() => setRetryKey((key) => key + 1)}>
+                        Reintentar
+                    </button>
+                }
+            />
+        );
+    }
+    // Elegir el PIN propio y ofrecer Face ID son parte del login: se hacen en /gestion
+    if (!me.collaborator || me.mustChangePin) return <Navigate to="/gestion" replace />;
+    if (!me.collaborator.roles.includes("admin")) {
+        return (
+            <AdminGate
+                message="Tu PIN no tiene permiso para abrir el tablero."
+                action={<Link className="adm-btn adm-btn--block" to="/gestion">Ir a Gestión</Link>}
+            />
+        );
+    }
+    return (
+        <AdminDashboard
+            token={token}
+            personName={me.collaborator.name}
+            accessScope="gestion"
+            hasOperation
+            onLogout={logout}
+            onTokenChange={(login) => {
+                setGestionToken(login.token);
+                onTokenChange(login.token);
+            }}
+        />
+    );
+};
+
+export const AdminView = () => {
+    const [searchParams] = useSearchParams();
+    const location = useLocation();
+    const [token, setToken] = useState<string | null>(() => getGestionToken());
+    useAdminHead();
+
+    if (token) return <UnifiedAdminView token={token} onTokenChange={setToken} />;
+    // Llave de recuperación (?recuperar) o una sesión del tablero de antes que todavía sirve
+    if (searchParams.has("recuperar") || getAdminToken()) return <RecoveryAdminView />;
+    // Un solo login: se entra por /gestion y se vuelve aquí (por ejemplo, desde un aviso)
+    return <Navigate to={`/gestion?volver=${encodeURIComponent(location.pathname + location.search)}`} replace />;
 };

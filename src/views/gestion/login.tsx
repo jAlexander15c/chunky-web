@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { Link } from "react-router";
 
 import { HttpError, hasUsedFaceIdHere, loginGestion } from "@/helpers";
 import type { IStaffLogin } from "@/helpers";
@@ -119,6 +120,8 @@ export const GestionLogin = ({ onLogin }: IGestionLoginProps) => {
                     }}
                     onComplete={(next) => void submit(next)}
                 />
+                {/* La llave de recuperación del tablero (ADMIN_PIN), por si nadie con el rol admin puede entrar */}
+                <Link className="sa-hint ges-login__recover" to="/admin?recuperar">¿Nadie del equipo puede entrar?</Link>
             </div>
         </div>
     );

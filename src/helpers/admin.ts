@@ -1,5 +1,6 @@
 import type { IPromo, IPromoAdmin, IPromoInput } from "./promos";
 import type {InventoryType,ProductAvailability} from "./inventory";
+import { getAdminAuthHeaders } from "./admin-headers";
 import { httpDelete, httpGet, httpPost, httpPostBinary, httpPut } from "./getHttp";
 import type { ICreditTicket, IShiftDetail } from "./gestion";
 import type { IWeekHours, StoreOverride } from "./hours";
@@ -77,6 +78,15 @@ export interface IMovement {
 export type CollaboratorRole = "inventario" | "caja" | "pastelera" | "repartidor" | "admin";
 
 export const COLLABORATOR_ROLES: CollaboratorRole[] = ["inventario", "caja", "pastelera", "repartidor", "admin"];
+
+/** Lo que el admin hace sin marcarse cada rol (igual que en el API). Repostería no: es de cada pastelera. */
+const ADMIN_INCLUDES: CollaboratorRole[] = ["inventario", "caja", "repartidor"];
+
+/** Los roles con los que se arma la pantalla: los marcados, más lo que incluye admin. */
+export const getEffectiveRoles = (roles: CollaboratorRole[]): CollaboratorRole[] =>
+    roles.includes("admin")
+        ? COLLABORATOR_ROLES.filter((role) => roles.includes(role) || ADMIN_INCLUDES.includes(role))
+        : roles;
 
 export const ROLE_LABEL: Record<CollaboratorRole, string> = {
     inventario: "Inventario",
@@ -178,7 +188,7 @@ export interface IDashboard {
 
 const ADMIN_TOKEN_STORAGE_KEY = "chunky-admin-token";
 
-const getAdminHeaders = (token: string) => ({ "x-admin-token": token });
+const getAdminHeaders = getAdminAuthHeaders;
 
 export const getAdminToken = () => {
     try {

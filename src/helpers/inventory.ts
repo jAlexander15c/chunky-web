@@ -1,3 +1,4 @@
+import { getAdminAuthHeaders } from "./admin-headers";
 import { httpGet, httpPost, httpPut, httpDelete } from "./getHttp";
 import type { ISupplyStatus } from "./admin";
 import type { ISaleAvailability } from "./gestion";
@@ -79,7 +80,7 @@ export interface PurchaseInput {
     reference?: string;
 }
 export const inventoryHeaders = (token: string, scope: "admin" | "gestion" = "admin") => ({
-    headers: { [scope === "admin" ? "x-admin-token" : "x-gestion-token"]: token },
+    headers: scope === "admin" ? getAdminAuthHeaders(token) : { "x-gestion-token": token },
 });
 type Scope = "admin" | "gestion";
 const productPath = (variantId: string, scope: Scope = "admin") =>
@@ -301,14 +302,14 @@ export interface ISupplyToProductResponse {
 
 /** Productos del menú desde el tablero, para elegir a cuál pasa un insumo. */
 export const fetchAdminMenuProducts = (token: string, signal?: AbortSignal) =>
-    httpGet<{ products: ISaleAvailability[] }>("/admin/availability", { signal, headers: { "x-admin-token": token } });
+    httpGet<{ products: ISaleAvailability[] }>("/admin/availability", { signal, headers: getAdminAuthHeaders(token) });
 
 /** Un insumo que se vende tal cual pasa a lotes del producto: se archiva y deja de avisar para comprar. */
 export const convertSupplyToProduct = (
     token: string,
     supplyId: number,
     input: { variantId: string; quantity: number; shelfLifeDays?: number; requestId: string }
-) => httpPost<ISupplyToProductResponse>(`/admin/supplies/${supplyId}/to-product`, input, { headers: { "x-admin-token": token } });
+) => httpPost<ISupplyToProductResponse>(`/admin/supplies/${supplyId}/to-product`, input, { headers: getAdminAuthHeaders(token) });
 
 /** Lotes vencidos que siguen buenos: vuelven a venderse con N días más. */
 export const extendExpiredLots = (token: string, lots: { batchId: number; days: ExtendDays }[], requestId: string) =>

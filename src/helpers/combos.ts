@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { getAdminAuthHeaders } from "./admin-headers";
 import { fetchItemsByCategoryCached, getCatalogScope, useCategories } from "./catalog";
 import { getApiUrl, httpDelete, httpGet, httpPost, httpPostBinary, httpPut } from "./getHttp";
 import { capitalizeFirst, formatModifierPhrases, getModifiersPrice, groupModifierEntries } from "./modifiers";
@@ -389,7 +390,7 @@ export const useComboItems = (enabled: boolean) => {
 
 /* ============ Admin ============ */
 
-const getAdminHeaders = (token: string) => ({ "x-admin-token": token });
+const getAdminHeaders = getAdminAuthHeaders;
 
 export const fetchAdminCombos = async (token: string, signal?: AbortSignal) => {
     const response = await httpGet<IComboAdmin[] | { combos: IComboAdmin[] }>("/admin/combos", { signal, headers: getAdminHeaders(token) });

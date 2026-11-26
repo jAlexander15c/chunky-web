@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, Navigate, useSearchParams } from "react-router";
 
 import {
     COLLABORATOR_ROLES,
@@ -7,6 +8,7 @@ import {
     fetchShift,
     fetchStaffMe,
     formatCash,
+    getEffectiveRoles,
     getGestionToken,
     logoutGestion,
     setGestionToken,
@@ -296,6 +298,9 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
                                 {shift ? `Turno abierto · ${formatCash(shift.expected)}` : "Sin turno abierto"}
                             </span>
                         ) : null}
+                        {roles.includes("admin") ? (
+                            <Link className="ges-btn ges-btn--sm" to="/admin">Tablero</Link>
+                        ) : null}
                         <button type="button" className="ges-btn ges-btn--sm" onClick={onLogout}>Salir</button>
                     </div>
                 </header>
@@ -364,6 +369,7 @@ interface IGestionMe extends IGestionSession {
 }
 
 export const GestionView = () => {
+    const [searchParams] = useSearchParams();
     const [token, setToken] = useState<string | null>(() => getGestionToken());
     const [session, setSession] = useState<IGestionMe | null>(null);
     const [sessionError, setSessionError] = useState("");
@@ -400,7 +406,7 @@ export const GestionView = () => {
                 if (!collaborator) return;
                 setSession({
                     ...collaborator,
-                    roles: collaborator.roles.filter((role) => COLLABORATOR_ROLES.includes(role)),
+                    roles: getEffectiveRoles(collaborator.roles.filter((role) => COLLABORATOR_ROLES.includes(role))),
                     // Un API sin estos campos (antes de desplegarlo) no pide elegir PIN
                     mustChangePin: mustChangePin === true,
                     isFaceIdAvailable: isFaceIdAvailable === true,
@@ -439,6 +445,10 @@ export const GestionView = () => {
     if (isOfferingFaceId) {
         return <FaceIdOffer kind="ges" scope="gestion" token={token} mark="Gestión" onDone={() => setIsOfferingFaceId(false)} />;
     }
+    // Venía del tablero (por ejemplo, un aviso de insumos): vuelve allá si tiene el rol admin.
+    // Solo rutas del tablero, para que el parámetro no lleve a otro sitio
+    const backTo = searchParams.get("volver");
+    if (backTo?.startsWith("/admin") && session.roles.includes("admin")) return <Navigate to={backTo} replace />;
     return (
         <GestionShell
             token={token}

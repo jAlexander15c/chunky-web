@@ -16,6 +16,7 @@ export * from "./push";
 export * from "./sound";
 export * from "./order-notify";
 export * from "./admin";
+export * from "./admin-headers";
 export * from "./admin-period";
 export * from "./gestion";
 export * from "./staff-access";

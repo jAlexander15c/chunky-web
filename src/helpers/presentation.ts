@@ -1,3 +1,4 @@
+import { getAdminAuthHeaders } from "./admin-headers";
 import { httpPost } from "./getHttp";
 import type { ISupplyStatus } from "./admin";
 
@@ -60,7 +61,7 @@ export const formatInPresentation = (stock: number, presentation: IPresentation,
 /** De "u" a ml o g: lo usan las recetas, y la unidad vieja queda como presentación para contar. */
 export const changeSupplyUnit = (token: string, supplyId: number, input: { unit: string; perUnit: string; presentation: string }) =>
     httpPost<{ unit: string; perUnit: string; presentation: string }>(`/admin/supplies/${supplyId}/unit`, input, {
-        headers: { "x-admin-token": token },
+        headers: getAdminAuthHeaders(token),
     });
 
 /** Unidades que no se convierten solas: con ellas una receta no puede pedir ml ni g. */

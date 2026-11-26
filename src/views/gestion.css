@@ -1585,3 +1585,6 @@ button.ges-chip:disabled { opacity: 0.6; cursor: default; }
 .ges-promo-total { display: flex; justify-content: space-between; gap: 0.6rem; font-size: 0.8rem; margin-bottom: 0.3rem; }
 .ges-promo-total > span:first-child { min-width: 0; overflow-wrap: anywhere; }
 .ges-promo-total > span:last-child { white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* La llave de recuperación del tablero: discreta, debajo del teclado */
+.ges-login__recover { display: block; text-align: center; text-decoration: underline; }
