@@ -290,7 +290,7 @@ export const GestionCocina = ({ feed, token, onSessionExpired, onOpenDelivery }:
         return () => window.clearInterval(timer);
     }, []);
 
-    const { orders, offlineSince, isSoundOn, turnSoundOn, updateOrder, refresh } = feed;
+    const { orders, offlineSince, updateOrder, refresh } = feed;
     // Los de WhatsApp sin confirmar van aparte: se ven, pero todavía no se preparan
     const awaitingOrders = orders.filter((order) => order.isAwaitingConfirmation);
     const newOrders = orders.filter((order) => !order.acceptedAt && !order.isAwaitingConfirmation);
@@ -333,14 +333,11 @@ export const GestionCocina = ({ feed, token, onSessionExpired, onOpenDelivery }:
 
     return (
         <div className="kitchen">
-            {(offlineSince !== null || !isSoundOn) && (
+            {offlineSince !== null && (
                 <div className="kitchen-banner" role="alert">
                     <span>
-                        {offlineSince !== null
-                            ? `No estamos recibiendo pedidos desde las ${formatClock(offlineSince)}: revisa el Wi-Fi. Reintentando…`
-                            : "El sonido está apagado: los pedidos nuevos no van a sonar."}
+                        No estamos recibiendo pedidos desde las {formatClock(offlineSince)}: revisa el Wi-Fi. Reintentando…
                     </span>
-                    {!isSoundOn && <button type="button" onClick={turnSoundOn}>Activar sonido</button>}
                 </div>
             )}
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
     HttpError,
@@ -24,9 +24,15 @@ interface IGestionTurnoProps {
     token: string;
     onSessionExpired: () => void;
     onShiftChange: (shift: IShiftDetail | null) => void;
+    /** Se abrió el turno desde aquí (la hoja de Caja se cierra sola). */
+    onOpened?: () => void;
+    /** Se cerró el turno desde aquí. */
+    onClosed?: () => void;
+    /** Al cargar, baja hasta "Cerrar caja" (viene del botón de la barra de Caja). */
+    shouldFocusClose?: boolean;
 }
 
-export const GestionTurno = ({ token, onSessionExpired, onShiftChange }: IGestionTurnoProps) => {
+export const GestionTurno = ({ token, onSessionExpired, onShiftChange, onOpened, onClosed, shouldFocusClose = false }: IGestionTurnoProps) => {
     const [shift, setShift] = useState<IShiftDetail | null>(null);
     const [fund, setFund] = useState<IFund | null>(null);
     const [starting, setStarting] = useState("40.00");
@@ -39,6 +45,7 @@ export const GestionTurno = ({ token, onSessionExpired, onShiftChange }: IGestio
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(true);
     const [isSending, setIsSending] = useState(false);
+    const closeCard = useRef<HTMLElement>(null);
 
     const apply = useCallback(
         (next: IShiftDetail | null) => {
@@ -88,6 +95,10 @@ export const GestionTurno = ({ token, onSessionExpired, onShiftChange }: IGestio
         void load(controller.signal);
         return () => controller.abort();
     }, [load]);
+
+    useEffect(() => {
+        if (!isLoading && shouldFocusClose) closeCard.current?.scrollIntoView({ block: "start" });
+    }, [isLoading, shouldFocusClose]);
 
     if (isLoading) return <OpsSkeleton label="Cargando el turno…" />;
 
@@ -179,6 +190,7 @@ export const GestionTurno = ({ token, onSessionExpired, onShiftChange }: IGestio
                                     setCanClose(true);
                                     setError("");
                                     await reloadFund();
+                                    onOpened?.();
                                 } catch (requestError) {
                                     handleError(requestError, "No pudimos abrir el turno.");
                                 } finally {
@@ -307,7 +319,7 @@ export const GestionTurno = ({ token, onSessionExpired, onShiftChange }: IGestio
             </div>
 
             <div className="ges-cards__two">
-                <section className="ges-card">
+                <section className="ges-card" ref={closeCard}>
                     <h2>Cerrar caja</h2>
                     {!canClose ? (
                         <>
@@ -375,6 +387,7 @@ export const GestionTurno = ({ token, onSessionExpired, onShiftChange }: IGestio
                                         apply(null);
                                         setError("");
                                         await reloadFund();
+                                        onClosed?.();
                                     } catch (requestError) {
                                         handleError(requestError, "No pudimos cerrar el turno.");
                                     } finally {

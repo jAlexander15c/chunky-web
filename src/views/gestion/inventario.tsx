@@ -181,9 +181,11 @@ const SupplyPicker = ({
 interface IGestionInventarioProps {
     token: string;
     onSessionExpired: () => void;
+    /** Quien tiene Caja registra la salida sin venta allá: aquí no se repite. */
+    hasCaja?: boolean;
 }
 
-export const GestionInventario = ({ token, onSessionExpired }: IGestionInventarioProps) => {
+export const GestionInventario = ({ token, onSessionExpired, hasCaja = false }: IGestionInventarioProps) => {
     const [supplies, setSupplies] = useState<ISupplyStatus[]>([]);
     const [products, setProducts] = useState<IBatchProductStatus[]>([]);
     const [movements, setMovements] = useState<IWasteMovement[]>([]);
@@ -358,6 +360,7 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                         <small>Productos o insumos</small>
                     </span>
                 </button>
+                {hasCaja ? null : (
                 <button type="button" className="ges-happened__btn is-exit" onClick={() => setPending({ kind: "exit" })}>
                     <QuickIcon>
                         <path d="M20 12v9H4v-9" />
@@ -369,6 +372,7 @@ export const GestionInventario = ({ token, onSessionExpired }: IGestionInventari
                         <small>Pruebas, Marketing, PedidosYa</small>
                     </span>
                 </button>
+                )}
             </div>
         </section>
     );

@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { COLLABORATOR_ROLES } from "@/helpers";
 import type { CollaboratorRole } from "@/helpers";
 
-export type Section = "caja" | "turno" | "creditos" | "cocina" | "delivery" | "inventario" | "pasteleria" | "acceso";
+export type Section = "caja" | "cocina" | "delivery" | "inventario" | "pasteleria" | "acceso";
 
 export interface ISectionInfo {
     id: Section;
@@ -19,35 +19,11 @@ export const SECTIONS: ISectionInfo[] = [
         id: "caja",
         label: "Caja",
         roles: ["caja"],
-        sub: "Toma las mesas, envía a cocina y cobra",
+        sub: "Toma las mesas, cobra, lleva el turno y los créditos",
         icon: (
             <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <rect x="2" y="7" width="20" height="13" rx="2" />
                 <path d="M6 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2M2 12h20" />
-            </svg>
-        ),
-    },
-    {
-        id: "turno",
-        label: "Turno",
-        roles: ["caja"],
-        sub: "Fondo inicial, movimientos de efectivo y cierre",
-        icon: (
-            <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 7v5l3 2" />
-            </svg>
-        ),
-    },
-    {
-        id: "creditos",
-        label: "Créditos",
-        roles: ["caja"],
-        sub: "Cuentas que se pagan después: quién debe y desde cuándo",
-        icon: (
-            <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" />
-                <path d="M9 8h6M9 12h6" />
             </svg>
         ),
     },
@@ -103,7 +79,7 @@ export const SECTIONS: ISectionInfo[] = [
     {
         // Va al final y la ve cualquiera con un rol: es de la persona, no de su trabajo
         id: "acceso",
-        // Corto: en la barra de abajo del teléfono ya van siete secciones
+        // Corto: en la barra de abajo del teléfono caben cinco secciones
         label: "Acceso",
         roles: COLLABORATOR_ROLES,
         sub: "Tu PIN y tus equipos con Face ID",

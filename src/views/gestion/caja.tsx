@@ -9,6 +9,7 @@ import {
     buildPastaItem,
     changeTicketLine,
     fetchCajaCombos,
+    fetchCredits,
     fetchCustomerMatches,
     fetchTables,
     fetchTicket,
@@ -41,6 +42,7 @@ import type {
     ITicketLine,
 } from "@/helpers";
 import type { IItem } from "@/interfaces";
+import { GestionCreditos } from "./creditos";
 import { InventoryExitDialog } from "./inventory-exit-dialog";
 import { TicketTotals } from "./ticket-pricing";
 import { getAccountName, getLowerLabel, roundMoney } from "./caja/helpers";
@@ -55,6 +57,8 @@ import { VoidDialog } from "./caja/void-dialog";
 import { NewAccountDialog } from "./caja/new-account-dialog";
 import { MoveDialog } from "./caja/move-dialog";
 import { PayDialog } from "./caja/pay-dialog";
+import { ShiftBar } from "./caja/shift-bar";
+import type { ShiftSheet } from "./caja/shift-bar";
 
 import "./caja.css";
 
@@ -67,16 +71,26 @@ const COMBOS_TAB_ID = "combos";
 /** Los combos entran y salen por horario: se releen cada minuto. */
 const COMBOS_REFRESH_MS = 60000;
 
+/** Lo que se ve bajo la barra del turno: las mesas, las cuentas para llevar o los créditos. */
+export type CajaView = "mesas" | "llevar" | "creditos";
+
 interface IGestionCajaProps {
     token: string;
     onSessionExpired: () => void;
     onShiftChange: (shift: IShiftDetail | null) => void;
+    /** Con qué vista se entra (los enlaces viejos `?s=creditos` llegan con "creditos"). */
+    initialView?: CajaView;
+    /** Con qué hoja del turno se entra (el enlace viejo `?s=turno` llega con "ver"). */
+    initialSheet?: ShiftSheet | null;
 }
 
-export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestionCajaProps) => {
+export const GestionCaja = ({ token, onSessionExpired, onShiftChange, initialView = "mesas", initialSheet = null }: IGestionCajaProps) => {
     const [tables, setTables] = useState<ITableSummary[]>([]);
     const [ticket, setTicket] = useState<ITicket | null>(null);
-    const [hasShift, setHasShift] = useState(false);
+    const [shift, setShift] = useState<IShiftDetail | null>(null);
+    const hasShift = Boolean(shift);
+    const [view, setView] = useState<CajaView>(initialView);
+    const [creditsCount, setCreditsCount] = useState(0);
     // El catálogo se pide por categoría, así que siempre hay una elegida
     const [categoryId, setCategoryId] = useState<string | null>(null);
     const [options, setOptions] = useState<IItem | null>(null);
@@ -150,13 +164,21 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
         };
     }, [token, onSessionExpired]);
 
+    /** El turno cambia desde la barra, la hoja del turno o los créditos: todos avisan aquí. */
+    const handleShiftChange = useCallback(
+        (next: IShiftDetail | null) => {
+            setShift(next);
+            onShiftChange(next);
+        },
+        [onShiftChange]
+    );
+
     const loadTables = useCallback(
         async (signal?: AbortSignal) => {
             try {
                 const data = await fetchTables(token, signal);
                 setTables(data.tables);
-                setHasShift(Boolean(data.shift));
-                onShiftChange(data.shift);
+                handleShiftChange(data.shift);
                 setError("");
             } catch (requestError) {
                 if (signal?.aborted) return;
@@ -164,8 +186,14 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
             } finally {
                 setIsLoading(false);
             }
+            // Solo es el número de la pestaña Créditos: si falla, se queda el que había
+            try {
+                setCreditsCount((await fetchCredits(token, signal)).credits.length);
+            } catch (requestError) {
+                if (requestError instanceof HttpError && requestError.status === 401) onSessionExpired();
+            }
         },
-        [token, handleError, onShiftChange]
+        [token, handleError, handleShiftChange, onSessionExpired]
     );
 
     // Solo se relee el mapa: con una cuenta abierta manda lo que responde el servidor
@@ -232,37 +260,60 @@ export const GestionCaja = ({ token, onSessionExpired, onShiftChange }: IGestion
 
         return (
             <>
-                <button type="button" className="ges-btn" onClick={() => setIsRegisteringExit(true)}>Salida sin venta</button>
+                <ShiftBar
+                    token={token}
+                    shift={shift}
+                    initialSheet={initialSheet}
+                    onShiftChange={handleShiftChange}
+                    onSessionExpired={onSessionExpired}
+                />
+
+                <div className="ges-cajafilters">
+                    <div className="ges-seg ges-seg--filters" role="tablist" aria-label="Qué vas a ver en Caja">
+                        <button type="button" role="tab" aria-selected={view === "mesas"} onClick={() => setView("mesas")}>
+                            Mesas
+                        </button>
+                        <button type="button" role="tab" aria-selected={view === "llevar"} onClick={() => setView("llevar")}>
+                            Para llevar{togoTables.length > 0 ? ` · ${togoTables.length}` : ""}
+                        </button>
+                        <button type="button" role="tab" aria-selected={view === "creditos"} onClick={() => setView("creditos")}>
+                            Créditos{creditsCount > 0 ? ` · ${creditsCount}` : ""}
+                        </button>
+                    </div>
+                    <button type="button" className="ges-btn ges-btn--sm" onClick={() => setIsRegisteringExit(true)}>Salida sin venta</button>
+                </div>
+
                 {error ? <p className="ges-error" role="alert">{error}</p> : null}
-                {!hasShift && !isLoading ? (
+                {!hasShift && !isLoading && view !== "creditos" ? (
                     <p className="ges-warning">
-                        No hay turno abierto. Ábrelo en Turno para tomar pedidos y cobrar.
+                        No hay turno abierto. Ábrelo arriba para tomar pedidos y cobrar.
                     </p>
                 ) : null}
 
-                {isLoading ? (
+                {view === "creditos" ? (
+                    <GestionCreditos
+                        token={token}
+                        onSessionExpired={onSessionExpired}
+                        onShiftChange={handleShiftChange}
+                        onCountChange={setCreditsCount}
+                    />
+                ) : isLoading ? (
                     <OpsSkeleton label="Cargando las mesas…" />
+                ) : view === "llevar" ? (
+                    <div className="ges-tables">
+                        <button
+                            type="button"
+                            className="ges-table ges-table--new"
+                            disabled={!hasShift}
+                            onClick={() => setIsOpeningTogo(true)}
+                        >
+                            <b aria-hidden="true">+</b>
+                            <span>Nuevo para llevar</span>
+                        </button>
+                        {togoTables.map(renderTable)}
+                    </div>
                 ) : (
-                    <>
-                        <h2 className="ges-tables__group">
-                            Para llevar{togoTables.length > 0 ? ` · ${togoTables.length} ${togoTables.length === 1 ? "abierta" : "abiertas"}` : ""}
-                        </h2>
-                        <div className="ges-tables">
-                            <button
-                                type="button"
-                                className="ges-table ges-table--new"
-                                disabled={!hasShift}
-                                onClick={() => setIsOpeningTogo(true)}
-                            >
-                                <b aria-hidden="true">+</b>
-                                <span>Nuevo para llevar</span>
-                            </button>
-                            {togoTables.map(renderTable)}
-                        </div>
-
-                        <h2 className="ges-tables__group">Mesas</h2>
-                        <div className="ges-tables">{diningTables.map(renderTable)}</div>
-                    </>
+                    <div className="ges-tables">{diningTables.map(renderTable)}</div>
                 )}
 
                 {isRegisteringExit ? <InventoryExitDialog token={token} onClose={() => setIsRegisteringExit(false)} onSessionExpired={onSessionExpired} /> : null}

@@ -25,8 +25,9 @@ import { shouldOfferFaceId } from "@/hooks/useStaffAccess";
 import { FullSheet } from "@/components";
 
 import { GestionCaja } from "./gestion/caja";
+import type { CajaView } from "./gestion/caja";
+import type { ShiftSheet } from "./gestion/caja/shift-bar";
 import { GestionCocina, KitchenToast } from "./gestion/cocina";
-import { GestionCreditos } from "./gestion/creditos";
 import { GestionDelivery } from "./gestion/delivery";
 import { GestionInventario } from "./gestion/inventario";
 import { GestionPasteleria } from "./gestion/pasteleria";
@@ -34,7 +35,6 @@ import { GestionChoosePin, GestionLogin } from "./gestion/login";
 import { ADMIN_SECTIONS, getAdminSectionHref } from "./admin-sections";
 import { SECTIONS } from "./gestion/sections";
 import type { Section } from "./gestion/sections";
-import { GestionTurno } from "./gestion/turno";
 import { AccessPanel, FaceIdOffer } from "./staff-access";
 
 import "@/styles/ops.css";
@@ -97,20 +97,30 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
 
     // Solo se ofrece lo que esta persona puede hacer
     const available = useMemo(() => SECTIONS.filter((one) => one.roles.some((role) => roles.includes(role))), [roles]);
-    // Al tocar una notificacion se llega con ?s=cocina o ?s=delivery
+    // Al tocar una notificacion se llega con ?s=cocina o ?s=delivery. Turno y Créditos ya no son secciones:
+    // los enlaces viejos (?s=turno, ?s=creditos) llevan a Caja con la hoja del turno o la pestaña Créditos
+    const requested = useMemo(() => new URLSearchParams(window.location.search).get("s"), []);
     const [section, setSection] = useState<Section>(() => {
-        const requested = new URLSearchParams(window.location.search).get("s");
-        return available.find((one) => one.id === requested)?.id ?? available[0]?.id ?? "inventario";
+        const target = requested === "turno" || requested === "creditos" ? "caja" : requested;
+        return available.find((one) => one.id === target)?.id ?? available[0]?.id ?? "inventario";
     });
+    // Solo vale para la primera entrada a Caja: al volver desde otra sección, Caja abre normal
+    const [cajaStart, setCajaStart] = useState<{ view: CajaView; sheet: ShiftSheet | null } | null>(() =>
+        requested === "turno"
+            ? { view: "mesas", sheet: "ver" }
+            : requested === "creditos"
+              ? { view: "creditos", sheet: null }
+              : null
+    );
     // Pedido que se abre al llegar a Delivery desde Cocina (Confirmar / Ver en Delivery)
     const [deliveryOpenId, setDeliveryOpenId] = useState<string | null>(null);
 
     const current = available.find((one) => one.id === section) ?? available[0];
 
-    // Caja, Turno y Créditos avisan el turno al cargar. Quien entra directo a otra sección
+    // Caja avisa el turno al cargar. Quien entra directo a otra sección
     // (un aviso de pedido abre Cocina) también tiene que ver el turno como está
     const isCaja = roles.includes("caja");
-    const reportsShift = current?.id === "caja" || current?.id === "turno" || current?.id === "creditos";
+    const reportsShift = current?.id === "caja";
     useEffect(() => {
         if (!isCaja || reportsShift) return;
         const controller = new AbortController();
@@ -129,6 +139,17 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
     const alerts = useOrderAlerts(token, canReceiveAlerts, onLogout);
     const [isAlertHintOpen, setIsAlertHintOpen] = useState(false);
     const alertHint = alerts.error || (isAlertHintOpen ? ALERT_HINT[alerts.status] : "");
+    // Sonido y avisos se piden con un solo toque; lo que ya está activo no se vuelve a pedir
+    const isSoundMissing = isCaja && !kitchen.isSoundOn;
+    const areAlertsMissing = canReceiveAlerts && alerts.status !== "on" && alerts.status !== "loading";
+    const soundAlertsLabel = isSoundMissing && areAlertsMissing ? "Activar sonido y avisos" : isSoundMissing ? "Activar sonido" : "Activar avisos";
+    const activeSoundAlertsLabel = isCaja && canReceiveAlerts ? "Sonido y avisos" : isCaja ? "Sonido" : "Avisos";
+    const activateSoundAndAlerts = () => {
+        if (isSoundMissing) kitchen.turnSoundOn();
+        if (!areAlertsMissing) return;
+        if (alerts.status === "off") void alerts.activate();
+        else setIsAlertHintOpen((isOpen) => !isOpen);
+    };
 
     // Delivery tambien: suena el pedido nuevo por WhatsApp y el repartidor sigue compartiendo
     // su ubicacion aunque cambie de seccion
@@ -144,6 +165,7 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
     const openSection = (id: Section) => {
         setSection(id);
         setDeliveryOpenId(null);
+        setCajaStart(null);
     };
 
     /** Pedidos nuevos en Cocina; en Delivery, los que esperan a caja o al repartidor. */
@@ -289,43 +311,16 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
                                 </span>
                             </>
                         ) : null}
-                        {roles.includes("caja") ? (
-                            <>
-                                {kitchen.isSoundOn ? (
-                                    <span className="ges-chip">
-                                        <i aria-hidden="true" />
-                                        Sonido
-                                    </span>
-                                ) : (
-                                    <button type="button" className="ges-chip is-off" onClick={kitchen.turnSoundOn}>
-                                        <i aria-hidden="true" />
-                                        Activar sonido
-                                    </button>
-                                )}
-                            </>
-                        ) : null}
-                        {canReceiveAlerts ? (
-                            <>
-                                {alerts.status === "on" ? (
-                                    <span className="ges-chip">
-                                        <i aria-hidden="true" />
-                                        Avisos
-                                    </span>
-                                ) : alerts.status !== "loading" ? (
-                                    <button
-                                        type="button"
-                                        className="ges-chip is-off"
-                                        disabled={alerts.isSaving}
-                                        onClick={() => {
-                                            if (alerts.status === "off") void alerts.activate();
-                                            else setIsAlertHintOpen((isOpen) => !isOpen);
-                                        }}
-                                    >
-                                        <i aria-hidden="true" />
-                                        {alerts.isSaving ? "Activando…" : "Activar avisos"}
-                                    </button>
-                                ) : null}
-                            </>
+                        {isSoundMissing || areAlertsMissing ? (
+                            <button type="button" className="ges-chip is-off" disabled={alerts.isSaving} onClick={activateSoundAndAlerts}>
+                                <i aria-hidden="true" />
+                                {alerts.isSaving ? "Activando…" : soundAlertsLabel}
+                            </button>
+                        ) : isCaja || canReceiveAlerts ? (
+                            <span className="ges-chip" role="status">
+                                <i aria-hidden="true" />
+                                {activeSoundAlertsLabel}
+                            </span>
                         ) : null}
                         {tracking.status !== "off" ? (
                             <span
@@ -336,7 +331,8 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
                                 {tracking.status === "sharing" ? "Compartiendo ubicación" : "Ubicación sin compartir"}
                             </span>
                         ) : null}
-                        {roles.includes("caja") ? (
+                        {/* Dentro de Caja la barra del turno ya lo dice */}
+                        {roles.includes("caja") && current.id !== "caja" ? (
                             <span className={`ges-chip${shift ? "" : " is-off"}`} role="status">
                                 <i aria-hidden="true" />
                                 {shift ? `Turno abierto · ${formatCash(shift.expected)}` : "Sin turno abierto"}
@@ -349,11 +345,13 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
 
                 <main className="ges-body">
                     {current.id === "caja" ? (
-                        <GestionCaja token={token} onSessionExpired={onLogout} onShiftChange={setShift} />
-                    ) : current.id === "turno" ? (
-                        <GestionTurno token={token} onSessionExpired={onLogout} onShiftChange={setShift} />
-                    ) : current.id === "creditos" ? (
-                        <GestionCreditos token={token} onSessionExpired={onLogout} onShiftChange={setShift} />
+                        <GestionCaja
+                            token={token}
+                            onSessionExpired={onLogout}
+                            onShiftChange={setShift}
+                            initialView={cajaStart?.view}
+                            initialSheet={cajaStart?.sheet}
+                        />
                     ) : current.id === "cocina" ? (
                         <GestionCocina feed={kitchen} token={token} onSessionExpired={onLogout} onOpenDelivery={(orderId) => {
                             setDeliveryOpenId(orderId ?? null);
@@ -381,7 +379,7 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
                             onTokenChange={onTokenChange}
                         />
                     ) : (
-                        <GestionInventario token={token} onSessionExpired={onLogout} />
+                        <GestionInventario token={token} onSessionExpired={onLogout} hasCaja={isCaja} />
                     )}
                 </main>
             </div>

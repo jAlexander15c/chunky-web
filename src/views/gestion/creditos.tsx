@@ -183,10 +183,12 @@ interface IGestionCreditosProps {
     token: string;
     onSessionExpired: () => void;
     onShiftChange: (shift: IShiftDetail | null) => void;
+    /** Cuántas cuentas quedan por cobrar: Caja lo muestra en su pestaña. */
+    onCountChange?: (count: number) => void;
 }
 
 /** Quién debe y desde cuándo. Un crédito se cobra aquí, en el turno que esté abierto. */
-export const GestionCreditos = ({ token, onSessionExpired, onShiftChange }: IGestionCreditosProps) => {
+export const GestionCreditos = ({ token, onSessionExpired, onShiftChange, onCountChange }: IGestionCreditosProps) => {
     const [credits, setCredits] = useState<ICreditTicket[]>([]);
     const [hasShift, setHasShift] = useState(false);
     const [collecting, setCollecting] = useState<ICreditTicket | null>(null);
@@ -215,6 +217,7 @@ export const GestionCreditos = ({ token, onSessionExpired, onShiftChange }: IGes
             try {
                 const [creditData] = await Promise.all([fetchCredits(token, signal), loadShift(signal)]);
                 setCredits(creditData.credits);
+                onCountChange?.(creditData.credits.length);
                 setError("");
             } catch (requestError) {
                 if (signal?.aborted) return;
@@ -223,7 +226,7 @@ export const GestionCreditos = ({ token, onSessionExpired, onShiftChange }: IGes
                 setIsLoading(false);
             }
         },
-        [token, loadShift, handleError]
+        [token, loadShift, handleError, onCountChange]
     );
 
     useEffect(() => {
@@ -246,7 +249,7 @@ export const GestionCreditos = ({ token, onSessionExpired, onShiftChange }: IGes
                     <b>{formatCash(owed)}</b>
                 </div>
                 {!hasShift && credits.length > 0 ? (
-                    <p className="ges-warn">Abre el turno en Turno para cobrar un crédito: el dinero tiene que entrar a una caja.</p>
+                    <p className="ges-warn">Abre el turno arriba para cobrar un crédito: el dinero tiene que entrar a una caja.</p>
                 ) : null}
             </section>
 
@@ -284,6 +287,7 @@ export const GestionCreditos = ({ token, onSessionExpired, onShiftChange }: IGes
                     onSessionExpired={onSessionExpired}
                     onPaid={async (remaining) => {
                         setCredits(remaining);
+                        onCountChange?.(remaining.length);
                         setCollecting(null);
                         // El cobro sube las ventas del turno: el encabezado lo refleja
                         try {
