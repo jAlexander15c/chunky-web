@@ -14,7 +14,6 @@ import {
     formatMoney,
     getCategoryColorHex,
     isOptionAvailable,
-    setMenuModifierOptionAvailability,
     updateMenuCategory,
     updateMenuItem,
     updateMenuModifier,
@@ -47,7 +46,6 @@ export const AdminMenu = ({ token, onSessionExpired }: { token: string; onSessio
     const [openCategoryId, setOpenCategoryId] = useState<string | null>(null);
     // Lo creado en esta visita se marca para encontrarlo en la lista
     const [recentIds, setRecentIds] = useState<string[]>([]);
-    const [pendingOptionIds, setPendingOptionIds] = useState<string[]>([]);
 
     const load = useCallback(
         async (signal?: AbortSignal) => {
@@ -185,35 +183,6 @@ export const AdminMenu = ({ token, onSessionExpired }: { token: string; onSessio
     const removeModifier = async (modifier: IModifier) => {
         await deleteMenuModifier(token, modifier.id).catch(guardSession);
         return finish(`Eliminamos el modificador ${modifier.name}.`);
-    };
-
-    const setOptionLocally = (optionId: string, isAvailable: boolean) =>
-        setModifiers((current) =>
-            current.map((modifier) => ({
-                ...modifier,
-                options: modifier.options.map((option) => (option.id === optionId ? { ...option, isAvailable } : option)),
-            }))
-        );
-
-    /** Se cambia en pantalla al instante y se deshace si el API no lo acepta. */
-    const toggleOptionAvailability = async (modifier: IModifier, optionId: string) => {
-        const option = modifier.options.find((entry) => entry.id === optionId);
-        if (!option || pendingOptionIds.includes(optionId)) return;
-
-        const nextValue = !isOptionAvailable(option);
-        setError("");
-        setPendingOptionIds((current) => [...current, optionId]);
-        setOptionLocally(optionId, nextValue);
-
-        try {
-            await setMenuModifierOptionAvailability(token, optionId, nextValue);
-        } catch (requestError) {
-            setOptionLocally(optionId, !nextValue);
-            if (requestError instanceof HttpError && requestError.status === 401) return onSessionExpired();
-            setError(getErrorMessage(requestError, `No pudimos cambiar ${modifier.name} ${option.name}. Quedó como estaba.`));
-        } finally {
-            setPendingOptionIds((current) => current.filter((id) => id !== optionId));
-        }
     };
 
     const removeItem = async (item: IMenuItem) => {
@@ -368,7 +337,7 @@ export const AdminMenu = ({ token, onSessionExpired }: { token: string; onSessio
                 <div className="adm-card-head">
                     <div className="grow">
                         <h3 className="script">Modificadores</h3>
-                        <p className="adm-note">Toca una opción para marcarla agotada o volver a ofrecerla. La web la muestra como “Agotado”.</p>
+                        <p className="adm-note">Las opciones agotadas se marcan en Gestión → Inventario → Disponibilidad. La web las muestra como “Agotado”.</p>
                     </div>
                     <button
                         type="button"
@@ -394,19 +363,11 @@ export const AdminMenu = ({ token, onSessionExpired }: { token: string; onSessio
                                             {modifier.options.map((option) => {
                                                 const isAvailable = isOptionAvailable(option);
                                                 return (
-                                                    <button
-                                                        key={option.id}
-                                                        type="button"
-                                                        className={`adm-optchip${isAvailable ? "" : " is-off"}`}
-                                                        aria-pressed={!isAvailable}
-                                                        aria-label={`${option.name}: ${isAvailable ? "disponible, tocar para agotar" : "agotado, tocar para volver a ofrecer"}`}
-                                                        disabled={pendingOptionIds.includes(option.id)}
-                                                        onClick={() => void toggleOptionAvailability(modifier, option.id)}
-                                                    >
+                                                    <span key={option.id} className={`adm-optchip${isAvailable ? "" : " is-off"}`}>
                                                         {option.name}
                                                         {option.price > 0 ? ` +${formatMoney(option.price)}` : ""}
                                                         {isAvailable ? null : <small>agotado</small>}
-                                                    </button>
+                                                    </span>
                                                 );
                                             })}
                                         </span>

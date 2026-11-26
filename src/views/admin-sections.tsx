@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 /** Las secciones del tablero. El id es el que va en la dirección: /admin?s=inventario. */
-export type AdminSection = "resumen" | "ventas" | "web" | "clientes" | "inventario" | "menu" | "promos" | "combos" | "inicio" | "caja" | "local" | "pedidosya" | "colaboradores" | "acceso";
+export type AdminSection = "resumen" | "ventas" | "web" | "clientes" | "inventario" | "menu" | "pagina" | "ajustes";
 
 export interface IAdminSectionInfo {
     id: AdminSection;
@@ -18,7 +18,7 @@ interface IAdminSectionGroup {
     sections: IAdminSectionInfo[];
 }
 
-/** Analítica para mirar cómo va el negocio; Recursos para mover lo que se vende y se cobra; Ajustes para lo que casi no cambia. */
+/** Analítica para mirar cómo va el negocio; Recursos para lo que se vende, lo que se compra y lo que casi no cambia. */
 export const ADMIN_GROUPS: IAdminSectionGroup[] = [
     {
         label: "Analítica",
@@ -38,7 +38,7 @@ export const ADMIN_GROUPS: IAdminSectionGroup[] = [
             {
                 id: "ventas",
                 label: "Ventas",
-                subtitle: "Mostrador y web, cómo pagan, salidas de efectivo y cuándo se vende.",
+                subtitle: "Mostrador y web, cómo pagan, salidas de efectivo, cuándo se vende y los cierres de caja.",
                 source: "Postgres",
                 icon: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
             },
@@ -81,10 +81,11 @@ export const ADMIN_GROUPS: IAdminSectionGroup[] = [
                 ),
             },
             {
+                // Productos, promos y combos: pestañas de la misma sección
                 id: "menu",
                 label: "Menú",
-                subtitle: "Lo que crees aquí aparece en la web y en el POS de Loyverse.",
-                source: "Loyverse",
+                subtitle: "Lo que creas aquí aparece en la web y en el POS de Loyverse.",
+                source: "Loyverse + Postgres",
                 icon: (
                     <>
                         <path d="M5 3h11l3 3v15H5z" />
@@ -93,28 +94,9 @@ export const ADMIN_GROUPS: IAdminSectionGroup[] = [
                 ),
             },
             {
-                id: "promos",
-                label: "Promos",
-                subtitle: "Descuentos para los productos del menú.",
-                source: "Postgres",
-                icon: <path d="M3 3h8l10 10-8 8L3 11zM7 7h.01" />,
-            },
-            {
-                id: "combos",
-                label: "Combos",
-                subtitle: "Productos del menú a un precio fijo, solo en ciertos días y horas.",
-                source: "Postgres",
-                icon: (
-                    <>
-                        <path d="M5 8h14l-1.2 12H6.2zM9 8V6a3 3 0 016 0v2" />
-                        <path d="M9.5 13h5" />
-                    </>
-                ),
-            },
-            {
-                // Carrusel del inicio y galería del cotizador (el id se queda para no romper enlaces ?s=)
-                id: "inicio",
-                label: "Web",
+                // Carrusel del inicio y galería del cotizador (antes "Web" con el id inicio)
+                id: "pagina",
+                label: "Página",
                 subtitle: "Lo que ve la gente en la página: el carrusel del inicio y la galería del cotizador.",
                 source: "Postgres",
                 icon: (
@@ -125,67 +107,14 @@ export const ADMIN_GROUPS: IAdminSectionGroup[] = [
                 ),
             },
             {
-                id: "caja",
-                label: "Caja",
-                subtitle: "Turno en curso, mesas, créditos y fondo aparte.",
+                // Local (horario, mesas, pagos), Equipo y PedidosYa: lo que casi no cambia
+                id: "ajustes",
+                label: "Ajustes",
+                subtitle: "Horario, mesas, pago con tarjeta, equipo y PedidosYa.",
                 icon: (
                     <>
-                        <rect x="2" y="7" width="20" height="13" rx="2" />
-                        <path d="M6 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2M2 12h20" />
-                    </>
-                ),
-            },
-        ],
-    },
-    {
-        label: "Ajustes",
-        sections: [
-            {
-                id: "local",
-                label: "Local",
-                subtitle: "Horario, delivery, pago con tarjeta y modo pasta.",
-                icon: (
-                    <>
-                        <path d="M3 9l1.5-5h15L21 9M3 9h18M3 9v11h18V9" />
-                        <path d="M9 20v-6h6v6" />
-                    </>
-                ),
-            },
-            {
-                // Conexión con PedidosYa: claves cifradas, ambiente y prueba (ventas llegan en otra fase)
-                id: "pedidosya",
-                label: "PedidosYa",
-                subtitle: "Lo que entra por la app, aparte de la caja y de la web. Solo admins.",
-                source: "Postgres",
-                icon: (
-                    <>
-                        <circle cx="6" cy="17" r="3" />
-                        <circle cx="18" cy="17" r="3" />
-                        <path d="M6 17h5l3-7h4M14 10l-2-4H9M18 17l-2-7" />
-                    </>
-                ),
-            },
-            {
-                id: "colaboradores",
-                label: "Colaboradores",
-                subtitle: "Entran con su PIN o Face ID y ven solo lo que su rol permite. Admin abre este tablero.",
-                source: "Postgres",
-                icon: (
-                    <>
-                        <circle cx="9" cy="8" r="3.5" />
-                        <path d="M2 20c0-3.5 3-6 7-6s7 2.5 7 6M17 5a3.2 3.2 0 0 1 0 6M22 20c0-2.8-1.6-4.7-4-5.6" />
-                    </>
-                ),
-            },
-            {
-                // Face ID, PIN propio y avisos de insumos de quien tiene el tablero abierto
-                id: "acceso",
-                label: "Mi acceso",
-                subtitle: "Tu PIN, tus equipos con Face ID y los avisos de insumos en este teléfono.",
-                icon: (
-                    <>
-                        <path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" />
-                        <path d="M9 9.5v1M15 9.5v1M12 9.5v3.5h-1M9.5 15.5c1.4 1.1 3.6 1.1 5 0" />
+                        <circle cx="12" cy="12" r="3" />
+                        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
                     </>
                 ),
             },
@@ -200,3 +129,85 @@ export const getSectionFromParam = (value: string | null): AdminSection => {
     if (value === "tablero") return "resumen";
     return ADMIN_SECTIONS.find((section) => section.id === value)?.id ?? "resumen";
 };
+
+/** A dónde va un enlace ?s= de antes de reunir las secciones: la sección nueva y su pestaña. */
+const LEGACY_SECTIONS: Record<string, { section: AdminSection; tab?: string }> = {
+    caja: { section: "ventas", tab: "cierres" },
+    promos: { section: "menu", tab: "promos" },
+    combos: { section: "menu", tab: "combos" },
+    inicio: { section: "pagina" },
+    local: { section: "ajustes", tab: "local" },
+    colaboradores: { section: "ajustes", tab: "equipo" },
+    pedidosya: { section: "ajustes", tab: "pedidosya" },
+};
+
+/** El destino de un ?s= viejo, o null si es de ahora. "acceso" lo resuelve quien sabe si hay sesión unificada. */
+export const getLegacySectionTarget = (value: string | null) => (value ? (LEGACY_SECTIONS[value] ?? null) : null);
+
+/** Las secciones del tablero con su enlace, para el menú de Gestión. */
+export const getAdminSectionHref = (id: AdminSection) => (id === "resumen" ? "/admin" : `/admin?s=${id}`);
+
+/** Qué secciones usan el período del encabezado (en Ventas, solo la pestaña de ventas). */
+export const PERIOD_SECTIONS: AdminSection[] = ["ventas", "web", "inventario"];
+
+export interface IAdminOperationLink {
+    id: string;
+    label: string;
+    subtitle: string;
+    /** Siempre una sección de Gestión (/gestion?s=...). */
+    href: string;
+    icon: ReactNode;
+}
+
+/** Con la sesión unificada, el tablero también lleva a la operación del día. Mismos nombres que en Gestión. */
+export const ADMIN_OPERATION_LINKS: IAdminOperationLink[] = [
+    {
+        id: "caja",
+        label: "Caja",
+        subtitle: "Toma las mesas, envía a cocina y cobra",
+        href: "/gestion?s=caja",
+        icon: (
+            <>
+                <rect x="2" y="7" width="20" height="13" rx="2" />
+                <path d="M6 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2M2 12h20" />
+            </>
+        ),
+    },
+    {
+        id: "cocina",
+        label: "Cocina",
+        subtitle: "Pedidos de la web: acéptalos y márcalos listos",
+        href: "/gestion?s=cocina",
+        icon: (
+            <>
+                <path d="M6 13.9A4 4 0 0 1 7 6a5 5 0 0 1 10 0 4 4 0 0 1 1 7.9V20H6z" />
+                <path d="M6 17h12" />
+            </>
+        ),
+    },
+    {
+        id: "delivery",
+        label: "Delivery",
+        subtitle: "Pedidos por WhatsApp y a domicilio",
+        href: "/gestion?s=delivery",
+        icon: (
+            <>
+                <circle cx="6" cy="17" r="3" />
+                <circle cx="18" cy="17" r="3" />
+                <path d="M9 17h6l-2-7H9M13 10h3l2 7M5 10h4" />
+            </>
+        ),
+    },
+    {
+        id: "inventario",
+        label: "Inventario",
+        subtitle: "Compras, conteos, mermas y disponibilidad",
+        href: "/gestion?s=inventario",
+        icon: (
+            <>
+                <path d="M3 7l9-4 9 4v10l-9 4-9-4z" />
+                <path d="M3 7l9 4 9-4M12 11v10" />
+            </>
+        ),
+    },
+];

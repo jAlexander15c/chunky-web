@@ -1,15 +1,13 @@
-import { ProductLotDialog } from "./inventory-arrival-dialog";
-import { ProductRecipeDialog } from "./inventory-product-dialog";
 import { fetchInventoryReceiptFailures, availabilityLabel } from "@/helpers/inventory";
 import type { InventoryReceiptFailure, ProductAvailability } from "@/helpers/inventory";
-import { PurchaseDialog } from "./inventory-purchase-dialog";
 import { InventoryBatchDialog } from "./inventory-batch-dialog";
 import { SupplyToProductDialog } from "./supply-to-product-dialog";
 import { WASTE_REASON_LABEL } from "@/helpers/product-waste";
 import type { IWasteMovement } from "@/helpers/product-waste";
 import { expirationLabel, isIntermediate } from "@/helpers/inventory";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AmountDialog, OpsEmpty, OpsSkeleton } from "@/components";
+import { Link } from "react-router";
+import { OpsEmpty, OpsSkeleton } from "@/components";
 import {
     HttpError,
     SUPPLY_CATEGORY_LABEL,
@@ -18,17 +16,14 @@ import {
     fetchProducts,
     fetchSupplies,
     formatClock,
+    formatInPresentation,
     formatCountAge,
     formatDayClock,
-    formatInPresentation,
     formatQuantity,
     changeSupplyUnit,
     getPresentation,
     getPageSlice,
     getSafePage,
-    registerCount,
-    registerProduction,
-    registerWaste,
     updateSupply,
 } from "@/helpers";
 import type { IMovement, IProductStatus, ISupplyStatus, MovementType, ProductState, SupplyCategory, SupplyState } from "@/helpers";
@@ -60,8 +55,7 @@ import { CoverageBar, FilterChips, SearchInput } from "./admin/inventory-filters
 import { SupplyFormDialog } from "./admin/inventory-supply-form";
 
 type PendingAction =
-    | { kind: "purchase" | "count" | "waste" | "edit" | "batches" | "to-product"; supply: ISupplyStatus }
-    | { kind: "production" | "arrival"; product: IProductStatus };
+    { kind: "edit" | "batches" | "to-product"; supply: ISupplyStatus };
 
 /* ============ Inventario ============ */
 
@@ -264,6 +258,9 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey, from, to }
                 </div>
 
                 <div className="adm-card">
+                    <p className="adm-note">
+                        Compras, conteos y mermas se registran en <Link className="adm-link" to="/gestion?s=inventario">Gestión → Inventario</Link>.
+                    </p>
                     <div className="adm-toolbar">
                         <SearchInput
                             id="adm-supply-search"
@@ -383,17 +380,6 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey, from, to }
                                                     </span>
                                                 </td>
                                                 <td className="adm-actions"><button type="button" className="adm-btn adm-btn--sm" onClick={()=>setPending({kind:"batches",supply})}>Lotes</button>
-                                                    {isIntermediate(supply) ? null : (
-                                                        <button type="button" className="adm-btn adm-btn--sm" onClick={() => setPending({ kind: "purchase", supply })}>
-                                                            Compra
-                                                        </button>
-                                                    )}
-                                                    <button type="button" className="adm-btn adm-btn--sm" onClick={() => setPending({ kind: "count", supply })}>
-                                                        Conteo
-                                                    </button>
-                                                    <button type="button" className="adm-btn adm-btn--sm" onClick={() => setPending({ kind: "waste", supply })}>
-                                                        Merma
-                                                    </button>
                                                     <button
                                                         type="button"
                                                         className="adm-btn adm-btn--sm"
@@ -470,7 +456,6 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey, from, to }
                                                     <th className="num">Queda</th>
                                                     <th>Estado</th>
                                                     <th>Loyverse</th>
-                                                    <th aria-label="Acciones" />
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -492,12 +477,6 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey, from, to }
                                                             <span className={`adm-age${product.loyverseSynced ? "" : " is-stale"}`}>
                                                                 {product.loyverseSynced ? (product.stock > 0 ? "a la venta" : "apagado ✓") : "sincronizando…"}
                                                             </span>
-                                                        </td>
-                                                        <td className="adm-actions">
-                                                            {product.productionMode==="BATCH"?<button type="button" className="adm-btn adm-btn--sm" onClick={()=>setPending({kind:"arrival",product})}>Registrar lote</button>:null}
-                                                            <button type="button" className="adm-btn adm-btn--sm" onClick={() => setPending({ kind: "production", product })}>
-                                                                Producción
-                                                            </button>
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -631,54 +610,7 @@ export const AdminInventory = ({ token, onSessionExpired, refreshKey, from, to }
                 <SupplyToProductDialog token={token} supply={pending.supply} onSaved={reloadAll} onClose={() => setPending(null)} />
             ) : null}
 
-            {pending?.kind === "purchase" ? <PurchaseDialog token={token} supply={pending.supply} onSaved={reloadAll} onClose={()=>setPending(null)}/> : null}
             {pending?.kind === "batches" ? <InventoryBatchDialog token={token} supply={pending.supply} onChanged={reloadAll} onClose={()=>setPending(null)}/> : null}
-
-            {pending?.kind === "count" ? (
-                <AmountDialog
-                    title={`Conteo de ${pending.supply.name}`}
-                    hint={`El sistema dice ${getPresentation(pending.supply) ? formatInPresentation(pending.supply.stock, getPresentation(pending.supply)!, pending.supply.unit) : formatQuantity(pending.supply.stock) + " " + pending.supply.unit}. Cuenta solo stock utilizable; los vencidos se descartan en Lotes.`}
-                    unit={pending.supply.unit}
-                    initial={getPresentation(pending.supply) ? String(pending.supply.stock) : formatQuantity(pending.supply.stock)}
-                    presentation={getPresentation(pending.supply)}
-                    confirmLabel="Registrar conteo"
-                    onConfirm={async (amount) => {
-                        await registerCount(token, pending.supply.id, amount);
-                        await reloadAll();
-                    }}
-                    onClose={() => setPending(null)}
-                />
-            ) : null}
-
-            {pending?.kind === "waste" ? (
-                <AmountDialog
-                    title={`Merma de ${pending.supply.name}`}
-                    hint={`Cuánto se perdió o se dañó. Se resta de los ${formatQuantity(pending.supply.stock)} ${pending.supply.unit} que hay.`}
-                    unit={pending.supply.unit}
-                    presentation={getPresentation(pending.supply)}
-                    confirmLabel="Registrar merma"
-                    onConfirm={async (amount) => {
-                        await registerWaste(token, pending.supply.id, amount);
-                        await reloadAll();
-                    }}
-                    onClose={() => setPending(null)}
-                />
-            ) : null}
-
-            {pending?.kind==="arrival"?<ProductLotDialog token={token} product={pending.product} onSaved={reloadAll} onClose={()=>setPending(null)}/>:null}
-            {pending?.kind === "production" && pending.product.productionMode ? <ProductRecipeDialog token={token} product={pending.product} onClose={()=>setPending(null)} onChanged={reloadAll}/> : pending?.kind === "production" ? (
-                <AmountDialog
-                    title={`Producción de ${pending.product.name}`}
-                    hint="Cuántas unidades se hicieron. Si es la primera carga del día, reemplaza el saldo anterior."
-                    unit="u"
-                    confirmLabel="Cargar producción"
-                    onConfirm={async (amount) => {
-                        await registerProduction(token, pending.product.variantId, amount);
-                        await reloadAll();
-                    }}
-                    onClose={() => setPending(null)}
-                />
-            ) : null}
         </>
     );
 };

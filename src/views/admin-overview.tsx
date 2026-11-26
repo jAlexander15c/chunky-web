@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router";
 
 import {
     HttpError,
@@ -37,7 +38,8 @@ interface IAttentionItem {
     tag: string;
     title: string;
     detail: string;
-    action: { label: string; section: AdminSection; anchor?: string };
+    /** Una sección del tablero, o un enlace a otra parte (los créditos se cobran en Gestión). */
+    action: { label: string; section?: AdminSection; anchor?: string; href?: string };
 }
 
 const TONE_ORDER: Record<AttentionTone, number> = { crit: 0, warn: 1, info: 2 };
@@ -126,7 +128,7 @@ const getAttentionItems = ({
             tag: "Cobrar",
             title: `${credits.length} ${credits.length === 1 ? "crédito por cobrar" : "créditos por cobrar"} · B/. ${formatMoney(total)}`,
             detail: `El más viejo es ${formatDaysAgo(oldest)}.`,
-            action: { label: "Ver créditos", section: "caja" },
+            action: { label: "Ver créditos", href: "/gestion?s=creditos" },
         });
     }
 
@@ -170,9 +172,15 @@ const AttentionList = ({ items, onOpen }: { items: IAttentionItem[]; onOpen: (ac
                             <b>{item.title}</b>
                             <span>{item.detail}</span>
                         </div>
-                        <button type="button" className="adm-btn adm-btn--sm" onClick={() => onOpen(item.action)}>
-                            {item.action.label}
-                        </button>
+                        {item.action.href ? (
+                            <Link className="adm-btn adm-btn--sm" to={item.action.href}>
+                                {item.action.label}
+                            </Link>
+                        ) : (
+                            <button type="button" className="adm-btn adm-btn--sm" onClick={() => onOpen(item.action)}>
+                                {item.action.label}
+                            </button>
+                        )}
                     </li>
                 ))}
             </ul>
@@ -267,7 +275,7 @@ export const AdminOverview = ({ token, onSessionExpired, refreshKey, dashboard, 
         <>
             {error ? <p className="adm-error">{error}</p> : null}
 
-            <AttentionList items={items} onOpen={(action) => onOpen(action.section, action.anchor)} />
+            <AttentionList items={items} onOpen={(action) => action.section && onOpen(action.section, action.anchor)} />
 
             <section className="adm-band">
                 <div className="adm-band__head">

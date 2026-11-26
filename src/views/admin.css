@@ -277,6 +277,8 @@
     }
 }
 
+a.adm-menu__item, a.fsheet__opt { text-decoration: none; }
+
 .adm-menu__ico {
     flex: 0 0 auto;
     width: 20px;
@@ -345,6 +347,16 @@
 }
 
 .adm-band { margin-top: 2.2rem; }
+
+/* Resumen: los interruptores del día, uno junto al otro cuando hay ancho */
+.adm-quick { display: grid; grid-template-columns: minmax(0, 1fr); column-gap: 1.5rem; align-items: start; margin-bottom: 1.6rem; }
+.adm-quick > .adm-band { margin-top: 0; }
+.adm-quick > .adm-band + .adm-band { margin-top: 1.6rem; }
+
+@media (min-width: 900px) {
+    .adm-quick { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .adm-quick > .adm-band + .adm-band { margin-top: 0; }
+}
 
 /* Local: horario y los interruptores lado a lado cuando hay ancho */
 .adm-local { display: grid; grid-template-columns: minmax(0, 1fr); column-gap: 2.5rem; align-items: start; }
@@ -1978,6 +1990,7 @@ a.adm-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .adm-optchip.is-off { background: var(--adm-crit-bg); border-color: var(--adm-crit-bg); color: var(--adm-crit); }
 .adm-optchip small { margin-left: 0.35rem; font-size: 0.66rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
 .adm-optchip:disabled { opacity: 0.6; cursor: default; }
+span.adm-optchip { display: inline-flex; align-items: center; cursor: default; }
 .adm-optchip:focus-visible { outline: 3px solid var(--orquidea); outline-offset: 2px; }
 
 .adm-mods__used { font-size: 0.74rem; color: var(--adm-text-2); white-space: nowrap; }

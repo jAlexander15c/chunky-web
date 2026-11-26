@@ -50,13 +50,98 @@ const getStatusSummary = (status: StoreStatus, hours: IWeekHours, now = new Date
     };
 };
 
-/** Casos especiales: abrir o cerrar a mano por hoy y editar el horario de la semana. */
-export const AdminHours = ({ token, onSessionExpired }: { token: string; onSessionExpired: () => void }) => {
+/** Abrir o cerrar a mano por hoy. Vive en el Resumen: es lo que se toca el mismo día. */
+export const AdminStoreStatus = ({ token, onSessionExpired }: { token: string; onSessionExpired: () => void }) => {
     const { settings, isReady } = useSettings();
     const status: StoreStatus = settings.storeOverride ?? "auto";
+    const [isConfirmingClose, setIsConfirmingClose] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState("");
+
+    const changeStatus = async (next: StoreStatus) => {
+        setIsSaving(true);
+        setError("");
+
+        try {
+            await setStoreStatus(token, next);
+            await loadSettings();
+            setIsConfirmingClose(false);
+        } catch (requestError) {
+            if (requestError instanceof HttpError && requestError.status === 401) return onSessionExpired();
+            setError(requestError instanceof HttpError ? requestError.message : "No pudimos cambiar el estado del local.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // Cerrar deja a los clientes sin pedir en línea: pide confirmación
+    const chooseStatus = (next: StoreStatus) => {
+        if (next === status) return;
+        if (next === "closed") return setIsConfirmingClose(true);
+        void changeStatus(next);
+    };
+
+    const summary = getStatusSummary(status, settings.openingHours);
+
+    return (
+        <section className="adm-band adm-hours">
+            <div className="adm-band__head">
+                <h2 className="script">Estado del local</h2>
+                <span className="adm-band__sub">Abierto o cerrado a mano por hoy, para feriados o cierres temprano</span>
+            </div>
+
+            <div className="adm-pasta__row">
+                <div className="adm-seg" role="group" aria-label="Estado del local">
+                    {STATUS_OPTIONS.map((option) => (
+                        <button
+                            key={option.value}
+                            type="button"
+                            id={`store-status-${option.value}`}
+                            className={`adm-seg__btn adm-seg__btn--${option.value}`}
+                            aria-pressed={status === option.value}
+                            disabled={!isReady || isSaving}
+                            onClick={() => chooseStatus(option.value)}
+                        >
+                            {option.label}
+                        </button>
+                    ))}
+                </div>
+                <span className={`adm-pasta__state ${summary.tone ? `adm-pasta__state--${summary.tone}` : ""}`} role="status">
+                    {isReady ? summary.pill : "Leyendo…"}
+                </span>
+            </div>
+            <p className="adm-pasta__desc">{summary.text}</p>
+            {status !== "auto" ? <p className="adm-hours__reset">Vuelve solo a Automático a medianoche.</p> : null}
+
+            {error ? <p className="adm-error">{error}</p> : null}
+
+            {isConfirmingClose ? (
+                <div className="adm-modal" role="dialog" aria-modal="true" aria-label="Cerrar el local hoy">
+                    <div className="adm-modal__panel">
+                        <h3 className="script">¿Cerrar el local hoy?</h3>
+                        <ul className="adm-pasta__list">
+                            <li>La web mostrará «Cerrado hoy» y no aceptará pedidos en línea.</li>
+                            <li>También aplica si el modo pasta está activo.</li>
+                            <li>Mañana vuelve solo al horario normal.</li>
+                        </ul>
+                        <div className="adm-modal__actions">
+                            <button type="button" className="adm-btn" onClick={() => setIsConfirmingClose(false)} disabled={isSaving}>Cancelar</button>
+                            <button type="button" className="adm-btn adm-btn--danger" onClick={() => void changeStatus("closed")} disabled={isSaving}>
+                                {isSaving ? "Cerrando…" : "Cerrar hoy"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+        </section>
+    );
+};
+
+/** El horario de la semana: lo que casi no cambia. */
+export const AdminHours = ({ token, onSessionExpired }: { token: string; onSessionExpired: () => void }) => {
+    const { settings, isReady } = useSettings();
     const [draft, setDraft] = useState<IWeekHours>(settings.openingHours);
     const [isDirty, setIsDirty] = useState(false);
-    const [isConfirmingClose, setIsConfirmingClose] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
     const [error, setError] = useState("");
@@ -69,28 +154,6 @@ export const AdminHours = ({ token, onSessionExpired }: { token: string; onSessi
     const handleError = (requestError: unknown, fallback: string) => {
         if (requestError instanceof HttpError && requestError.status === 401) return onSessionExpired();
         setError(requestError instanceof HttpError ? requestError.message : fallback);
-    };
-
-    const changeStatus = async (next: StoreStatus) => {
-        setIsSaving(true);
-        setError("");
-
-        try {
-            await setStoreStatus(token, next);
-            await loadSettings();
-            setIsConfirmingClose(false);
-        } catch (requestError) {
-            handleError(requestError, "No pudimos cambiar el estado del local.");
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    // Cerrar deja a los clientes sin pedir en línea: pide confirmación
-    const chooseStatus = (next: StoreStatus) => {
-        if (next === status) return;
-        if (next === "closed") return setIsConfirmingClose(true);
-        void changeStatus(next);
     };
 
     const updateDay = (day: number, next: IDayHours | null) => {
@@ -127,38 +190,12 @@ export const AdminHours = ({ token, onSessionExpired }: { token: string; onSessi
         }
     };
 
-    const summary = getStatusSummary(status, settings.openingHours);
-
     return (
         <section className="adm-band adm-hours">
             <div className="adm-band__head">
                 <h2 className="script">Horario del local</h2>
-                <span className="adm-band__sub">Para casos especiales: feriados, cierres temprano o abrir un día que no toca</span>
+                <span className="adm-band__sub">Qué días y a qué hora abre. Para cerrar o abrir solo por hoy, usa el Resumen</span>
             </div>
-
-            <h3 className="adm-hours__title">Estado ahora</h3>
-            <div className="adm-pasta__row">
-                <div className="adm-seg" role="group" aria-label="Estado del local">
-                    {STATUS_OPTIONS.map((option) => (
-                        <button
-                            key={option.value}
-                            type="button"
-                            id={`store-status-${option.value}`}
-                            className={`adm-seg__btn adm-seg__btn--${option.value}`}
-                            aria-pressed={status === option.value}
-                            disabled={!isReady || isSaving}
-                            onClick={() => chooseStatus(option.value)}
-                        >
-                            {option.label}
-                        </button>
-                    ))}
-                </div>
-                <span className={`adm-pasta__state ${summary.tone ? `adm-pasta__state--${summary.tone}` : ""}`} role="status">
-                    {isReady ? summary.pill : "Leyendo…"}
-                </span>
-            </div>
-            <p className="adm-pasta__desc">{summary.text}</p>
-            {status !== "auto" ? <p className="adm-hours__reset">Vuelve solo a Automático a medianoche.</p> : null}
 
             <h3 className="adm-hours__title adm-hours__title--week">Horario de la semana</h3>
             <div className="adm-hours__days">
@@ -229,25 +266,6 @@ export const AdminHours = ({ token, onSessionExpired }: { token: string; onSessi
             </div>
 
             {error ? <p className="adm-error">{error}</p> : null}
-
-            {isConfirmingClose ? (
-                <div className="adm-modal" role="dialog" aria-modal="true" aria-label="Cerrar el local hoy">
-                    <div className="adm-modal__panel">
-                        <h3 className="script">¿Cerrar el local hoy?</h3>
-                        <ul className="adm-pasta__list">
-                            <li>La web mostrará «Cerrado hoy» y no aceptará pedidos en línea.</li>
-                            <li>También aplica si el modo pasta está activo.</li>
-                            <li>Mañana vuelve solo al horario normal.</li>
-                        </ul>
-                        <div className="adm-modal__actions">
-                            <button type="button" className="adm-btn" onClick={() => setIsConfirmingClose(false)} disabled={isSaving}>Cancelar</button>
-                            <button type="button" className="adm-btn adm-btn--danger" onClick={() => void changeStatus("closed")} disabled={isSaving}>
-                                {isSaving ? "Cerrando…" : "Cerrar hoy"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            ) : null}
         </section>
     );
 };

@@ -1,5 +1,3 @@
-import { AdminCombos } from "./admin-combos";
-import { AdminPromos } from "./admin-promos";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
@@ -24,28 +22,30 @@ import {
 import type { IDashboard, IStaffLogin, IStaffMe, ISupplyStatus, PeriodSelection } from "@/helpers";
 import { shouldOfferFaceId } from "@/hooks/useStaffAccess";
 
-import { AdminCaja } from "./admin-caja";
-import { AdminCollaborators } from "./admin-collaborators";
-import { AdminFinance } from "./admin-finance";
-import { AdminHours } from "./admin-hours";
+import { AdminStoreStatus } from "./admin-hours";
 import { AdminIncidents } from "./admin-incidents";
 import { AdminInventory } from "./admin-inventory";
-import { AdminMenu } from "./admin-menu";
 import { AdminSite } from "./admin-site";
 import { AdminWeb } from "./admin-web";
 import { AdminCustomers } from "./admin-customers";
 import { AdminOverview } from "./admin-overview";
 import { PeriodPicker } from "./admin-period";
-import { ADMIN_GROUPS, ADMIN_SECTIONS, getSectionFromParam } from "./admin-sections";
-import type { AdminSection, IAdminSectionInfo } from "./admin-sections";
+import {
+    ADMIN_GROUPS,
+    ADMIN_OPERATION_LINKS,
+    ADMIN_SECTIONS,
+    PERIOD_SECTIONS,
+    getLegacySectionTarget,
+    getSectionFromParam,
+} from "./admin-sections";
+import type { AdminSection } from "./admin-sections";
 import { FullSheet, SheetChevron } from "@/components";
-import { AccessPanel, FaceIdOffer } from "./staff-access";
+import { FaceIdOffer } from "./staff-access";
 import { AdminChoosePin, AdminLogin } from "./admin/admin-login";
-import { CardPaymentsPanel } from "./admin/card-payments-panel";
-import { ClientUpdateNoticePanel } from "./admin/client-update-notice-panel";
 import { DeliveryModePanel } from "./admin/delivery-panel";
 import { PastaModePanel } from "./admin/pasta-mode-panel";
-import { PedidosYaPanel } from "./admin/pedidosya-panel";
+import { useSalesTab } from "./admin/sales-tab";
+import { MenuSection, SalesSection, SettingsSection } from "./admin/tabbed-sections";
 
 import "@/styles/ops.css";
 import "./admin.css";
@@ -69,8 +69,6 @@ const useAdminHead = () => {
     }, []);
 };
 
-/** Las secciones que usan el período del encabezado. */
-const PERIOD_SECTIONS: AdminSection[] = ["ventas", "web", "inventario"];
 const SECTION_PARAM = "s";
 
 /* ============ Tablero ============ */
@@ -79,22 +77,13 @@ interface IAdminDashboardProps {
     token: string;
     /** Null si se entró con la llave de recuperación (ADMIN_PIN). */
     personName: string | null;
-    /** Con qué sesión se cambian el PIN y Face ID: la de /gestion en el login único. */
-    accessScope?: "admin" | "gestion";
-    /** Muestra el enlace a la operación (/gestion): solo con la sesión de una persona. */
+    /** Muestra el grupo Operación (enlaces a /gestion): solo con la sesión de una persona. */
     hasOperation?: boolean;
     onLogout: () => void;
-    onTokenChange: (login: IStaffLogin) => void;
 }
 
-const AdminDashboard = ({
-    token,
-    personName,
-    accessScope = "admin",
-    hasOperation = false,
-    onLogout,
-    onTokenChange,
-}: IAdminDashboardProps) => {
+const AdminDashboard = ({ token, personName, hasOperation = false, onLogout }: IAdminDashboardProps) => {
+    const navigate = useNavigate();
     const [dashboard, setDashboard] = useState<IDashboard | null>(null);
     const [supplies, setSupplies] = useState<ISupplyStatus[]>([]);
     const [error, setError] = useState("");
@@ -109,6 +98,9 @@ const AdminDashboard = ({
     const [searchParams, setSearchParams] = useSearchParams();
     const section = getSectionFromParam(searchParams.get(SECTION_PARAM));
     const sectionInfo = ADMIN_SECTIONS.find((one) => one.id === section) ?? ADMIN_SECTIONS[0];
+    // Ventas tiene la pestaña Cierres, que no usa el período
+    const [salesTab] = useSalesTab();
+    const hasPeriod = PERIOD_SECTIONS.includes(section) && !(section === "ventas" && salesTab === "cierres");
     // En el teléfono el menú es un botón que abre la lista a pantalla completa
     const [isNavOpen, setIsNavOpen] = useState(false);
     const closeNav = useCallback(() => setIsNavOpen(false), []);
@@ -203,6 +195,13 @@ const AdminDashboard = ({
     const sectionViews: Record<AdminSection, () => ReactNode> = {
         resumen: () => (
             <>
+                {/* Lo que se enciende y se apaga durante el día, sin ir a Ajustes */}
+                <div className="adm-quick">
+                    <DeliveryModePanel token={token} onSessionExpired={onLogout} />
+                    <PastaModePanel token={token} onSessionExpired={onLogout} />
+                    <AdminStoreStatus token={token} onSessionExpired={onLogout} />
+                </div>
+
                 {error ? <p className="adm-error">{error}</p> : null}
                 {dashboard?.salesError ? (
                     <p className="adm-warning">
@@ -221,40 +220,25 @@ const AdminDashboard = ({
                 />
             </>
         ),
-        ventas: () => <AdminFinance token={token} onSessionExpired={onLogout} refreshKey={refreshKey} from={range.from} to={range.to} />,
+        ventas: () => <SalesSection token={token} onSessionExpired={onLogout} refreshKey={refreshKey} from={range.from} to={range.to} />,
         web: () => <AdminWeb token={token} onSessionExpired={onLogout} refreshKey={refreshKey} from={range.from} to={range.to} />,
         clientes: () => <AdminCustomers token={token} onSessionExpired={onLogout} refreshKey={refreshKey} />,
         inventario: () => <AdminInventory token={token} onSessionExpired={onLogout} refreshKey={refreshKey} from={range.from} to={range.to} />,
-        menu: () => <AdminMenu token={token} onSessionExpired={onLogout} />,
-        promos: () => <AdminPromos token={token} onSessionExpired={onLogout} />,
-        combos: () => <AdminCombos token={token} onSessionExpired={onLogout} />,
-        inicio: () => <AdminSite token={token} onSessionExpired={onLogout} />,
-        caja: () => <AdminCaja token={token} onSessionExpired={onLogout} />,
-        local: () => (
-            // Horario a la izquierda y los interruptores a la derecha en pantallas anchas
-            <div className="adm-local">
-                <AdminHours token={token} onSessionExpired={onLogout} />
-                <div className="adm-local__switches">
-                    <DeliveryModePanel token={token} onSessionExpired={onLogout} />
-                    <CardPaymentsPanel token={token} onSessionExpired={onLogout} />
-                    <PastaModePanel token={token} onSessionExpired={onLogout} />
-                    <ClientUpdateNoticePanel token={token} onSessionExpired={onLogout} />
-                </div>
-            </div>
-        ),
-        pedidosya: () => <PedidosYaPanel token={token} onSessionExpired={onLogout} />,
-        acceso: () => (
-            <AccessPanel
-                kind="adm"
-                scope={accessScope}
-                token={token}
-                personName={personName}
-                onSessionExpired={onLogout}
-                onTokenChange={onTokenChange}
-            />
-        ),
-        colaboradores: () => <AdminCollaborators token={token} onSessionExpired={onLogout} />,
+        menu: () => <MenuSection token={token} onSessionExpired={onLogout} />,
+        pagina: () => <AdminSite token={token} onSessionExpired={onLogout} />,
+        ajustes: () => <SettingsSection token={token} onSessionExpired={onLogout} />,
     };
+
+    // Enlaces de antes de reunir las secciones (avisos, favoritos): cada uno va a su lugar nuevo
+    const requestedSection = searchParams.get(SECTION_PARAM);
+    const legacyTarget = getLegacySectionTarget(requestedSection);
+    if (legacyTarget) {
+        const params = new URLSearchParams({ [SECTION_PARAM]: legacyTarget.section });
+        if (legacyTarget.tab) params.set("t", legacyTarget.tab);
+        return <Navigate to={`/admin?${params.toString()}`} replace />;
+    }
+    // "Mi acceso" es el Acceso de Gestión. Con la llave de recuperación no hay a dónde ir: al resumen
+    if (requestedSection === "acceso") return <Navigate to={hasOperation ? "/gestion?s=acceso" : "/admin"} replace />;
 
     if (isLoading) {
         return (
@@ -283,9 +267,6 @@ const AdminDashboard = ({
                     <button type="button" className="adm-btn adm-btn--sm" onClick={runSync} disabled={isSyncing} title="Trae los recibos nuevos de Loyverse">
                         {isSyncing ? "Leyendo…" : "Leer recibos"}
                     </button>
-                    {hasOperation ? (
-                        <Link className="adm-btn adm-btn--sm" to="/gestion">Operación</Link>
-                    ) : null}
                     <button type="button" className="adm-btn adm-btn--sm adm-btn--ghost" onClick={onLogout}>Salir</button>
                 </div>
                 <div className="awning" aria-hidden="true" />
@@ -304,17 +285,28 @@ const AdminDashboard = ({
                                     aria-current={section === one.id}
                                     onClick={() => openSection(one.id)}
                                 >
-                                    <SectionIcon section={one} />
+                                    <SectionIcon icon={one.icon} />
                                     {one.label}
                                     {getSectionBadge(one.id)}
                                 </button>
                             ))}
                         </div>
                     ))}
+                    {hasOperation ? (
+                        <div className="adm-menu__group" role="group" aria-labelledby="adm-menu-operacion">
+                            <span className="adm-menu__label" id="adm-menu-operacion">Operación</span>
+                            {ADMIN_OPERATION_LINKS.map((one) => (
+                                <Link key={one.id} className="adm-menu__item" to={one.href}>
+                                    <SectionIcon icon={one.icon} />
+                                    {one.label}
+                                </Link>
+                            ))}
+                        </div>
+                    ) : null}
                 </nav>
 
                 <button type="button" className="adm-nav-trigger" aria-haspopup="dialog" onClick={() => setIsNavOpen(true)}>
-                    <SectionIcon section={sectionInfo} />
+                    <SectionIcon icon={sectionInfo.icon} />
                     <span className="adm-nav-trigger__text">
                         <small>{ADMIN_GROUPS.find((group) => group.sections.some((one) => one.id === section))?.label}</small>
                         <b>{sectionInfo.label}</b>
@@ -328,29 +320,45 @@ const AdminDashboard = ({
 
                 {isNavOpen ? (
                     <FullSheet title="Ir a…" onClose={closeNav}>
-                        {(close) =>
-                            ADMIN_GROUPS.map((group) => (
-                                <div className="fsheet__group" role="group" aria-label={group.label} key={group.label}>
-                                    <span className="fsheet__label">{group.label}</span>
-                                    {group.sections.map((one) => (
-                                        <button
-                                            key={one.id}
-                                            type="button"
-                                            className="fsheet__opt"
-                                            aria-current={section === one.id}
-                                            onClick={() => close(() => openSection(one.id))}
-                                        >
-                                            <span className="fsheet__ico"><SectionIcon section={one} /></span>
-                                            <span className="fsheet__text">
-                                                <b>{one.label}</b>
-                                                <small>{one.subtitle}</small>
-                                            </span>
-                                            {getSectionBadge(one.id)}
-                                        </button>
-                                    ))}
-                                </div>
-                            ))
-                        }
+                        {(close) => (
+                            <>
+                                {ADMIN_GROUPS.map((group) => (
+                                    <div className="fsheet__group" role="group" aria-label={group.label} key={group.label}>
+                                        <span className="fsheet__label">{group.label}</span>
+                                        {group.sections.map((one) => (
+                                            <button
+                                                key={one.id}
+                                                type="button"
+                                                className="fsheet__opt"
+                                                aria-current={section === one.id}
+                                                onClick={() => close(() => openSection(one.id))}
+                                            >
+                                                <span className="fsheet__ico"><SectionIcon icon={one.icon} /></span>
+                                                <span className="fsheet__text">
+                                                    <b>{one.label}</b>
+                                                    <small>{one.subtitle}</small>
+                                                </span>
+                                                {getSectionBadge(one.id)}
+                                            </button>
+                                        ))}
+                                    </div>
+                                ))}
+                                {hasOperation ? (
+                                    <div className="fsheet__group" role="group" aria-label="Operación">
+                                        <span className="fsheet__label">Operación</span>
+                                        {ADMIN_OPERATION_LINKS.map((one) => (
+                                            <button key={one.id} type="button" className="fsheet__opt" onClick={() => close(() => navigate(one.href))}>
+                                                <span className="fsheet__ico"><SectionIcon icon={one.icon} /></span>
+                                                <span className="fsheet__text">
+                                                    <b>{one.label}</b>
+                                                    <small>{one.subtitle}</small>
+                                                </span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                ) : null}
+                            </>
+                        )}
                     </FullSheet>
                 ) : null}
 
@@ -363,7 +371,7 @@ const AdminDashboard = ({
                                 {sectionInfo.source ? <span className={`adm-src${sectionInfo.source === "Loyverse" ? "" : " is-own"}`}>{sectionInfo.source}</span> : null}
                             </p>
                         </div>
-                        {PERIOD_SECTIONS.includes(section) ? <PeriodPicker selection={period} onChange={changePeriod} /> : null}
+                        {hasPeriod ? <PeriodPicker selection={period} onChange={changePeriod} /> : null}
                     </div>
 
                     {sectionViews[section]()}
@@ -382,7 +390,7 @@ const AdminDashboard = ({
 const UNKNOWN_ME: IStaffMe = { collaborator: null, mustChangePin: false, isFaceIdAvailable: false };
 
 /** El icono de una sección, igual en el menú lateral y en la hoja del teléfono. */
-const SectionIcon = ({ section }: { section: IAdminSectionInfo }) => (
+const SectionIcon = ({ icon }: { icon: ReactNode }) => (
     <svg
         className="adm-menu__ico"
         viewBox="0 0 24 24"
@@ -393,7 +401,7 @@ const SectionIcon = ({ section }: { section: IAdminSectionInfo }) => (
         strokeLinejoin="round"
         aria-hidden="true"
     >
-        {section.icon}
+        {icon}
     </svg>
 );
 
@@ -486,12 +494,7 @@ const RecoveryAdminView = () => {
         return <FaceIdOffer kind="adm" scope="admin" token={token} mark="Chunky Bites" onDone={() => setIsOfferingFaceId(false)} />;
     }
     return (
-        <AdminDashboard
-            token={token}
-            personName={me.collaborator?.name ?? null}
-            onLogout={logout}
-            onTokenChange={(login) => applyLogin(login)}
-        />
+        <AdminDashboard token={token} personName={me.collaborator?.name ?? null} onLogout={logout} />
     );
 };
 
@@ -581,17 +584,7 @@ const UnifiedAdminView = ({ token, onTokenChange }: IUnifiedAdminViewProps) => {
         );
     }
     return (
-        <AdminDashboard
-            token={token}
-            personName={me.collaborator.name}
-            accessScope="gestion"
-            hasOperation
-            onLogout={logout}
-            onTokenChange={(login) => {
-                setGestionToken(login.token);
-                onTokenChange(login.token);
-            }}
-        />
+        <AdminDashboard token={token} personName={me.collaborator.name} hasOperation onLogout={logout} />
     );
 };
 

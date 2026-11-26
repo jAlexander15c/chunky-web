@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, Navigate, useSearchParams } from "react-router";
+import type { ReactNode } from "react";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router";
 
 import {
     COLLABORATOR_ROLES,
@@ -30,6 +31,7 @@ import { GestionDelivery } from "./gestion/delivery";
 import { GestionInventario } from "./gestion/inventario";
 import { GestionPasteleria } from "./gestion/pasteleria";
 import { GestionChoosePin, GestionLogin } from "./gestion/login";
+import { ADMIN_SECTIONS, getAdminSectionHref } from "./admin-sections";
 import { SECTIONS } from "./gestion/sections";
 import type { Section } from "./gestion/sections";
 import { GestionTurno } from "./gestion/turno";
@@ -80,8 +82,18 @@ const MoreIcon = () => (
     </svg>
 );
 
+/** El icono de una sección del tablero, con el mismo tamaño que los de Gestión. */
+const AdminSectionIcon = ({ icon }: { icon: ReactNode }) => (
+    <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {icon}
+    </svg>
+);
+
 const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGestionShellProps) => {
+    const navigate = useNavigate();
     const [shift, setShift] = useState<IShiftDetail | null>(null);
+    // El tablero (/admin) es de quien tiene el rol admin: sus secciones van en el mismo menú
+    const isAdmin = roles.includes("admin");
 
     // Solo se ofrece lo que esta persona puede hacer
     const available = useMemo(() => SECTIONS.filter((one) => one.roles.some((role) => roles.includes(role))), [roles]);
@@ -199,6 +211,17 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
                         ) : null}
                     </button>
                 ) : null}
+                {isAdmin ? (
+                    <div className="ges-nav__admin" role="group" aria-labelledby="ges-nav-admin">
+                        <span className="ges-nav__label" id="ges-nav-admin">Administración</span>
+                        {ADMIN_SECTIONS.map((one) => (
+                            <Link key={one.id} className="ges-nav__item ges-nav__item--sub" to={getAdminSectionHref(one.id)}>
+                                <AdminSectionIcon icon={one.icon} />
+                                {one.label}
+                            </Link>
+                        ))}
+                    </div>
+                ) : null}
                 <div className="ges-nav__foot">
                     {name || "equipo"}
                     <span>{roles.map((role) => ROLE_LABEL[role]).join(" · ") || "sin permisos"}</span>
@@ -208,24 +231,45 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
             {isMoreOpen ? (
                 <FullSheet title="Ir a…" onClose={closeMore}>
                     {(close) => (
-                        <div className="fsheet__group">
-                            {available.map((one) => (
-                                <button
-                                    key={one.id}
-                                    type="button"
-                                    className="fsheet__opt"
-                                    aria-current={current.id === one.id}
-                                    onClick={() => close(() => openSection(one.id))}
-                                >
-                                    <span className="fsheet__ico">{one.icon}</span>
-                                    <span className="fsheet__text">
-                                        <b>{one.label}</b>
-                                        <small>{one.sub}</small>
-                                    </span>
-                                    {getBadge(one.id)}
-                                </button>
-                            ))}
-                        </div>
+                        <>
+                            <div className="fsheet__group">
+                                {available.map((one) => (
+                                    <button
+                                        key={one.id}
+                                        type="button"
+                                        className="fsheet__opt"
+                                        aria-current={current.id === one.id}
+                                        onClick={() => close(() => openSection(one.id))}
+                                    >
+                                        <span className="fsheet__ico">{one.icon}</span>
+                                        <span className="fsheet__text">
+                                            <b>{one.label}</b>
+                                            <small>{one.sub}</small>
+                                        </span>
+                                        {getBadge(one.id)}
+                                    </button>
+                                ))}
+                            </div>
+                            {isAdmin ? (
+                                <div className="fsheet__group" role="group" aria-label="Administración">
+                                    <span className="fsheet__label">Administración</span>
+                                    {ADMIN_SECTIONS.map((one) => (
+                                        <button
+                                            key={one.id}
+                                            type="button"
+                                            className="fsheet__opt"
+                                            onClick={() => close(() => navigate(getAdminSectionHref(one.id)))}
+                                        >
+                                            <span className="fsheet__ico"><AdminSectionIcon icon={one.icon} /></span>
+                                            <span className="fsheet__text">
+                                                <b>{one.label}</b>
+                                                <small>{one.subtitle}</small>
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : null}
+                        </>
                     )}
                 </FullSheet>
             ) : null}
@@ -297,9 +341,6 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
                                 <i aria-hidden="true" />
                                 {shift ? `Turno abierto · ${formatCash(shift.expected)}` : "Sin turno abierto"}
                             </span>
-                        ) : null}
-                        {roles.includes("admin") ? (
-                            <Link className="ges-btn ges-btn--sm" to="/admin">Tablero</Link>
                         ) : null}
                         <button type="button" className="ges-btn ges-btn--sm" onClick={onLogout}>Salir</button>
                     </div>
