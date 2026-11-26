@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 
 import { formatCash, getChangeToCarry, getDeliveryStage, getMinutesSince, isUnpaidOrder } from "@/helpers";
 import type { CollaboratorRole, DeliveryStage, IDeliveryOrder } from "@/helpers";
@@ -7,7 +8,6 @@ import type { IDeliveryFeed } from "@/hooks/useDeliveryFeed";
 import { OpsEmpty, OpsSkeleton } from "@/components";
 import { PaymentPill } from "./delivery/payment-pill";
 import { formatClock } from "./delivery/helpers";
-import { DeliveryOrderDialog } from "./delivery/order-dialog";
 
 import "./delivery.css";
 
@@ -57,18 +57,19 @@ const TRACKING_TEXT: Record<ICourierTracking["status"], string> = {
 };
 
 interface IGestionDeliveryProps {
-    token: string;
     meId: number;
     roles: CollaboratorRole[];
     feed: IDeliveryFeed;
     tracking: ICourierTracking;
-    /** Pedido que se abre al llegar (desde Cocina). */
-    initialOpenId?: string | null;
-    onSessionExpired: () => void;
+    /** Abre el pedido (el diálogo lo muestra Pedidos, para que Retiro y Domicilio usen el mismo). */
+    onOpenOrder: (orderId: string) => void;
+    /** Solo estas etapas; sin esto salen todas las del rol. */
+    stages?: DeliveryStage[];
+    /** Lo que se muestra en lugar de la etapa "En cocina" (ahí se aceptan y se marcan listos). */
+    kitchenSlot?: ReactNode;
 }
 
-export const GestionDelivery = ({ token, meId, roles, feed, tracking, initialOpenId = null, onSessionExpired }: IGestionDeliveryProps) => {
-    const [openId, setOpenId] = useState<string | null>(initialOpenId);
+export const GestionDelivery = ({ meId, roles, feed, tracking, onOpenOrder, stages: onlyStages, kitchenSlot }: IGestionDeliveryProps) => {
     const [now, setNow] = useState(() => Date.now());
 
     useEffect(() => {
@@ -76,10 +77,10 @@ export const GestionDelivery = ({ token, meId, roles, feed, tracking, initialOpe
         return () => window.clearInterval(timer);
     }, []);
 
-    const openOrder = feed.orders.find((order) => order.id === openId) ?? null;
     const myOrders = feed.orders.filter((order) => order.outAt && order.courierId === meId);
     // El repartidor sin caja solo ve lo que puede llevar o ya lleva
-    const stages = roles.includes("caja") ? STAGES : STAGES.filter((one) => one.stage === "listo-salir" || one.stage === "en-camino");
+    const roleStages = roles.includes("caja") ? STAGES : STAGES.filter((one) => one.stage === "listo-salir" || one.stage === "en-camino");
+    const stages = onlyStages ? roleStages.filter((one) => onlyStages.includes(one.stage)) : roleStages;
 
     return (
         <div className="ges-cards dlv">
@@ -98,6 +99,7 @@ export const GestionDelivery = ({ token, meId, roles, feed, tracking, initialOpe
                 <OpsSkeleton label="Cargando pedidos…" />
             ) : (
                 stages.map(({ stage, title, empty }) => {
+                    if (stage === "en-cocina" && kitchenSlot !== undefined) return <div key={stage}>{kitchenSlot}</div>;
                     const orders = feed.orders.filter((order) => getDeliveryStage(order) === stage);
                     return (
                         <section className="ges-card" key={stage} aria-label={title}>
@@ -107,7 +109,7 @@ export const GestionDelivery = ({ token, meId, roles, feed, tracking, initialOpe
                             ) : (
                                 <div className="dlv-list">
                                     {orders.map((order) => (
-                                        <DeliveryRow key={order.id} order={order} now={now} meId={meId} onOpen={() => setOpenId(order.id)} />
+                                        <DeliveryRow key={order.id} order={order} now={now} meId={meId} onOpen={() => onOpenOrder(order.id)} />
                                     ))}
                                 </div>
                             )}
@@ -115,19 +117,6 @@ export const GestionDelivery = ({ token, meId, roles, feed, tracking, initialOpe
                     );
                 })
             )}
-
-            {openOrder ? (
-                <DeliveryOrderDialog
-                    key={openOrder.id}
-                    token={token}
-                    order={openOrder}
-                    meId={meId}
-                    roles={roles}
-                    onChanged={feed.replaceOrder}
-                    onClose={() => setOpenId(null)}
-                    onSessionExpired={onSessionExpired}
-                />
-            ) : null}
         </div>
     );
 };

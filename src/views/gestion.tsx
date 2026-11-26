@@ -27,10 +27,11 @@ import { FullSheet } from "@/components";
 import { GestionCaja } from "./gestion/caja";
 import type { CajaView } from "./gestion/caja";
 import type { ShiftSheet } from "./gestion/caja/shift-bar";
-import { GestionCocina, KitchenToast } from "./gestion/cocina";
-import { GestionDelivery } from "./gestion/delivery";
+import { KitchenToast } from "./gestion/cocina";
 import { GestionInventario } from "./gestion/inventario";
 import { GestionPasteleria } from "./gestion/pasteleria";
+import { GestionPedidos } from "./gestion/pedidos";
+import type { PedidosFilter } from "./gestion/pedidos";
 import { GestionChoosePin, GestionLogin } from "./gestion/login";
 import { ADMIN_SECTIONS, getAdminSectionHref } from "./admin-sections";
 import { SECTIONS } from "./gestion/sections";
@@ -40,6 +41,32 @@ import { AccessPanel, FaceIdOffer } from "./staff-access";
 import "@/styles/ops.css";
 import "./gestion.css";
 import "./admin.css";
+
+/** Si el grupo Administración del menú se dejó abierto en este equipo. */
+const ADMIN_OPEN_KEY = "chunky-gestion-admin-open";
+
+const readAdminOpen = () => {
+    try {
+        return window.localStorage.getItem(ADMIN_OPEN_KEY) === "1";
+    } catch {
+        return false;
+    }
+};
+
+const storeAdminOpen = (isOpen: boolean) => {
+    try {
+        window.localStorage.setItem(ADMIN_OPEN_KEY, isOpen ? "1" : "0");
+    } catch {
+        return;
+    }
+};
+
+/** Los avisos viejos abrían ?s=cocina o ?s=delivery: ahora son Pedidos con su chip. */
+const getRequestedPedidosFilter = (requested: string | null, filter: string | null): PedidosFilter => {
+    if (filter === "retiro" || filter === "domicilio" || filter === "todos") return filter;
+    // Un pedido nuevo puede ser a domicilio o de retiro: desde cocina se abre Todos
+    return requested === "delivery" ? "domicilio" : "todos";
+};
 
 /** Por que no se pueden activar los avisos aqui, al tocar "Activar avisos". */
 const ALERT_HINT: Record<OrderAlertsStatus, string> = {
@@ -89,6 +116,12 @@ const AdminSectionIcon = ({ icon }: { icon: ReactNode }) => (
     </svg>
 );
 
+const ChevronIcon = ({ isOpen }: { isOpen: boolean }) => (
+    <svg className={`ges-chevron${isOpen ? " is-open" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M9 6l6 6-6 6" />
+    </svg>
+);
+
 const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGestionShellProps) => {
     const navigate = useNavigate();
     const [shift, setShift] = useState<IShiftDetail | null>(null);
@@ -97,11 +130,13 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
 
     // Solo se ofrece lo que esta persona puede hacer
     const available = useMemo(() => SECTIONS.filter((one) => one.roles.some((role) => roles.includes(role))), [roles]);
-    // Al tocar una notificacion se llega con ?s=cocina o ?s=delivery. Turno y Créditos ya no son secciones:
+    // Al tocar una notificacion se llega con ?s=cocina o ?s=delivery (hoy, Pedidos). Turno y Créditos ya no son secciones:
     // los enlaces viejos (?s=turno, ?s=creditos) llevan a Caja con la hoja del turno o la pestaña Créditos
     const requested = useMemo(() => new URLSearchParams(window.location.search).get("s"), []);
+    const requestedFilter = useMemo(() => new URLSearchParams(window.location.search).get("f"), []);
     const [section, setSection] = useState<Section>(() => {
-        const target = requested === "turno" || requested === "creditos" ? "caja" : requested;
+        const target =
+            requested === "turno" || requested === "creditos" ? "caja" : requested === "cocina" || requested === "delivery" ? "pedidos" : requested;
         return available.find((one) => one.id === target)?.id ?? available[0]?.id ?? "inventario";
     });
     // Solo vale para la primera entrada a Caja: al volver desde otra sección, Caja abre normal
@@ -112,14 +147,30 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
               ? { view: "creditos", sheet: null }
               : null
     );
-    // Pedido que se abre al llegar a Delivery desde Cocina (Confirmar / Ver en Delivery)
-    const [deliveryOpenId, setDeliveryOpenId] = useState<string | null>(null);
+    // Retiro, Domicilio o los dos; queda en la URL (?s=pedidos&f=domicilio)
+    const [pedidosFilter, setPedidosFilter] = useState<PedidosFilter>(() => getRequestedPedidosFilter(requested, requestedFilter));
+    const [isAdminOpen, setIsAdminOpen] = useState(readAdminOpen);
+    const toggleAdmin = () => {
+        const next = !isAdminOpen;
+        setIsAdminOpen(next);
+        storeAdminOpen(next);
+    };
 
     const current = available.find((one) => one.id === section) ?? available[0];
 
     // Caja avisa el turno al cargar. Quien entra directo a otra sección
     // (un aviso de pedido abre Cocina) también tiene que ver el turno como está
     const isCaja = roles.includes("caja");
+    const isPedidosOpen = current?.id === "pedidos";
+    useEffect(() => {
+        // Sin pasar por el router: solo se ajusta la dirección para poder compartirla o recargarla
+        if (!isPedidosOpen) return;
+        const url = new URL(window.location.href);
+        url.searchParams.set("s", "pedidos");
+        if (isCaja && pedidosFilter !== "todos") url.searchParams.set("f", pedidosFilter);
+        else url.searchParams.delete("f");
+        if (url.href !== window.location.href) window.history.replaceState(window.history.state, "", url);
+    }, [isPedidosOpen, isCaja, pedidosFilter]);
     const reportsShift = current?.id === "caja";
     useEffect(() => {
         if (!isCaja || reportsShift) return;
@@ -157,34 +208,35 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
     const delivery = useDeliveryFeed(token, canDeliver, onLogout, roles.includes("caja"));
     const myOutOrderIds = delivery.orders.filter((order) => order.outAt && order.courierId === meId).map((order) => order.id);
     const tracking = useCourierTracking(token, myOutOrderIds, onLogout);
-    const deliveryBadge = roles.includes("caja") ? delivery.pendingCount : delivery.readyToGoCount;
+    // Quien cobra ve lo que espera a cocina o a confirmación (sin contar dos veces el mismo pedido); el repartidor, lo listo para salir
+    const pedidosBadge = isCaja
+        ? new Set([
+            ...kitchen.orders.filter((order) => !order.acceptedAt).map((order) => order.id),
+            ...delivery.orders.filter((order) => order.status === "PENDING_CONFIRMATION").map((order) => order.id),
+        ]).size
+        : delivery.readyToGoCount;
 
     const [isMoreOpen, setIsMoreOpen] = useState(false);
     const closeMore = useCallback(() => setIsMoreOpen(false), []);
 
     const openSection = (id: Section) => {
         setSection(id);
-        setDeliveryOpenId(null);
         setCajaStart(null);
     };
 
-    /** Pedidos nuevos en Cocina; en Delivery, los que esperan a caja o al repartidor. */
+    /** Pedidos que esperan a caja o a cocina; al repartidor, los listos para salir. */
     const getBadge = (id: Section) => {
-        if (id === "cocina" && kitchen.newCount > 0)
-            return <span className="ges-nav__badge" aria-label={`${kitchen.newCount} pedidos nuevos`}>{kitchen.newCount}</span>;
-        if (id === "delivery" && deliveryBadge > 0)
+        if (id === "pedidos" && pedidosBadge > 0)
             return (
-                <span
-                    className="ges-nav__badge"
-                    aria-label={roles.includes("caja") ? `${deliveryBadge} por coordinar` : `${deliveryBadge} listos para salir`}
-                >
-                    {deliveryBadge}
+                <span className="ges-nav__badge" aria-label={isCaja ? `${pedidosBadge} pedidos por atender` : `${pedidosBadge} listos para salir`}>
+                    {pedidosBadge}
                 </span>
             );
         return null;
     };
 
-    const hasMore = available.length > MAX_BOTTOM_ITEMS;
+    // En el teléfono, "Más" aparece si no caben las secciones o si es admin: ahí está el grupo Administración
+    const hasMore = available.length > MAX_BOTTOM_ITEMS || isAdmin;
     const overflow = hasMore ? available.slice(MAX_BOTTOM_ITEMS - 1) : [];
     const currentInOverflow = overflow.find((one) => one.id === current?.id);
 
@@ -234,14 +286,27 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
                     </button>
                 ) : null}
                 {isAdmin ? (
-                    <div className="ges-nav__admin" role="group" aria-labelledby="ges-nav-admin">
-                        <span className="ges-nav__label" id="ges-nav-admin">Administración</span>
-                        {ADMIN_SECTIONS.map((one) => (
-                            <Link key={one.id} className="ges-nav__item ges-nav__item--sub" to={getAdminSectionHref(one.id)}>
-                                <AdminSectionIcon icon={one.icon} />
-                                {one.label}
-                            </Link>
-                        ))}
+                    <div className="ges-nav__admin">
+                        <button
+                            type="button"
+                            className="ges-nav__label ges-nav__toggle"
+                            aria-expanded={isAdminOpen}
+                            aria-controls="ges-nav-admin-list"
+                            onClick={toggleAdmin}
+                        >
+                            Administración
+                            <ChevronIcon isOpen={isAdminOpen} />
+                        </button>
+                        {isAdminOpen ? (
+                            <div id="ges-nav-admin-list" role="group" aria-label="Administración">
+                                {ADMIN_SECTIONS.map((one) => (
+                                    <Link key={one.id} className="ges-nav__item ges-nav__item--sub" to={getAdminSectionHref(one.id)}>
+                                        <AdminSectionIcon icon={one.icon} />
+                                        {one.label}
+                                    </Link>
+                                ))}
+                            </div>
+                        ) : null}
                     </div>
                 ) : null}
                 <div className="ges-nav__foot">
@@ -273,22 +338,35 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
                                 ))}
                             </div>
                             {isAdmin ? (
-                                <div className="fsheet__group" role="group" aria-label="Administración">
-                                    <span className="fsheet__label">Administración</span>
-                                    {ADMIN_SECTIONS.map((one) => (
-                                        <button
-                                            key={one.id}
-                                            type="button"
-                                            className="fsheet__opt"
-                                            onClick={() => close(() => navigate(getAdminSectionHref(one.id)))}
-                                        >
-                                            <span className="fsheet__ico"><AdminSectionIcon icon={one.icon} /></span>
-                                            <span className="fsheet__text">
-                                                <b>{one.label}</b>
-                                                <small>{one.subtitle}</small>
-                                            </span>
-                                        </button>
-                                    ))}
+                                <div className="fsheet__group">
+                                    <button
+                                        type="button"
+                                        className="fsheet__label ges-sheet-toggle"
+                                        aria-expanded={isAdminOpen}
+                                        aria-controls="ges-sheet-admin-list"
+                                        onClick={toggleAdmin}
+                                    >
+                                        Administración
+                                        <ChevronIcon isOpen={isAdminOpen} />
+                                    </button>
+                                    {isAdminOpen ? (
+                                        <div id="ges-sheet-admin-list" role="group" aria-label="Administración">
+                                            {ADMIN_SECTIONS.map((one) => (
+                                                <button
+                                                    key={one.id}
+                                                    type="button"
+                                                    className="fsheet__opt"
+                                                    onClick={() => close(() => navigate(getAdminSectionHref(one.id)))}
+                                                >
+                                                    <span className="fsheet__ico"><AdminSectionIcon icon={one.icon} /></span>
+                                                    <span className="fsheet__text">
+                                                        <b>{one.label}</b>
+                                                        <small>{one.subtitle}</small>
+                                                    </span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    ) : null}
                                 </div>
                             ) : null}
                         </>
@@ -303,7 +381,7 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
                         <p className="ges-top__sub">{current.sub}</p>
                     </div>
                     <div className="ges-top__right">
-                        {current.id === "cocina" ? (
+                        {current.id === "pedidos" && isCaja ? (
                             <>
                                 <span className={`ges-chip${kitchen.offlineSince !== null ? " is-off" : ""}`} role="status">
                                     <i aria-hidden="true" />
@@ -352,19 +430,16 @@ const GestionShell = ({ token, meId, name, roles, onLogout, onTokenChange }: IGe
                             initialView={cajaStart?.view}
                             initialSheet={cajaStart?.sheet}
                         />
-                    ) : current.id === "cocina" ? (
-                        <GestionCocina feed={kitchen} token={token} onSessionExpired={onLogout} onOpenDelivery={(orderId) => {
-                            setDeliveryOpenId(orderId ?? null);
-                            setSection("delivery");
-                        }} />
-                    ) : current.id === "delivery" ? (
-                        <GestionDelivery
+                    ) : current.id === "pedidos" ? (
+                        <GestionPedidos
                             token={token}
                             meId={meId}
                             roles={roles}
-                            feed={delivery}
+                            kitchen={kitchen}
+                            delivery={delivery}
                             tracking={tracking}
-                            initialOpenId={deliveryOpenId}
+                            filter={pedidosFilter}
+                            onFilterChange={setPedidosFilter}
                             onSessionExpired={onLogout}
                         />
                     ) : current.id === "pasteleria" ? (

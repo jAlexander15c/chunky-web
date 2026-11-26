@@ -257,6 +257,44 @@ a.ges-nav__item { text-decoration: none; }
 /* Administración: las secciones del tablero, más compactas que las de la operación */
 .ges-nav__admin { display: flex; flex-direction: column; margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px solid var(--ops-line); }
 .ges-nav__label { padding: 0.1rem 0.75rem 0.25rem; font-size: 0.78rem; font-weight: 600; color: var(--ops-text-2); }
+.ges-nav__toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    min-height: 32px;
+    border-radius: var(--ops-radius);
+}
+
+.ges-nav__toggle:hover { color: var(--ink); }
+.ges-nav__toggle:focus-visible, .ges-sheet-toggle:focus-visible { outline: 3px solid var(--mora); outline-offset: 2px; }
+
+/* En la hoja "Más" el encabezado es el mismo botón, a lo ancho */
+.ges-sheet-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    min-height: var(--ops-tap);
+}
+
+.ges-chevron { width: 16px; height: 16px; flex: none; transition: transform 150ms ease; }
+.ges-chevron.is-open { transform: rotate(90deg); }
+
+@media (prefers-reduced-motion: reduce) {
+    .ges-chevron { transition: none; }
+}
+
 .ges-nav__item--sub { min-height: 32px; padding-block: 0.2rem; font-size: 0.86rem; }
 .ges-nav__item--sub .ges-nav__ico { width: 18px; height: 18px; }
 

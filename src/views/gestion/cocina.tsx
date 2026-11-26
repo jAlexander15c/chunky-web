@@ -204,7 +204,7 @@ const KitchenTicket = ({ order, now, onStep, onOpenDelivery, onOpenRecipe, onRej
                 </button>
             ) : isHandledByDelivery ? (
                 <button type="button" className="kitchen-ticket__action kitchen-ticket__action--deliver" onClick={() => onOpenDelivery?.(order.id)} disabled={!onOpenDelivery}>
-                    {order.outAt ? `En camino con ${order.courierName ?? "el repartidor"}` : "Ver en Delivery"}
+                    {order.outAt ? `En camino con ${order.courierName ?? "el repartidor"}` : "Cobrar y entregar"}
                 </button>
             ) : (
                 <button type="button" className={`kitchen-ticket__action kitchen-ticket__action--${step}`} onClick={() => onStep(order, step)}>
@@ -273,11 +273,15 @@ interface IGestionCocinaProps {
     /** Para "Ver receta". Sin token no se muestra el botón. */
     token?: string;
     onSessionExpired: () => void;
-    /** Lleva a la pestaña Delivery (cobro al entregar y pedidos a domicilio). */
+    /** Abre el pedido para confirmarlo o cobrarlo al entregar (cobro al entregar y pedidos de WhatsApp). */
     onOpenDelivery?: (orderId?: string) => void;
+    /** "prep": solo Nuevos y Preparando (los pedidos a domicilio, que lo demás lo ve Domicilio). */
+    part?: "all" | "prep";
+    /** El aviso de "sin conexión" se muestra una sola vez por pantalla. */
+    showOffline?: boolean;
 }
 
-export const GestionCocina = ({ feed, token, onSessionExpired, onOpenDelivery }: IGestionCocinaProps) => {
+export const GestionCocina = ({ feed, token, onSessionExpired, onOpenDelivery, part = "all", showOffline = true }: IGestionCocinaProps) => {
     const [now, setNow] = useState(() => Date.now());
     const [recipeLine, setRecipeLine] = useState<KitchenLine | null>(null);
     const openRecipe = token ? setRecipeLine : undefined;
@@ -333,7 +337,7 @@ export const GestionCocina = ({ feed, token, onSessionExpired, onOpenDelivery }:
 
     return (
         <div className="kitchen">
-            {offlineSince !== null && (
+            {showOffline && offlineSince !== null && (
                 <div className="kitchen-banner" role="alert">
                     <span>
                         No estamos recibiendo pedidos desde las {formatClock(offlineSince)}: revisa el Wi-Fi. Reintentando…
@@ -349,13 +353,15 @@ export const GestionCocina = ({ feed, token, onSessionExpired, onOpenDelivery }:
                 </div>
             )}
 
-            <div className={`kitchen-board${awaitingOrders.length > 0 ? " kitchen-board--four" : ""}`}>
-                {awaitingOrders.length > 0 ? (
+            <div className={`kitchen-board${part === "prep" ? " kitchen-board--prep" : awaitingOrders.length > 0 ? " kitchen-board--four" : ""}`}>
+                {part === "all" && awaitingOrders.length > 0 ? (
                     <KitchenColumn title="Por confirmar" orders={awaitingOrders} empty="" isNew now={now} onStep={runStep} onOpenDelivery={onOpenDelivery} onOpenRecipe={openRecipe} onReject={rejectOrder} />
                 ) : null}
                 <KitchenColumn title="Nuevos" orders={newOrders} empty="Sin pedidos nuevos" isNew now={now} onStep={runStep} onOpenRecipe={openRecipe} onReject={rejectOrder} />
                 <KitchenColumn title="Preparando" orders={preparingOrders} empty="Nada en preparación" now={now} onStep={runStep} onOpenRecipe={openRecipe} onReject={rejectOrder} />
-                <KitchenColumn title="Listos para retirar o enviar" orders={readyOrders} empty="Nada por entregar" now={now} onStep={runStep} onOpenDelivery={onOpenDelivery} onOpenRecipe={openRecipe} onReject={rejectOrder} />
+                {part === "all" ? (
+                    <KitchenColumn title="Listos para retirar" orders={readyOrders} empty="Nada por entregar" now={now} onStep={runStep} onOpenDelivery={onOpenDelivery} onOpenRecipe={openRecipe} onReject={rejectOrder} />
+                ) : null}
             </div>
             {recipeLine && token ? <KitchenRecipeModal token={token} line={recipeLine} onClose={() => setRecipeLine(null)} /> : null}
         </div>

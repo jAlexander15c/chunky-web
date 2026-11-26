@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { COLLABORATOR_ROLES } from "@/helpers";
 import type { CollaboratorRole } from "@/helpers";
 
-export type Section = "caja" | "cocina" | "delivery" | "inventario" | "pasteleria" | "acceso";
+export type Section = "caja" | "pedidos" | "inventario" | "pasteleria" | "acceso";
 
 export interface ISectionInfo {
     id: Section;
@@ -28,27 +28,14 @@ export const SECTIONS: ISectionInfo[] = [
         ),
     },
     {
-        id: "cocina",
-        label: "Cocina",
-        roles: ["caja"],
-        sub: "Pedidos de la web: acéptalos, márcalos listos y entrega lo que se retira",
-        icon: (
-            <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M6 13.9A4 4 0 0 1 7 6a5 5 0 0 1 10 0 4 4 0 0 1 1 7.9V20H6z" />
-                <path d="M6 17h12" />
-            </svg>
-        ),
-    },
-    {
-        id: "delivery",
-        label: "Delivery",
+        id: "pedidos",
+        label: "Pedidos",
         roles: ["caja", "repartidor"],
-        sub: "Pedidos por WhatsApp y a domicilio: confírmalos, manda el enlace y llévalos",
+        sub: "Pedidos de la web: confírmalos, prepáralos, llévalos o entrégalos",
         icon: (
             <svg className="ges-nav__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="6" cy="17" r="3" />
-                <circle cx="18" cy="17" r="3" />
-                <path d="M9 17h6l-2-7H9M13 10h3l2 7M5 10h4" />
+                <path d="M6 2l-2 4v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6l-2-4z" />
+                <path d="M4 6h16M16 10a4 4 0 0 1-8 0" />
             </svg>
         ),
     },
